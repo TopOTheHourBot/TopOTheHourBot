@@ -40,6 +40,10 @@ If a single chatter could trigger the bot, it would almost certainly be sending 
 
 I go by "braedye" in Twitch chat. Feel free to say hey or ask questions!
 
+### Why does the bot chat normally sometimes?
+
+The bot has some commands that are only usable by me and some friends. One of those commands is "$shadow", which routes whatever we're saying through the bot. If you ever see the bot talking like a normal chatter, one of us likely used that command.
+
 ## Requirements
 
 The bot was written using Python 3.10. It's only external requirement is [TwitchIO](https://twitchio.dev/en/latest/) (version 2.4.0 at the time of development).
