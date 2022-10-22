@@ -44,6 +44,10 @@ I go by "braedye" in Twitch chat. Feel free to say hey or ask questions!
 
 The bot has some commands that are only usable by me and some friends. One of those commands is "$shadow", which routes whatever we're saying through the bot. If you ever see the bot talking like a normal chatter, one of us likely used that command.
 
+### Does Hasan know about the bot?
+
+[Yes](https://clips.twitch.tv/ConfidentArtisticRutabagaKevinTurtle-LzPv2rHJROiM0bA_) (it had a different scoring system at this time).
+
 ## Requirements
 
 The bot was written using Python 3.10. Its only external requirement is [TwitchIO](https://twitchio.dev/en/latest/) (version 2.4.0 at the time of development).
