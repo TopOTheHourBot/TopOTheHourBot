@@ -44,6 +44,8 @@ I go by "braedye" in Twitch chat. Feel free to say hey or ask questions!
 
 The bot has some commands that are only usable by me and some friends. One of those commands is "$shadow", which routes whatever we're saying through the bot. If you ever see the bot talking like a normal chatter, one of us likely used that command.
 
+Twitch bots are also not like Discord bots - the user who created the bot's account may still login as the bot, and use the account as normal. This hasn't been done since the initial few days of the bot's deployment, however.
+
 ### Does Hasan know about the bot?
 
 [Yes](https://clips.twitch.tv/ConfidentArtisticRutabagaKevinTurtle-LzPv2rHJROiM0bA_) (it had a different scoring system at this time).
