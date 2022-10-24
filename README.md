@@ -40,8 +40,22 @@ If a single chatter could trigger the bot, it would almost certainly be sending 
 
 I go by "braedye" in Twitch chat. Feel free to say hey or ask questions!
 
+### Why does the bot chat normally sometimes?
+
+The bot has some commands that are only usable by me and some friends. One of those commands is "$shadow", which routes whatever we're saying through the bot. If you ever see the bot talking like a normal chatter, one of us likely used that command.
+
+Twitch bots are also not like Discord bots - the user who created the bot's account may still login as the bot, and use the account as normal. This hasn't been done since the initial few days of the bot's deployment, however.
+
+### Does Hasan know about the bot?
+
+[Yes](https://clips.twitch.tv/ConfidentArtisticRutabagaKevinTurtle-LzPv2rHJROiM0bA_) (it had a different scoring system at this time).
+
 ## Requirements
 
-The bot was written using Python 3.10. It's only external requirement is [TwitchIO](https://twitchio.dev/en/latest/) (version 2.4.0 at the time of development).
+The bot was written using Python 3.10. Its only external requirement is [TwitchIO](https://twitchio.dev/en/latest/) (version 2.4.0 at the time of development).
 
 This repository serves only as a public display of the bot's source code, and is not used by the system that hosts the bot. The bot is ran using a rudimentary scheduling script, hosted on a [Raspberry Pi](https://www.raspberrypi.org/).
+
+## Contributing
+
+Feel free to open pull requests and issues here. While this repository is not used by the aforementioned Raspberry Pi system, I (Braedyn) can merge changes with the "official" running version.
