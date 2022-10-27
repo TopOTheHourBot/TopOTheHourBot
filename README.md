@@ -16,17 +16,19 @@ When an emote and score pairing is first discovered, the bot will begin a "tally
 
 During a tallying phase, using an emote (from one of the few listed above) becomes unnecessary - a message that contains a score will be counted regardless of its other content. This allows more chatters to contribute a score (knowingly or unknowingly), without sacrificing the "security" that the emote provides against false positive detections. This means there must be at least one chatter that sends an emote and score pairing before messages may contain a score alone - messages that contain a score prior to this chatter's message will not be counted towards the average.
 
-Parts of this explanation were left intentionally vague - specifically, the timer and minimum number of chatters needed for the bot to say something. These two parameters have changed a lot, especially after Hasan first noticed it, and will likely receive more changes until it's about right. At the time of writing, the discovery timer defaults to 9 seconds, and the minimum number of chatters defaults to 15. Though, again, these values are likely to change with time. These values may also change dynamically, as the bot has commands that allow its "moderators" to change them when active (these will regress back to their default values the next day, however).
+Parts of this explanation were left intentionally vague - specifically, the timer and minimum number of chatters needed for the bot to say something. These two parameters have changed a lot, [especially after Hasan first noticed it](https://clips.twitch.tv/ConfidentArtisticRutabagaKevinTurtle-LzPv2rHJROiM0bA_), and will likely receive more changes until it's about right. On the latest update to the bot, the discovery timer defaults to 9 seconds, and the minimum number of chatters defaults to 15. Though, again, these values are likely to change with time. They may also change dynamically, as the bot has commands that allow its "moderators" (me and some friends in chat) to change them while the bot is online.
 
 ## FAQ
 
 ### Are my messages kept somewhere?
 
-Temporarily, yes - they have to be. Permanently - no.
+Temporarily, yes - they have to be. Permanently, no.
 
-In computing, there's the concept of volatility. Volatile memory is stuff like random-access memory (or RAM), non-volatile memory is stuff like hard drives. TopOTheHourBot runs on pure volatile memory - it will not know anything about what it has done in the past after it's taken offline and re-booted (which is done everyday).
+In computing, there's this concept of volatile, and non-volatile memory. Volatile memory is stuff like random-access memory (or RAM) - this is typically for things that a program may need to remember for its lifespan, but may not necessarily require it in future lifespans. Non-volatile memory is stuff like hard drives - things that a program may, still, need to remember for its lifespan, but may also require it in future lifespans.
 
-If a message has no relevance to the bot (i.e., it's a message that won't count towards any ongoing average), it's almost immediately discarded from memory. If a message does have relevance to the bot, the score is extracted from the message's content, and everything else is discarded except the name of the user who sent the message. The name tied to this message is used in a set to determine who has/hasn't submitted a score. When the tallying phase has come to a close, all of the names and scores are then discarded from memory to repeat the process later.
+TopOTheHourBot runs solely on *volatile* memory - it will not know anything about what it has done in the past after it's taken offline and re-booted (which is done everyday). Meaning that the bot *cannot* keep messages or other information permanently.
+
+If a message has no relevance to the bot (i.e., it's a message that won't count towards any ongoing average), it's almost immediately discarded from memory. If a message does have relevance to the bot, the score is extracted from the message's content, and everything else is discarded except the name of the user who sent the message. The name tied to this message is used in a [set](https://en.wikipedia.org/wiki/Set_(mathematics)) (basically, a collection of unique elements) to determine who has/hasn't submitted a score. When the tallying phase has come to a close, all of the names and scores are then discarded from memory to repeat the process later.
 
 ### Can I submit multiple scores?
 
@@ -46,10 +48,6 @@ The bot has some commands that are only usable by me and some friends. One of th
 
 Twitch bots are also not like Discord bots - the user who created the bot's account may still login as the bot, and use the account as normal. This hasn't been done since the initial few days of the bot's deployment, however.
 
-### Does Hasan know about the bot?
-
-[Yes](https://clips.twitch.tv/ConfidentArtisticRutabagaKevinTurtle-LzPv2rHJROiM0bA_) (it had a different scoring system at this time).
-
 ## Requirements
 
 The bot was written using Python 3.10. Its only external requirement is [TwitchIO](https://twitchio.dev/en/latest/) (version 2.4.0 at the time of development).
@@ -58,4 +56,6 @@ This repository serves only as a public display of the bot's source code, and is
 
 ## Contributing
 
-Feel free to open pull requests and issues here. While this repository is not used by the aforementioned Raspberry Pi system, I (Braedyn) can merge changes with the "official" running version.
+Feel free to open pull requests and issues here. While this repository is not used by the aforementioned Raspberry Pi, I (Braedyn) can merge changes with the "official" running version.
+
+This personal mini-project has been considered finished for a while. Though, if you have ideas for a more comprehensive segue-detection system, do consider opening a pull request and/or issue to discuss.
