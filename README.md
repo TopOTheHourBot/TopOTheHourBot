@@ -52,7 +52,7 @@ Twitch bots are also not like Discord bots - the user who created the bot's acco
 
 The bot was written using Python 3.10. Its only external requirement is [TwitchIO](https://twitchio.dev/en/latest/) (version 2.4.0 at the time of development).
 
-This repository serves only as a public display of the bot's source code, and is not used by the system that hosts the bot. The bot is ran using a rudimentary scheduling script, hosted on a [Raspberry Pi](https://www.raspberrypi.org/).
+This repository serves only as a public display of the bot's source code, and is not used by the system that hosts the bot. The bot is ran using a rudimentary scheduling script, hosted on a [Raspberry Pi](https://www.raspberrypi.com/).
 
 ## Contributing
 

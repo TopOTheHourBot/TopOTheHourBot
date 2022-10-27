@@ -114,8 +114,7 @@ class TopOTheHourBot(Bot):
         tuple).
         """
         seen = set()
-        m = 0
-        n = 0
+        m = 0.0
 
         while True:
             try:
@@ -125,9 +124,10 @@ class TopOTheHourBot(Bot):
             else:
                 if hashable not in seen:
                     m += score
-                    n += 1
                     seen.add(hashable)
                 self._mean_queue.task_done()
+
+        n = len(seen)
 
         logging.info(f"tallied {n} unique chatters")
 
