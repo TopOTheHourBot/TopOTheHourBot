@@ -5,20 +5,24 @@ import re
 import uuid
 from asyncio import Queue, TimeoutError
 from collections.abc import Hashable
-from typing import SupportsFloat, SupportsIndex
+from typing import Any
 
 from twitchio import Channel, Message
 from twitchio.ext.commands import Bot, Context, command
 from twitchio.ext.routines import routine
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    format="[%(asctime)s] [%(name)s] %(message)s",
+    level=logging.INFO,
+)
+
 
 class CommandError(RuntimeError):
-    """Raised on invalid command syntax"""
+    """Raised on bad command input"""
     pass
 
 
-def clamp(x: SupportsIndex | SupportsFloat | str, lo: float = 0.0, hi: float = 10.0) -> float:
+def clamp(x: Any, lo: float = 0.0, hi: float = 10.0) -> float:
     """Return `x` clamped between `lo` and `hi`, inclusively"""
     return max(lo, min(hi, float(x)))
 
@@ -31,7 +35,7 @@ class TopOTheHourBot(Bot):
     below 0 or above 10.
 
     For the bot to begin averaging, a user must submit a message containing a
-    score and "key". This key is defined as being one of the following emotes:
+    score and key. This "key" is defined as being one of the following emotes:
     - DANKIES (or some variation during holidays)
     - PogO
     - TomatoTime
@@ -53,97 +57,118 @@ class TopOTheHourBot(Bot):
         moderators: set[str],
         channel: str = "hasanabi",
         decay: float = 9.0,
-        count: int = 15,
+        count: int = 20,
         negative_emotes: tuple[str, ...] = ( "Sadge",  "FeelsBadMan",   "widepeepoSad", "unPOGGERS", "PogO", "😔"),
         positive_emotes: tuple[str, ...] = ("Gladge", "FeelsOkayMan", "widepeepoHappy",   "POGGERS", "PogU", "😳"),
     ) -> None:
         super().__init__(token, client_secret=client_secret, prefix="$", initial_channels=(channel,))
-        self.moderators: set[str] = moderators
-        self.decay: float = decay
-        self.count: int = count
-        self.negative_emotes: tuple[str, ...] = negative_emotes
-        self.positive_emotes: tuple[str, ...] = positive_emotes
+        self._moderators: set[str] = moderators
+        self._decay: float = decay
+        self._count: int = count
+        self._negative_emotes: tuple[str, ...] = negative_emotes
+        self._positive_emotes: tuple[str, ...] = positive_emotes
 
-        self.mean_buffer: Queue[tuple[Hashable, float]] = Queue()
-        self.mean_max: float = 0.0
-        self.active: bool = False
+        self._mean_queue: Queue[tuple[Hashable, float]] = Queue()
+        self._mean_max: float = 0.0
+        self._pending: bool = False
+
+    @property
+    def decay(self) -> float:
+        """The amount of time allowance between subsequent score discoveries,
+        in seconds
+        """
+        return self._decay
+
+    @decay.setter
+    def decay(self, value: Any) -> None:
+        value = float(value)
+        if value <= 0:
+            raise ValueError("decay time must be greater than 0 seconds")
+        self._decay = value
+
+    @property
+    def count(self) -> int:
+        """The minimum number of unique chatters needed for the average score
+        to be sent to the connected channel
+        """
+        return self._count
+
+    @count.setter
+    def count(self, value: Any) -> None:
+        value = int(value)
+        if value <= 0:
+            raise ValueError("minimum chatter count must be greater than 0")
+        self._count = value
 
     @routine(iterations=1)
     async def mean(self, channel: Channel) -> None:
-        """Wait for, and average the scores put into `mean_buffer`, sending a
-        message to `channel`
+        """Wait for, and average the scores put into `_mean_queue`, sending the
+        average to `channel`
 
-        The execution of this method signifies that a tallying phase has begun.
-        Items must be placed into the `mean_buffer` within intervals of `decay`
-        seconds.
+        The execution of this method signifies that an averaging phase has
+        begun. Items must be placed into `_mean_queue` within intervals of
+        `_decay` seconds.
 
-        The message will only be sent if `count` or more unique scores were
-        tallied (uniqueness being determined by the hashable object that should
-        be the first item of each tuple within the mean buffer).
+        The message will only be sent if `_count` or more unique scores were
+        tallied (uniqueness being determined by the hashable object of each
+        tuple).
         """
         seen = set()
-        m = n = 0
+        m = 0
+        n = 0
 
         while True:
             try:
-                id, score = await asyncio.wait_for(self.mean_buffer.get(), timeout=self.decay)
+                hashable, score = await asyncio.wait_for(self._mean_queue.get(), timeout=self._decay)
             except TimeoutError:
                 break
             else:
-                if id not in seen:
+                if hashable not in seen:
                     m += score
                     n += 1
-                    seen.add(id)
-                self.mean_buffer.task_done()
+                    seen.add(hashable)
+                self._mean_queue.task_done()
 
-        if n >= self.count:
-            mean = round(m / n, ndigits=2)
-            mean_max = self.mean_max
+        logging.info(f"tallied {n} unique chatters")
 
-            if mean > mean_max:
-                self.mean_max = mean
-                splash = "best one today, hassy!"
-                emotes = self.positive_emotes
-            elif mean <= 2.0:
-                splash = "awful one, hassy"
-                emotes = self.negative_emotes
-            elif mean <= 5.0:
-                splash = "good attempt, hassy"
-                emotes = self.negative_emotes
-            elif mean <= 8.0:
-                splash = "nice one, hassy!"
-                emotes = self.positive_emotes
-            else:
-                splash = "incredible, hassy!"
-                emotes = self.positive_emotes
-            emote = random.choice(emotes)
+        if n < self._count:
+            return
 
-            await channel.send(f"PeepoWeen 🔔 {n} chatters rated this ad segue an average of {mean}/10 - {splash} {emote}")
+        mean = round(m / n, ndigits=2)
+        mean_max = self._mean_max
+
+        if mean > mean_max:
+            self._mean_max = mean
+            splash = "best one today, hassy!"
+            emotes = self._positive_emotes
+        elif mean <= 2.0:
+            splash = "awful one, hassy"
+            emotes = self._negative_emotes
+        elif mean <= 5.0:
+            splash = "good attempt, hassy"
+            emotes = self._negative_emotes
+        elif mean <= 8.0:
+            splash = "nice one, hassy!"
+            emotes = self._positive_emotes
+        else:
+            splash = "incredible, hassy!"
+            emotes = self._positive_emotes
+
+        emote = random.choice(emotes)
+
+        await channel.send(f"PeepoWeen 🔔 {n} chatters rated this ad segue an average of {mean}/10 - {splash} {emote}")
 
     @mean.before_routine
     async def mean_before(self) -> None:
-        """Sets the `active` state to true"""
-        self.active = True
+        """Sets the `_pending` state to true"""
+        self._pending = True
+        logging.info("averaging phase started, result pending...")
 
     @mean.after_routine
     async def mean_after(self) -> None:
-        """Sets the `active` state to false"""
-        self.active = False
-
-    @command()
-    async def proxy(self, ctx: Context) -> None:
-        """Submit a score to `mean_buffer` using a proxy identifier"""
-        content = ctx.message.content
-        match content.split():
-            case [_, token, *_]:
-                match = self.VAL.match(token)
-                if match:
-                    self.mean_buffer.put_nowait((
-                        uuid.uuid4(),
-                        clamp(match.group("value")),
-                    ))
-                    return
-        raise CommandError("Bad invoke")
+        """Sets the `_pending` state to false"""
+        self._pending = False
+        logging.info("...done")
 
     # This exists mainly as a way to check the bot's live status. Note that the
     # TwitchIO client will automatically defer messages if certain rate limits
@@ -153,54 +178,54 @@ class TopOTheHourBot(Bot):
     @command()
     async def ping(self, ctx: Context) -> None:
         """Respond with pong"""
-        name = ctx.author.name
-        await ctx.send(f"@{name} pong")
+        await ctx.send(f"@{ctx.author.name} pong")
+
+    @command()
+    async def proxy(self, ctx: Context) -> None:
+        """Submit a score to `_mean_queue` using a proxy identifier"""
+        match ctx.message.content.split():
+            case [_, token, *_]:
+                if (match := self.VAL.match(token)):
+                    self._mean_queue.put_nowait((
+                        uuid.uuid4(),
+                        clamp(match.group("value")),
+                    ))
+            case _:
+                raise CommandError("bad invoke")
 
     @command()
     async def echo(self, ctx: Context) -> None:
         """Write a message as the bot, signifying that the message came from
         the command's user
         """
-        name    = ctx.author.name
-        content = ctx.message.content
-        match content.split():
+        match ctx.message.content.split():
             case [_, *words]:
-                await ctx.send(f"@{name} (echo): {' '.join(words)}")
+                await ctx.send(f"@{ctx.author.name} (echo): {' '.join(words)}")
+            case _:
+                raise CommandError("bad invoke")
 
     @command()
     async def shadow(self, ctx: Context) -> None:
         """Write a message as the bot"""
-        content = ctx.message.content
-        match content.split():
+        match ctx.message.content.split():
             case [_, *words]:
                 await ctx.send(' '.join(words))
+            case _:
+                raise CommandError("bad invoke")
 
     @command()
     async def set(self, ctx: Context) -> None:
-        """Set the `decay`, `count`, or `mean_max` attributes"""
-        name    = ctx.author.name
-        content = ctx.message.content
-        match content.split():
-            case [_, "decay", token, *_]:
-                self.decay = float(token)
-                await ctx.send(f"@{name} Decay time set to {self.decay} seconds")
-                return
-            case [_, "count", token, *_]:
-                self.count = int(token)
-                await ctx.send(f"@{name} Minimum chatter count set to {self.count}")
-                return
-            case [_, "max", token, *_]:
-                self.mean_max = float(token)
-                await ctx.send(f"@{name} Maximum score set to {self.mean_max}")
-                return
-        raise CommandError("Bad invoke")
+        """Set a property's value"""
+        match ctx.message.content.split():
+            case [_, ("decay" | "count") as name, token, *_]:
+                setattr(self, name, token)
+                await ctx.send(f"@{ctx.author.name} attribute '{name}' set to {token}")
+            case _:
+                raise CommandError("bad invoke")
 
     async def event_command_error(self, ctx: Context, error: Exception) -> None:
-        """Send the error message raised by a command failure to the command's
-        user
-        """
-        name = ctx.author.name
-        await ctx.send(f"@{name} {error}")
+        """Send the error message raised by a command to its user"""
+        await ctx.send(f"@{ctx.author.name} {error}")
 
     async def event_message(self, message: Message) -> None:
         """Search for, and manage scores submitted to the connected channel"""
@@ -209,17 +234,18 @@ class TopOTheHourBot(Bot):
 
         name    = message.author.name
         content = message.content
+        channel = message.channel
 
-        active = self.active
+        pending = self._pending
 
-        if (match := self.VAL.search(content)) and (active or self.KEY.search(content)):
+        if (match := self.VAL.search(content)) and (pending or self.KEY.search(content)):
             score = clamp(match.group("value"))
 
-            self.mean_buffer.put_nowait((name, score))
-            if not active:
-                self.mean.start(message.channel)
+            self._mean_queue.put_nowait((name, score))
+            if not pending:
+                self.mean.start(channel, stop_on_error=False)  # Continue on error, otherwise mean_after() won't be called
 
-        if name in self.moderators:
+        if name in self._moderators:
             await self.handle_commands(message)
 
 
