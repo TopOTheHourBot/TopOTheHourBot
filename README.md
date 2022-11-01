@@ -22,7 +22,7 @@ The bot will send a message that contains the average if there were at least 20 
 DANKIES 🔔 <chatter count> rated this ad segue an average of <average score>/10 - <splash> <emote>
 ```
 
-The `<splash>` and `<emote>` fields vary depending on how high/low the average was, and if the average was the highest it had seen during its runtime. There are 4 possible splash fields, and 12 possible emotes (6 positive and 6 negative).
+The `<splash>` and `<emote>` fields vary depending on how high/low the average was, and if the average was the highest it had seen during its runtime. There are 5 possible splash fields, and 12 possible emotes (6 positive and 6 negative).
 
 ## FAQ
 
