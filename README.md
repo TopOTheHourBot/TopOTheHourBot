@@ -40,11 +40,11 @@ If a single chatter could trigger the bot, it would almost certainly be sending 
 
 ### Who made the bot?
 
-I go by "braedye" in Twitch chat. Feel free to say hey or ask questions!
+I go by "braedye" in Twitch chat. Feel free to say hey!
 
 ### Why does the bot chat normally sometimes?
 
-The bot has some commands that are only usable by me and some friends. One of those commands is "$shadow", which routes whatever we're saying through the bot. If you ever see the bot talking like a normal chatter, one of us likely used that command.
+The bot has some commands that are only usable by me and some friends. It used to have a command called "$shadow", which would route whatever we're saying through the bot, without an indication that the message came from someone else (there's a similar command, $echo, which does the same thing but shows that the message came from one of us).
 
 Twitch bots are also not like Discord bots - the user who created the bot's account may still login as the bot, and use the account as normal. This hasn't been done since the initial few days of the bot's deployment, however.
 

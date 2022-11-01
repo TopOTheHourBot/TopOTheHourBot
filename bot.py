@@ -46,7 +46,7 @@ class TopOTheHourBot(Bot):
     footprint low - it is designed to only operate under one channel.
     """
 
-    KEY = re.compile(r"DANKIES|PeepoWeen|PogO|TomatoTime")
+    KEY = re.compile(r"DANKIES|PogO|TomatoTime")
     VAL = re.compile(r"(?P<value>-?\d+(?:\.\d*)?)\s?/\s?10")
 
     def __init__(
@@ -71,34 +71,6 @@ class TopOTheHourBot(Bot):
         self._mean_queue: Queue[tuple[Hashable, float]] = Queue()
         self._mean_max: float = 0.0
         self._pending: bool = False
-
-    @property
-    def decay(self) -> float:
-        """The amount of time allowance between subsequent score discoveries,
-        in seconds
-        """
-        return self._decay
-
-    @decay.setter
-    def decay(self, value: Any) -> None:
-        value = float(value)
-        if value <= 0:
-            raise ValueError("decay time must be greater than 0 seconds")
-        self._decay = value
-
-    @property
-    def count(self) -> int:
-        """The minimum number of unique chatters needed for the average score
-        to be sent to the connected channel
-        """
-        return self._count
-
-    @count.setter
-    def count(self, value: Any) -> None:
-        value = int(value)
-        if value <= 0:
-            raise ValueError("minimum chatter count must be greater than 0")
-        self._count = value
 
     @routine(iterations=1)
     async def mean(self, channel: Channel) -> None:
@@ -156,7 +128,7 @@ class TopOTheHourBot(Bot):
 
         emote = random.choice(emotes)
 
-        await channel.send(f"PeepoWeen 🔔 {n} chatters rated this ad segue an average of {mean}/10 - {splash} {emote}")
+        await channel.send(f"DANKIES 🔔 {n} chatters rated this ad segue an average of {mean}/10 - {splash} {emote}")
 
     @mean.before_routine
     async def mean_before(self) -> None:
@@ -169,11 +141,6 @@ class TopOTheHourBot(Bot):
         """Sets the `_pending` state to false"""
         self._pending = False
         logging.info("...done")
-
-    # This exists mainly as a way to check the bot's live status. Note that the
-    # TwitchIO client will automatically defer messages if certain rate limits
-    # are reached. Thus, an absent reply may not always mean that the bot is in
-    # an unresponsive state.
 
     @command()
     async def ping(self, ctx: Context) -> None:
@@ -205,21 +172,12 @@ class TopOTheHourBot(Bot):
                 raise CommandError("bad invoke")
 
     @command()
-    async def shadow(self, ctx: Context) -> None:
-        """Write a message as the bot"""
+    async def code(self, ctx: Context) -> None:
+        """Tell other users where they can find the bot's source code"""
         match ctx.message.content.split():
-            case [_, *words]:
-                await ctx.send(' '.join(words))
-            case _:
-                raise CommandError("bad invoke")
-
-    @command()
-    async def set(self, ctx: Context) -> None:
-        """Set a property's value"""
-        match ctx.message.content.split():
-            case [_, ("decay" | "count") as name, token, *_]:
-                setattr(self, name, token)
-                await ctx.send(f"@{ctx.author.name} attribute '{name}' set to {token}")
+            case [_, *names]:
+                names = map(lambda name: name if name.startswith('@') else f"@{name}", names)
+                await ctx.send(f"{' '.join(names)} the bot's source code can be found on its Twitch profile Okayge")
             case _:
                 raise CommandError("bad invoke")
 
