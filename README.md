@@ -46,6 +46,12 @@ Twitch bots are also not like Discord bots - the user who created the bot's acco
 
 It's a small homage to a friend of mine in chat, whose name also ends in "bot" (but isn't one).
 
+### Why did the bot not send out a message at [some moment in time]?
+
+The bot unfortunately suffers from the same issue that all chatters experience - that issue being Twitch's message batching system.
+
+If you didn't already know: when a Twitch chat is moving quickly, messages will be served in batches. You can see this process occuring when the Twitch chat is moving and stopping periodically - if you don't send a message while the chat is moving, your message will be dropped. [This can be seen on Chatterino](https://github.com/Chatterino/chatterino2/issues/1213), but not on the native Twitch client. The native Twitch web client will "lie" to you by displaying your message on the screen when, in reality, it may have never been sent.
+
 ### Are my messages kept somewhere?
 
 Temporarily, yes - they have to be. Permanently, no.
