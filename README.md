@@ -60,7 +60,7 @@ In computing, there's this concept of volatile, and non-volatile memory. Volatil
 
 TopOTheHourBot runs solely on *volatile* memory - it will not know anything about what it has done in the past after it's taken offline and re-booted (which is done everyday). Meaning that the bot *cannot* keep messages or other information permanently.
 
-If a message has no relevance to the bot (i.e., it's a message that won't count towards any ongoing average), it's almost immediately discarded from memory. If a message does have relevance to the bot, the score is extracted from the message's content, and everything else is discarded except the name of the user who sent the message. The name tied to this message is used in a [set](https://en.wikipedia.org/wiki/Set_(mathematics)) (basically, a collection of unique elements) to determine who has/hasn't submitted a score. When the tallying phase has come to a close, all of the names and scores are then discarded from memory to repeat the process later.
+If a message has no relevance to the bot (i.e., it's a message that won't count towards any ongoing average), it's almost immediately discarded from memory. If a message does have relevance to the bot, the score is extracted from the message's content, and everything else is discarded except the name of the user who sent the message. The name tied to this message is used in a [set](https://en.wikipedia.org/wiki/Set_(mathematics)) (basically, a collection of unique elements) to determine who has/hasn't submitted a score. When the averaging phase has come to a close, all of the names and scores are then discarded from memory to repeat the process later.
 
 ### Why is there a minimum number of chatters needed for the bot to send out an average?
 
