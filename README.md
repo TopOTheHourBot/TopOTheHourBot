@@ -16,7 +16,7 @@ When the bot is online, it spends most of its time searching for a message that 
 
 Values are internally kept as [floating point](https://en.wikipedia.org/wiki/Floating-point_arithmetic) numbers. When a value is matched, it is put onto a queue to be tallied by an averaging function that runs in the background. This averaging function continuously waits for values to be placed onto the queue in intervals of ~9.5 seconds (referred to as the "timeout"). When values can no longer be found, the waiting process ends, and the average is calculated from the values it had collected.
 
-The bot will send a message that contains the average if there were at least 20 unique chatters that submitted a matchable value. The format of its message is, roughly:
+The bot will send a message that contains the average if there were at least 20 chatters that submitted a matchable value. The format of its message is, roughly:
 
 ```
 DANKIES 🔔 <chatter count> rated this ad segue an average of <average score>/10 - <splash> <emote>
@@ -67,8 +67,6 @@ Temporarily, yes - they have to be. Permanently, no.
 In computing, there's this concept of volatile, and non-volatile memory. Volatile memory is stuff like random-access memory (or RAM) - this is typically for things that a program may need to remember for its lifespan, but may not necessarily require it in future lifespans. Non-volatile memory is stuff like hard drives - things that a program may, still, need to remember for its lifespan, but may also require it in future lifespans.
 
 TopOTheHourBot runs solely on *volatile* memory - it will not know anything about what it has done in the past after it's taken offline and re-booted (which is done everyday). Meaning that the bot *cannot* keep messages or other information permanently.
-
-If a message has no relevance to the bot (i.e., it's a message that won't count towards any ongoing average), it's almost immediately discarded from memory. If a message does have relevance to the bot, the score is extracted from the message's content, and everything else is discarded except the name of the user who sent the message. The name tied to this message is used in a [set](https://en.wikipedia.org/wiki/Set_(mathematics)) (basically, a collection of unique elements) to determine who has/hasn't submitted a score. When the averaging phase has come to a close, all of the names and scores are then discarded from memory to repeat the process later.
 
 ### Can I have this bot in my chat?
 
