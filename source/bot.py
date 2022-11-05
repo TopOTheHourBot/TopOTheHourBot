@@ -71,10 +71,7 @@ class TopOTheHourBot(Bot):
 
     async def event_ready(self):
         for channel in self.connected_channels:
-            await channel.send(
-                "Bot online - use DANKIES , PogO , or TomatoTime with a score out of 10 to rate an ad segue! "
-                "(further conditions apply, read more on my profile)"
-            )
+            await channel.send("DANKIES bot online - keep those segue scores high, hassy! DANKIES")
 
     async def event_message(self, message: Message) -> None:
         if message.echo:
