@@ -22,7 +22,7 @@ The bot will send a message that contains the average if there were at least 20 
 DANKIES 🔔 <chatter count> rated this ad segue an average of <average score>/10 - <splash> <emote>
 ```
 
-The `<splash>` and `<emote>` fields vary depending on how high/low the average was, and if the average was the highest it had seen during its runtime. There are 4 possible splash fields, and 12 possible emotes (6 positive and 6 negative).
+The `<splash>` and `<emote>` fields vary depending on how high/low the average was, and if the average was the highest it had seen during its runtime. There are 5 possible splash fields, and 12 possible emotes (6 positive and 6 negative).
 
 ## FAQ
 
@@ -54,6 +54,12 @@ The bot currently runs on a [DigitalOcean Droplet](https://www.digitalocean.com/
 
 The bot has been moved to many different locations, however, and is likely to change again in the future.
 
+### Why did the bot not send out a message at [some moment in time]?
+
+The bot unfortunately suffers from the same issue that all chatters experience - that issue being Twitch's message batching system.
+
+If you didn't already know: when a Twitch chat is moving quickly, messages will be served in batches. You can see this process occuring when the Twitch chat is moving and stopping periodically - if you don't send a message while the chat is moving, your message will be dropped. [This can be seen on Chatterino](https://github.com/Chatterino/chatterino2/issues/1213), but not on the native Twitch client. The native Twitch web client will "lie" to you by displaying your message on the screen when, in reality, it may have never been sent.
+
 ### Are my messages kept somewhere?
 
 Temporarily, yes - they have to be. Permanently, no.
@@ -62,7 +68,7 @@ In computing, there's this concept of volatile, and non-volatile memory. Volatil
 
 TopOTheHourBot runs solely on *volatile* memory - it will not know anything about what it has done in the past after it's taken offline and re-booted (which is done everyday). Meaning that the bot *cannot* keep messages or other information permanently.
 
-If a message has no relevance to the bot (i.e., it's a message that won't count towards any ongoing average), it's almost immediately discarded from memory. If a message does have relevance to the bot, the score is extracted from the message's content, and everything else is discarded except the name of the user who sent the message. The name tied to this message is used in a [set](https://en.wikipedia.org/wiki/Set_(mathematics)) (basically, a collection of unique elements) to determine who has/hasn't submitted a score. When the tallying phase has come to a close, all of the names and scores are then discarded from memory to repeat the process later.
+If a message has no relevance to the bot (i.e., it's a message that won't count towards any ongoing average), it's almost immediately discarded from memory. If a message does have relevance to the bot, the score is extracted from the message's content, and everything else is discarded except the name of the user who sent the message. The name tied to this message is used in a [set](https://en.wikipedia.org/wiki/Set_(mathematics)) (basically, a collection of unique elements) to determine who has/hasn't submitted a score. When the averaging phase has come to a close, all of the names and scores are then discarded from memory to repeat the process later.
 
 ### Can I have this bot in my chat?
 
