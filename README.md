@@ -8,13 +8,13 @@ The bot reads each incoming chat message searching for two items: an emote (DANK
 
 The ordering of the emote and score does not matter, and the message may contain other content so long as the two things appear somewhere within the message. When such a message is first discovered, using an emote alongside a score becomes unnecessary - a message that contains a score alone will be counted towards the average.
 
-## In-Depth Details
+## Further Details
 
 Internally, the emote and score are referred to as the "key" and "value", respectively - these terms will be used throughout the remainder of this section.
 
 When the bot is online, it spends most of its time searching for a message that contains *both* a key and value. When there is a message that fulfills this criteria, an averaging phase is started. When an averaging phase is active, the key is no longer required.
 
-Values are internally kept as [floating point numbers](https://docs.python.org/3/library/functions.html#float). When a value is matched, it is put onto a queue to be tallied by an averaging function that runs in the background. This averaging function continuously waits for values to be placed onto the queue in intervals of ~9 seconds (referred to as the "decay time"). When values can no longer be found, the waiting process ends, and the average is calculated from the values it had collected.
+Values are internally kept as [floating point](https://en.wikipedia.org/wiki/Floating-point_arithmetic) numbers. When a value is matched, it is put onto a queue to be tallied by an averaging function that runs in the background. This averaging function continuously waits for values to be placed onto the queue in intervals of ~9.5 seconds (referred to as the "timeout"). When values can no longer be found, the waiting process ends, and the average is calculated from the values it had collected.
 
 The bot will send a message that contains the average if there were at least 20 unique chatters that submitted a matchable value. The format of its message is, roughly:
 
@@ -28,9 +28,7 @@ The `<splash>` and `<emote>` fields vary depending on how high/low the average w
 
 ### Can I submit multiple scores?
 
-The bot will use the first score it has seen from you during an averaging phase - your subsequent scores are ignored. If you wanted to submit multiple scores in an effort to skew the average, you'd need multiple accounts.
-
-Submitting multiple scores will, however, allow more chatters to contribute one for themselves (since it refreshes the decay time).
+You can, yes. In prior iterations of the bot, you were unable to do so unless you had multiple accounts, but I ultimately decided that it'd be more fun if chatters could fight to skew the average in a certain direction.
 
 ### Can I submit a negative score? A score that's greater than 10? A decimal?
 
@@ -42,9 +40,19 @@ The bot has some commands that are only usable by me and some friends. It used t
 
 Twitch bots are also not like Discord bots - the user who created the bot's account may still login as the bot, and use the account as normal. This hasn't been done since the initial few days of the bot's deployment, however (there was one message sent in Hasan's chat, from me, that was done to test something).
 
+### When does the bot run?
+
+The bot will go online everyday at 2:00 PM Eastern (or, 11:00 AM Pacific in Hasan's time). It goes offline after 10 hours.
+
 ### Why is the bot's name pink?
 
 It's a small homage to a friend of mine in chat, whose name also ends in "bot" (but isn't one).
+
+### How is the bot ran?
+
+The bot currently runs on a [DigitalOcean Droplet](https://www.digitalocean.com/products/droplets) that executes the main.py script from a [cron job](https://en.wikipedia.org/wiki/Cron).
+
+The bot has been moved to many different locations, however, and is likely to change again in the future.
 
 ### Are my messages kept somewhere?
 
@@ -56,18 +64,14 @@ TopOTheHourBot runs solely on *volatile* memory - it will not know anything abou
 
 If a message has no relevance to the bot (i.e., it's a message that won't count towards any ongoing average), it's almost immediately discarded from memory. If a message does have relevance to the bot, the score is extracted from the message's content, and everything else is discarded except the name of the user who sent the message. The name tied to this message is used in a [set](https://en.wikipedia.org/wiki/Set_(mathematics)) (basically, a collection of unique elements) to determine who has/hasn't submitted a score. When the tallying phase has come to a close, all of the names and scores are then discarded from memory to repeat the process later.
 
-### Why is there a minimum number of chatters needed for the bot to send out an average?
+### Can I have this bot in my chat?
 
-If a single chatter could trigger the bot, it would almost certainly be sending a message every few seconds due to people constantly invoking it - this is probably the biggest reason for the minimum. The other is that you may have chatters sending an emote and score pairing outside of an ad segue, likely not in as large a quantity, and so a minimum works well to prevent some false positive detections.
+The bot was built with Hasan's chat in mind, alone -  narrowing its scope to one chat makes it easier to program, and reduces its amount of processing power. It is, unfortunately, not in a state to be active in more than one chat.
 
 ## Requirements
 
 The bot was written using Python 3.10. Its only external requirement is [TwitchIO](https://twitchio.dev/en/latest/) (version 2.4.0 at the time of development).
 
-This repository serves only as a public display of the bot's source code, and is not used by the system that hosts the bot. The bot is ran using a rudimentary scheduling script, hosted on a [Raspberry Pi](https://www.raspberrypi.com/).
-
 ## Contributing
 
-Feel free to open pull requests and issues here. While this repository is not used by the aforementioned Raspberry Pi, I (Braedyn) can merge changes with the "official" running version.
-
-This personal mini-project has been considered finished for a while. Though, if you have ideas for a more comprehensive segue-detection system, do consider opening a pull request and/or issue to discuss.
+Feel free to open pull requests and issues here. This personal mini-project has been considered finished for a while, though, if you have ideas for a more comprehensive segue-detection system, do consider opening a pull request and/or issue to discuss.
