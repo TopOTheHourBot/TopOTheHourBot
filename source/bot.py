@@ -69,12 +69,14 @@ class TopOTheHourBot(Bot):
             case _:
                 raise RuntimeError("bad invoke")
 
-    async def event_ready(self):
-        for channel in self.connected_channels:
-            await channel.send(
-                "Bot online - use DANKIES , PogO , or TomatoTime with a score out of 10 to rate an ad segue! "
-                "(further conditions apply, read more on my profile)"
-            )
+    # XXX: Debating on whether to keep this enabled or not
+
+    # async def event_ready(self):
+    #     for channel in self.connected_channels:
+    #         await channel.send(
+    #             "Bot online - use DANKIES , PogO , or TomatoTime with a score out of 10 to rate an ad segue! "
+    #             "(further conditions apply, read more on my profile)"
+    #         )
 
     async def event_message(self, message: Message) -> None:
         if message.echo:

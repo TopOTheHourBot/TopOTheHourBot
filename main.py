@@ -33,9 +33,11 @@ async def main(runtime: float = 36000) -> None:
         moderators={"braedye", "bytesized_", "emjaye"},
     )
 
-    await bot.connect()
-    await asyncio.sleep(runtime)
-    await bot.close()
+    try:
+        await bot.connect()
+        await asyncio.sleep(runtime)
+    finally:
+        await bot.close()
 
 
 if __name__ == "__main__":
