@@ -2,7 +2,7 @@
 
 TopOTheHourBot is a simple bot that only runs in HasanAbi's chat. It does one thing - that thing being to tally ad segue scores for an average.
 
-![](./assets/example.png)
+![](./.github/assets/example.png)
 
 The bot reads each incoming chat message searching for two items: an emote (DANKIES, PogO, or TomatoTime), and a score (a fraction whose denominator is 10, written vaguely like "X/10", where "X" can be any number).
 
