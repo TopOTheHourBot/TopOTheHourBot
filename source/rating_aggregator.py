@@ -53,7 +53,7 @@ class RatingAggregator(Cog):
 
     KEY: Pattern[str] = re.compile(r"DANKIES|PogO|TomatoTime")
     VAL: Pattern[str] = re.compile(r"(-?\d+(?:\.\d*)?)\s?/\s?10")
-    KEY_DENSITY: int = 5
+    KEY_DENSITY: int = 3
     VAL_DENSITY: int = 20
 
     # Emotes used in the post() message based on how high/low the average was.

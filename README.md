@@ -6,23 +6,19 @@ TopOTheHourBot is a simple bot that only runs in HasanAbi's chat. It does one th
 
 The bot reads each incoming chat message searching for two items: an emote (DANKIES, PogO, or TomatoTime), and a score (a fraction whose denominator is 10, written vaguely like "X/10", where "X" can be any number).
 
-The ordering of the emote and score does not matter, and the message may contain other content so long as the two things appear somewhere within the message. When such a message is first discovered, using an emote alongside a score becomes unnecessary - a message that contains a score alone will be counted towards the average.
+If a high density of emotes and scores can be found within a certain timespan, TopOTheHourBot will send a notification to the channel, telling the average score.
 
 ## Further Details
 
-Internally, the emote and score are referred to as the "key" and "value", respectively - these terms will be used throughout the remainder of this section.
+Internally, the emotes and score are referred to as the "key" and "value", respectively - these terms will be used throughout the remainder of this section.
 
-When the bot is online, it spends most of its time searching for a message that contains *both* a key and value. When there is a message that fulfills this criteria, an averaging phase is started. When an averaging phase is active, the key is no longer required.
+When the bot is online, it spends most of its time searching for a message that contains a value alone. When a value is first discovered, a background task is executed - known as the "aggregator".
 
-Values are internally kept as [floating point](https://en.wikipedia.org/wiki/Floating-point_arithmetic) numbers. When a value is matched, it is put onto a queue to be tallied by an averaging function that runs in the background. This averaging function continuously waits for values to be placed onto the queue in intervals of ~9.5 seconds (referred to as the "timeout"). When values can no longer be found, the waiting process ends, and the average is calculated from the values it had collected.
+The aggregator does a few things. When active, it waits for messages to be placed onto a queue, calculating the average value as more values arrive. During this process, it simultaneously counts the number of keys that can be found within the subset of messages that also contain a value. If a certain number of keys and values were counted by the aggregator, the channel will be notified of the average value.
 
-The bot will send a message that contains the average if there were at least 20 chatters that submitted a matchable value. The format of its message is, roughly:
+When the aggregator is waiting for values to arrive, it is reliant on a timer that refreshes with every new arrival. This timer is about 9.5 seconds - meaning, chatters must be submitting their scores within 9.5 seconds of each other before the aggregator finishes waiting, and attempts to post a notification.
 
-```
-DANKIES 🔔 <chatter count> rated this ad segue an average of <average score>/10 - <splash> <emote>
-```
-
-The `<splash>` and `<emote>` fields vary depending on how high/low the average was, and if the average was the highest it had seen during its runtime. There are 5 possible splash fields, and 12 possible emotes (6 positive and 6 negative).
+The notification is, again, only sent if a certain number of keys and values were found - known as the key and value "density". The densities change a lot with time, as they must be tuned for the behavior and popularity of the chat. As of the latest bot update, the key and value densities are 3 and 20, respectively.
 
 ## FAQ
 
@@ -46,15 +42,15 @@ The bot will go online everyday at 2:00 PM Eastern (or, 11:00 AM Pacific in Hasa
 
 ### How is the bot ran?
 
-The bot currently runs on a [DigitalOcean Droplet](https://www.digitalocean.com/products/droplets) that executes the main.py script from a [cron job](https://en.wikipedia.org/wiki/Cron).
+The bot currently runs on a [DigitalOcean Droplet](https://www.digitalocean.com/products/droplets) that executes the main.py script as a [cron job](https://en.wikipedia.org/wiki/Cron).
 
 The bot has been moved to many different locations, however, and is likely to change again in the future.
 
 ### Why did the bot not send out a message at [some moment in time]?
 
-The bot unfortunately suffers from the same issue that all chatters experience - that issue being Twitch's message batching system.
+Either the density of emotes and scores wasn't high enough, or its message was dropped by the Twitch server - the latter being the much more common scenario.
 
-If you didn't already know: when a Twitch chat is moving quickly, messages will be served in batches. You can see this process occuring when the Twitch chat is moving and stopping periodically - if you don't send a message while the chat is moving, your message will be dropped. [This can be seen on Chatterino](https://github.com/Chatterino/chatterino2/issues/1213), but not on the native Twitch client. The native Twitch web client will "lie" to you by displaying your message on the screen when, in reality, it may have never been sent.
+If you didn't already know: when a Twitch chat is moving quickly, messages will be served in "batches" - you might've noticed this yourself if you've ever seen a Twitch chat moving and stopping periodically. If you don't send a message while the chat is moving, your message is dropped by the Twitch servers to save on resources. This "drop" [can be seen on Chatterino](https://github.com/Chatterino/chatterino2/issues/1213), but not on the native Twitch web client. The native client "lies" to you by displaying your message on the screen when, in actuality, it may have never been sent.
 
 ### Are my messages kept somewhere?
 
@@ -64,14 +60,12 @@ In computing, there's this concept of volatile, and non-volatile memory. Volatil
 
 TopOTheHourBot runs solely on *volatile* memory - it will not know anything about what it has done in the past after it's taken offline and re-booted (which is done everyday). Meaning that the bot *cannot* keep messages or other information permanently.
 
-### Can I have this bot in my chat?
-
-The bot was built with Hasan's chat in mind, alone -  narrowing its scope to one chat makes it easier to program, and reduces its amount of processing power. It is, unfortunately, not in a state to be active in more than one chat.
-
 ## Requirements
 
 The bot was written using Python 3.10. Its only external requirement is [TwitchIO](https://twitchio.dev/en/latest/) (version 2.4.0 at the time of development).
 
 ## Contributing
 
-Feel free to open pull requests and issues here. This personal mini-project has been considered finished for a while, though, if you have ideas for a more comprehensive segue-detection system, do consider opening a pull request and/or issue to discuss.
+This personal mini-project has been considered finished for a while, but, if you have ideas on some features that could be added, feel free to open a pull request and/or issue.
+
+This bot was made with simplicity in mind - please do not make and/or request a feature that would attract too much attention from users, enable the bot to spam chats, etc. Keep it civil.
