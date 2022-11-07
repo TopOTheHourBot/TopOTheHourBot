@@ -42,11 +42,7 @@ Twitch bots are also not like Discord bots - the user who created the bot's acco
 
 ### When does the bot run?
 
-The bot will go online everyday at 2:00 PM Eastern (or, 11:00 AM Pacific in Hasan's time). It goes offline after 10 hours.
-
-### Why is the bot's name pink?
-
-It's a small homage to a friend of mine in chat, whose name also ends in "bot" (but isn't one).
+The bot will go online everyday at 2:00 PM Eastern (or, 11:00 AM Pacific in Hasan's time). It goes offline after 9 hours.
 
 ### How is the bot ran?
 
