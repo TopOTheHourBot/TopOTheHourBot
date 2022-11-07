@@ -50,7 +50,7 @@ The bot has been moved to many different locations, however, and is likely to ch
 
 Either the density of emotes and scores wasn't high enough, or its message was dropped by the Twitch server - the latter being the much more common scenario.
 
-If you didn't already know: when a Twitch chat is moving quickly, messages will be served in "batches" - you might've noticed this yourself if you've ever seen a Twitch chat moving and stopping periodically. If you don't send a message while the chat is moving, your message is dropped by the Twitch servers to save on resources. This "drop" [can be seen on Chatterino](https://github.com/Chatterino/chatterino2/issues/1213), but not on the native Twitch web client. The native client "lies" to you by displaying your message on the screen when, in actuality, it may have never been sent.
+If you didn't already know: when a Twitch chat is moving quickly, messages will be served in batches - you might've noticed this yourself if you've ever seen a Twitch chat moving and stopping periodically. If you don't send a message while the chat is moving, your message is dropped by the Twitch servers to save on resources. This "drop" [can be seen on Chatterino](https://github.com/Chatterino/chatterino2/issues/1213), but not on the native Twitch web client. The native client "lies" to you by displaying your message on the screen when, in actuality, it may have never been sent.
 
 ### Are my messages kept somewhere?
 
