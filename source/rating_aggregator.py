@@ -113,33 +113,28 @@ class RatingAggregator(Cog):
         """Wait for messages in `pool`, averaging their values until timeout,
         and dispatch a `post()` task when appropriate
         """
-        timeout = self.TIMEOUT
-
-        key  = self.KEY
-        val  = self.VAL
-        kmin = self.KEY_DENSITY
-        nmin = self.VAL_DENSITY
-
         x = 0.0
         k = 0
+        xl, xh = 0.0, 10.0
 
         for n in itertools.count():
             try:
-                message, match = await asyncio.wait_for(self.pool.get(), timeout=timeout)
+                message, match = await asyncio.wait_for(self.pool.get(), timeout=self.TIMEOUT)
             except TimeoutError:
                 break
-            if key.search(message.content):
+            if self.KEY.search(message.content):
                 k += 1
-            x += max(0.0, min(10.0, float(match.group(1))))
+            x += max(xl, min(xh, float(match.group(1))))
             self.pool.task_done()
 
-        if k < kmin or n < nmin:
+        if k < self.KEY_DENSITY or n < self.VAL_DENSITY:
             return
 
         mean = x / n
 
         set_max = mean > self.max
         set_min = mean < self.min
+
         if set_max:
             self.max = mean
         if set_min:
@@ -151,12 +146,12 @@ class RatingAggregator(Cog):
 
     async def post(self, channel: Channel, payload: Payload) -> None:
         """Notify `channel` of a successful aggregation result"""
-        nickname = self.CHANNEL_NICKNAME
-
         count = payload.count
         mean  = payload.mean
 
-        best = payload.max and not payload.min
+        best = payload.max and not payload.min  # Only consider this the best if there was at least one score prior
+
+        nickname = self.CHANNEL_NICKNAME
         if best:
             splash = f"best one today, {nickname}!"
         elif mean <= 2.5:
@@ -168,26 +163,18 @@ class RatingAggregator(Cog):
         else:
             splash = f"incredible, {nickname}!"
 
-        negative_emotes = self.NEGATIVE_EMOTES
-        positive_emotes = self.POSITIVE_EMOTES
-
-        emote = random.choice(positive_emotes if best or mean > 5.0 else negative_emotes)
+        emote = random.choice(self.POSITIVE_EMOTES if best or mean > 5.0 else self.NEGATIVE_EMOTES)
 
         self.create_task(channel.send(f"DANKIES 🔔 {count:d} chatters rated this ad segue an average of {mean:.2f}/10 - {splash} {emote}"))
 
     @Cog.event()
     async def event_message(self, message: Message) -> None:
         """Add a message to the aggregation pool if applicable"""
-        name = self.CHANNEL_NAME
-        if message.echo or message.channel.name != name:
+        if message.echo or message.channel.name != self.CHANNEL_NAME:
             return
 
-        val = self.VAL
-        if (match := val.search(message.content)):
+        if (match := self.VAL.search(message.content)):
             self.pool.put_nowait((message, match))
 
-            func = self.aggregate
-            if func.__name__ not in self.tasks:
-                self.create_task(
-                    func(message.channel), name=func.__name__,
-                )
+            if (name := (func := self.aggregate).__name__) not in self.tasks:
+                self.create_task(func(message.channel), name=name)
