@@ -64,6 +64,5 @@ class TopOTheHourBot(Bot):
         """Handle commands if the message came from a bot moderator"""
         if message.echo:
             return
-        moderators = self.MODERATORS
-        if message.author.name in moderators:
+        if message.author.name in self.MODERATORS:
             await self.handle_commands(message)
