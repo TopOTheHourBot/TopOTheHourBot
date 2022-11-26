@@ -20,7 +20,7 @@ class TopOTheHourBot(Bot):
         *,
         prefix: str = '$',
         client_secret: Optional[str] = None,
-        initial_channels: Optional[tuple[str, ...]] = ("hasanabi",),
+        initial_channels: Optional[tuple[str, ...]] = None,
         heartbeat: Optional[float] = 30,
         retain_cache: Optional[bool] = True,
         **kwargs,

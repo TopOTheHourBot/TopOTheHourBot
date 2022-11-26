@@ -24,7 +24,7 @@ class Payload(NamedTuple):
 
     If both `max` and `min` are true, then the given `Payload` instance is
     guaranteed to be the first succesful aggregation result. In all other
-    cases, only one of the two attributes will be true.
+    cases, one or none of the two attributes will be true.
     """
     mean: float
     count: int
@@ -42,7 +42,7 @@ class RatingAggregator(Cog):
     CHANNEL_NAME: str     = "hasanabi"  # The canonical Twitch username of the broadcaster - must be lowercased
     CHANNEL_NICKNAME: str = "hassy"     # A nickname used in the message
 
-    TIMEOUT: float = 9.5  # The time, in seconds, for which subsequent values must be found before a message is sent
+    TIMEOUT: float = 9  # The time, in seconds, for which subsequent values must be found before a post is attempted
 
     # The key and value patterns, and their respective densities.
 
@@ -51,7 +51,7 @@ class RatingAggregator(Cog):
     # respective densities. When a value match occurs, aggregate() will be
     # dispatched by event_message().
 
-    KEY: Pattern[str] = re.compile(r"DANKIES|PogO|TomatoTime")
+    KEY: Pattern[str] = re.compile(r"DANKIES|PogO|SnowballTime")
     VAL: Pattern[str] = re.compile(r"(-?\d+(?:\.\d*)?)\s?/\s?10")
     KEY_DENSITY: int = 3
     VAL_DENSITY: int = 20

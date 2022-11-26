@@ -16,9 +16,9 @@ When the bot is online, it spends most of its time searching for a message that 
 
 The aggregator does a few things. When active, it waits for messages to be placed onto a queue, calculating the average value as more values arrive. During this process, it simultaneously counts the number of keys that can be found within the subset of messages that also contain a value. If a certain number of keys and values were counted by the aggregator, the channel will be notified of the average value.
 
-When the aggregator is waiting for values to arrive, it is reliant on a timer that refreshes with every new arrival. This timer is about 9.5 seconds - meaning, chatters must be submitting their scores within 9.5 seconds of each other before the aggregator finishes waiting, and attempts to post a notification.
+When the aggregator is waiting for values to arrive, it is dependent on a timer that refreshes with every new arrival. This timer is set to about 9 seconds - meaning, chatters must be submitting their scores within 9 seconds of each other before the aggregator finishes waiting, and attempts to post a notification.
 
-The notification is, again, only sent if a certain number of keys and values were found - known as the key and value "density". The densities change a lot with time, as they must be tuned for the behavior and popularity of the chat. As of the latest bot update, the key and value densities are 3 and 20, respectively.
+The notification is, again, only sent if a certain number of keys and values were found - known as the key and value "density". The densities have changed a lot with time, since they have to be tuned for the behavior and popularity of the chat. As of the latest bot update, the key and value densities are 3 and 20, respectively (i.e., there must be at least 20 messages that contained a score, and within those 20 messages, there must have been at least 3 that also contained either DANKIES, PogO, or TomatoTime).
 
 ## FAQ
 

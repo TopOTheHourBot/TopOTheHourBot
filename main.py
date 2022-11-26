@@ -28,7 +28,11 @@ async def main(runtime: float = 32400) -> None:
     token = ...
     client_secret = ...
 
-    bot = TopOTheHourBot(token, client_secret=client_secret)
+    bot = TopOTheHourBot(
+        token=token,
+        client_secret=client_secret,
+        initial_channels=("hasanabi",),
+    )
 
     try:
         await bot.connect()
