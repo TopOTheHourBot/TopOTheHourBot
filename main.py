@@ -11,9 +11,9 @@ logging.basicConfig(
 )
 
 
-async def main(runtime: float = 32400) -> None:
+async def main(runtime: float = 34200) -> None:
 
-    # Runtime default is 32400 seconds, or 9 hours. It's rare that Hasan will
+    # Runtime default is 34200 seconds, or 9.5 hours. It's rare that Hasan will
     # go beyond 7-8, but, it's just to play it safe. The runtime must be
     # managed, here - within the script - since this is executed from a cron
     # job.

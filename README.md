@@ -36,9 +36,11 @@ The bot has some commands that are only usable by me and some friends. It used t
 
 Twitch bots are also not like Discord bots - the user who created the bot's account may still login as the bot, and use the account as normal. This hasn't been done since the initial few days of the bot's deployment, however (there was one message sent in Hasan's chat, from me, that was done to test something).
 
+The bot also has custom behavior to reply to some friends of mine under particular conditions.
+
 ### When does the bot run?
 
-The bot will go online everyday at 2:00 PM Eastern (or, 11:00 AM Pacific in Hasan's time). It goes offline after 9 hours.
+The bot will go online everyday at 2:00 PM Eastern (or, 11:00 AM Pacific in Hasan's time). It goes offline after 9.5 hours.
 
 ### How is the bot ran?
 

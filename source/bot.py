@@ -1,3 +1,4 @@
+import random
 from typing import Optional
 
 from twitchio import Message
@@ -64,5 +65,10 @@ class TopOTheHourBot(Bot):
         """Handle commands if the message came from a bot moderator"""
         if message.echo:
             return
-        if message.author.name in self.MODERATORS:
+        author_name = message.author.name
+        content = message.content
+        if author_name == "mijnboot" and "ReallyMad" in content and "jupijej" in content:
+            if random.random() < 0.5:
+                await message.channel.send("@Mijnboot Jupijej")
+        if author_name in self.MODERATORS:
             await self.handle_commands(message)
