@@ -51,7 +51,7 @@ class RatingAggregator(Cog):
     # respective densities. When a value match occurs, aggregate() will be
     # dispatched by event_message().
 
-    KEY: Pattern[str] = re.compile(r"DANKIES|PogO|SnowballTime")
+    KEY: Pattern[str] = re.compile(r"DANKIES|PogO|TomatoTime")
     VAL: Pattern[str] = re.compile(r"(-?\d+(?:\.\d*)?)\s?/\s?10")
     KEY_DENSITY: int = 3
     VAL_DENSITY: int = 20
