@@ -41,12 +41,12 @@ class TopOTheHourBot(Bot):
         """Respond with pong"""
         await ctx.send(f"{ctx.author.mention} pong")
 
-    @command(aliases=["e"])  # "echo" is a commonly-blocked term in Hasan's chat
-    async def echo(self, ctx: Context, *words: str) -> None:
+    @command()
+    async def copy(self, ctx: Context, *words: str) -> None:
         """Write a message as the bot, signifying that the message came from
         the command's user
         """
-        await ctx.send(f"{ctx.author.mention} (echo): {' '.join(words)}")
+        await ctx.send(f"{ctx.author.mention} (copy): {' '.join(words)}")
 
     @command()
     async def code(self, ctx: Context, *names: str) -> None:
