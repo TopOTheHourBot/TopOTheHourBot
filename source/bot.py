@@ -1,4 +1,3 @@
-import random
 from typing import Optional
 
 from twitchio import Message
@@ -11,9 +10,9 @@ __all__ = ["TopOTheHourBot"]
 
 class TopOTheHourBot(Bot):
 
-    # TODO: Docs
-
     MODERATORS: set[str] = {"braedye", "bytesized_", "emjaye"}
+
+    __slots__ = ()
 
     def __init__(
         self,
@@ -42,7 +41,7 @@ class TopOTheHourBot(Bot):
         """Respond with pong"""
         await ctx.send(f"{ctx.author.mention} pong")
 
-    @command()
+    @command(aliases=["e"])  # "echo" is a commonly-blocked term in Hasan's chat
     async def echo(self, ctx: Context, *words: str) -> None:
         """Write a message as the bot, signifying that the message came from
         the command's user
@@ -65,10 +64,5 @@ class TopOTheHourBot(Bot):
         """Handle commands if the message came from a bot moderator"""
         if message.echo:
             return
-        author_name = message.author.name
-        content = message.content
-        if author_name == "mijnboot" and "ReallyMad" in content and "jupijej" in content:
-            if random.random() < 0.5:
-                await message.channel.send("@Mijnboot Jupijej")
-        if author_name in self.MODERATORS:
+        if message.author.name in self.MODERATORS:
             await self.handle_commands(message)

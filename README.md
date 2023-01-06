@@ -4,21 +4,7 @@ TopOTheHourBot is a simple bot that only runs in HasanAbi's chat. It does one th
 
 ![](./.github/assets/example.png)
 
-The bot reads each incoming chat message searching for two items: an emote (DANKIES, PogO, or TomatoTime), and a score (a fraction whose denominator is 10, written vaguely like "X/10", where "X" can be any number).
-
-If a high density of emotes and scores can be found within a certain timespan, TopOTheHourBot will send a notification to the channel, telling the average score.
-
-## Further Details
-
-Internally, the emotes and score are referred to as the "key" and "value", respectively - these terms will be used throughout the remainder of this section.
-
-When the bot is online, it spends most of its time searching for a message that contains a value alone. When a value is first discovered, a background task is executed - known as the "aggregator".
-
-The aggregator does a few things. When active, it waits for messages to be placed onto a queue, calculating the average value as more values arrive. During this process, it simultaneously counts the number of keys that can be found within the subset of messages that also contain a value. If a certain number of keys and values were counted by the aggregator, the channel will be notified of the average value.
-
-When the aggregator is waiting for values to arrive, it is dependent on a timer that refreshes with every new arrival. This timer is set to about 9 seconds - meaning, chatters must be submitting their scores within 9 seconds of each other before the aggregator finishes waiting, and attempts to post a notification.
-
-The notification is, again, only sent if a certain number of keys and values were found - known as the key and value "density". The densities have changed a lot with time, since they have to be tuned for the behavior and popularity of the chat. As of the latest bot update, the key and value densities are 3 and 20, respectively (i.e., there must be at least 20 messages that contained a score, and within those 20 messages, there must have been at least 3 that also contained either DANKIES, PogO, or TomatoTime).
+The bot reads each incoming chat message searching for "scores" - a fraction whose denominator is 10, written vaguely like "X/10", where "X" is any number. If a high density of scores can be found within a certain timespan, TopOTheHourBot will send a notification to the channel, telling the average score.
 
 ## FAQ
 
@@ -36,7 +22,7 @@ The bot has some commands that are only usable by me and some friends. It used t
 
 Twitch bots are also not like Discord bots - the user who created the bot's account may still login as the bot, and use the account as normal. This hasn't been done since the initial few days of the bot's deployment, however (there was one message sent in Hasan's chat, from me, that was done to test something).
 
-The bot also has custom behavior to reply to some friends of mine under particular conditions.
+In the past, I've also made small changes to have it reply to some friends under particular conditions.
 
 ### When does the bot run?
 
@@ -44,15 +30,21 @@ The bot will go online everyday at 2:00 PM Eastern (or, 11:00 AM Pacific in Hasa
 
 ### How is the bot ran?
 
-The bot currently runs on a [DigitalOcean Droplet](https://www.digitalocean.com/products/droplets) that executes the main.py script as a [cron job](https://en.wikipedia.org/wiki/Cron).
-
-The bot has been moved to many different locations, however, and is likely to change again in the future.
+The bot currently runs on a [DigitalOcean Droplet](https://www.digitalocean.com/products/droplets) that executes the main.py script as a [cron job](https://en.wikipedia.org/wiki/Cron). The bot has been moved to many different locations, however, and is likely to change again in the future.
 
 ### Why did the bot not send out a message at [some moment in time]?
 
-Either the density of emotes and scores wasn't high enough, or its message was dropped by the Twitch server - the latter being the much more common scenario.
+Either the score density wasn't high enough, or its message was dropped by Twitch servers - the latter being the much more common scenario.
 
-If you didn't already know: when a Twitch chat is moving quickly, messages will be served in batches - you might've noticed this yourself if you've ever seen a Twitch chat moving and stopping periodically. If you don't send a message while the chat is moving, your message is dropped by the Twitch servers to save on resources. This "drop" [can be seen on Chatterino](https://github.com/Chatterino/chatterino2/issues/1213), but not on the native Twitch web client. The native client "lies" to you by displaying your message on the screen when, in actuality, it may have never been sent.
+If you didn't already know: when a Twitch chat is moving quickly, messages get served in batches (this is why you might've seen it moving and stopping periodically). If you don't send a message while the chat is moving, your message is dropped by the Twitch servers to save on resources. This "drop" [is visualized by Chatterino](https://github.com/Chatterino/chatterino2/issues/1213), but not on the native Twitch web client. The native client "lies" to you by displaying your message on the screen when, in actuality, it may have never been sent.
+
+### Why does the bot not do [this thing] anymore?
+
+I go back-and-forth on ideas a lot. Many things have changed in regard to the bot's message formats and administrative features. Some of these things were scrapped for performance reasons (keeping the bot online costs money), and others simply because I didn't want the bot to do that thing anymore.
+
+### Why does the bot have [this name color]?
+
+I change its name color for certain holiday seasons. Its "default" name color is the pink that is offered to all users of Twitch - it's a small homage to a friend in chat.
 
 ### Are my messages kept somewhere?
 
@@ -68,6 +60,10 @@ The bot was written using Python 3.10. Its only external requirement is [TwitchI
 
 ## Contributing
 
-This personal mini-project has been considered finished for a while, but, if you have ideas on some features that could be added, feel free to open a pull request and/or issue.
+This personal mini-project has been considered finished for a while, but, if you have ideas on some features that could be added, feel free to open a pull request and/or issue. Be warned, however - I refactor the code a lot.
 
 This bot was made with simplicity in mind - please do not make and/or request a feature that would attract too much attention from users, enable the bot to spam chats, etc. Keep it civil.
+
+## Etc.
+
+This bot is not associated with any other projects pertaining to Hasan's ad segues. There exists another bot, "Hasanabi_Segways" (yes, that is how it is spelled), that has no relation to this project, and whose owner I do not know.
