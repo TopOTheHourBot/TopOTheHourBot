@@ -1,1 +1,1 @@
-from .bot import TopOTheHourBot
+from .bot import *

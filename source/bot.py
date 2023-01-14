@@ -1,9 +1,12 @@
+import random
+import time
 from typing import Optional
 
 from twitchio import Message
 from twitchio.ext.commands import Bot, Context, command
 
-from .rating_aggregator import RatingAggregator
+from .splits.batch_average import BatchAverageSplit, PartialAverage
+from .splits.split import Payload
 
 __all__ = ["TopOTheHourBot"]
 
@@ -18,7 +21,7 @@ class TopOTheHourBot(Bot):
         self,
         token: str,
         *,
-        prefix: str = '$',
+        prefix: str = "$",
         client_secret: Optional[str] = None,
         initial_channels: Optional[tuple[str, ...]] = None,
         heartbeat: Optional[float] = 30,
@@ -34,35 +37,78 @@ class TopOTheHourBot(Bot):
             retain_cache=retain_cache,
             **kwargs,
         )
-        self.add_cog(RatingAggregator(self))
+        self.add_cog(BatchAverageSplit(self, channel="hasanabi", callbacks=(send_message,)))
 
-    @command()
+    @command(aliases=["p"])
     async def ping(self, ctx: Context) -> None:
-        """Respond with pong"""
         await ctx.send(f"{ctx.author.mention} pong")
 
-    @command()
+    @command(aliases=["c", "echo"])
     async def copy(self, ctx: Context, *words: str) -> None:
-        """Write a message as the bot, signifying that the message came from
-        the command's user
-        """
         await ctx.send(f"{ctx.author.mention} (copy): {' '.join(words)}")
 
     @command()
     async def code(self, ctx: Context, *names: str) -> None:
-        """Bulk-mention users to tell them where they can find the bot's source
-        code
-        """
-        names = map(lambda name: name if name.startswith('@') else f"@{name}", names)
+        names = map(lambda name: name if name.startswith("@") else f"@{name}", names)
         await ctx.send(f"{' '.join(names)} the bot's source code can be found on its Twitch profile Okayge")
 
     async def event_command_error(self, ctx: Context, error: Exception) -> None:
-        """Send the error message of a command to its user"""
         await ctx.send(f"{ctx.author.mention} {error}")
 
     async def event_message(self, message: Message) -> None:
-        """Handle commands if the message came from a bot moderator"""
         if message.echo:
             return
         if message.author.name in self.MODERATORS:
             await self.handle_commands(message)
+
+
+async def send_message(payload: Payload[PartialAverage]) -> None:
+    emotes = (
+        (
+            "Sadge",
+            "widepeepoSad",
+            "unPOGGERS",
+            "😔",
+            "Awkward",
+            "peepoPogO",
+            "hasCringe",
+            "🫵 LULW",
+            "smHead",
+        ),
+        (
+            "Gladge",
+            "widepeepoHappy",
+            "POGGERS",
+            "😳",
+            "pugPls",
+            "peepoPog",
+            "DRUMMING",
+            "pepeWoah",
+            "HYPERPOGGER",
+        ),
+    )
+
+    split = payload.split
+    data  = payload.data
+
+    score = data.complete()
+    count = data.count
+
+    emote = random.choice(emotes[score > 5.0])
+
+    if score <= 2.5:
+        splash = "awful one, hassy"
+    elif score <= 5.0:
+        splash = "good attempt, hassy"
+    elif score <= 7.5:
+        splash = "nice one, hassy!"
+    else:
+        splash = "incredible, hassy!"
+
+    content = f"DANKIES 🔔 {count} chatters rated this ad segue an average of {score:.2f}/10 - {splash} {emote}"
+
+    await split.channel.send(content)
+
+
+async def send_post(payload: Payload[PartialAverage]) -> None:  # TODO: hasanhub.com integration / callback
+    ...
