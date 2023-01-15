@@ -1,6 +1,14 @@
 import asyncio
+import logging
+import sys
 
 from source import TopOTheHourBot
+
+logging.basicConfig(
+    format="[%(asctime)s] [%(name)s] %(message)s",
+    level=logging.INFO,
+    stream=sys.stdout,
+)
 
 
 async def main(runtime: float = 34200) -> None:
@@ -10,18 +18,7 @@ async def main(runtime: float = 34200) -> None:
     # managed, here - within the script - since this is executed from a cron
     # job.
 
-    # Access and client secret tokens omitted for obvious reasons. See here for
-    # more details: https://dev.twitch.tv/docs/irc
-
-    token = ...
-    client_secret = ...
-
-    bot = TopOTheHourBot(
-        token=token,
-        client_secret=client_secret,
-        initial_channels=("hasanabi",),
-    )
-
+    bot = TopOTheHourBot()
     try:
         await bot.connect()
         await asyncio.sleep(runtime)
