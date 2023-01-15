@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import re
 from asyncio import Queue, TimeoutError
 from collections.abc import AsyncIterator, Callable, Coroutine
 from re import Pattern
@@ -76,13 +75,10 @@ class BatchAverager(Split[BatchAveragerResult]):
         bot: Bot,
         *,
         channel: str,
-        callbacks: tuple[Callable[[BatchAveragerResult], Coroutine], ...] = (),
-        pattern: Pattern[str] = re.compile(
-            r"((?<!\d|-)(?:\d?\.\d+|\d|10))\s?/\s?10",
-            re.ASCII,
-        ),
+        pattern: Pattern[str],
         timeout: float = 8.5,
         density: int = 50,
+        callbacks: tuple[Callable[[BatchAveragerResult], Coroutine], ...] = (),
     ) -> None:
         super().__init__(bot, channel=channel, callbacks=callbacks)
         self._pattern = pattern
