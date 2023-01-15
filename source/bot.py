@@ -46,11 +46,8 @@ class TopOTheHourBot(Bot):
         )
 
         async def chat(result: BatchAveragerResult) -> None:
-            averager = result.averager
-            partial  = result.partial
-
-            score = partial.complete()
-            count = partial.count
+            score = result.partial.complete()
+            count = result.partial.count
 
             if score <= 2.5:
                 splash = "awful one, hassy"
@@ -72,7 +69,7 @@ class TopOTheHourBot(Bot):
                     "peepoPog", "DRUMMING", "pepeWoah", "HYPERPOGGER",
                 ))
 
-            await averager.channel.send(
+            await result.averager.channel.send(
                 f"DANKIES 🔔 {count} chatters rated this ad segue an average "
                 f"of {score:.2f}/10 - {splash} {emote}",
             )
