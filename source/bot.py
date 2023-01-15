@@ -20,7 +20,7 @@ STREAM_UUID: UUID = uuid.uuid4()
 
 class TopOTheHourBot(Bot):
 
-    MODERATORS: set[str] = {"braedye", "bytesized_", "emjaye"}
+    GLOBAL_MODERATORS: set[str] = {"braedye", "bytesized_", "emjaye"}
 
     __slots__ = ()
 
@@ -119,5 +119,5 @@ class TopOTheHourBot(Bot):
     async def event_message(self, message: Message) -> None:
         if message.echo:
             return
-        if message.author.name in self.MODERATORS:
+        if message.author.name in self.GLOBAL_MODERATORS:
             await self.handle_commands(message)
