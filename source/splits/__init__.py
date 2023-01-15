@@ -1,2 +1,2 @@
-from .batch_average import *
+from .batch_averager import *
 from .split import *

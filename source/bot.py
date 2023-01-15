@@ -5,8 +5,7 @@ from typing import Optional
 from twitchio import Message
 from twitchio.ext.commands import Bot, Context, command
 
-from .splits.batch_average import BatchAverageSplit, PartialAverage
-from .splits.split import Payload
+from .splits.batch_averager import BatchAverager, BatchAveragerResult
 
 __all__ = ["TopOTheHourBot"]
 
@@ -37,7 +36,7 @@ class TopOTheHourBot(Bot):
             retain_cache=retain_cache,
             **kwargs,
         )
-        self.add_cog(BatchAverageSplit(self, channel="hasanabi", callbacks=(send_message,)))
+        self.add_cog(BatchAverager(self, channel="hasanabi", callbacks=(send_chat,)))
 
     @command(aliases=["p"])
     async def ping(self, ctx: Context) -> None:
@@ -62,7 +61,7 @@ class TopOTheHourBot(Bot):
             await self.handle_commands(message)
 
 
-async def send_message(payload: Payload[PartialAverage]) -> None:
+async def send_chat(result: BatchAveragerResult) -> None:
     emotes = (
         (
             "Sadge",
@@ -88,11 +87,11 @@ async def send_message(payload: Payload[PartialAverage]) -> None:
         ),
     )
 
-    split = payload.split
-    data  = payload.data
+    averager = result.averager
+    partial  = result.partial
 
-    score = data.complete()
-    count = data.count
+    score = partial.complete()
+    count = partial.count
 
     emote = random.choice(emotes[score > 5.0])
 
@@ -107,8 +106,8 @@ async def send_message(payload: Payload[PartialAverage]) -> None:
 
     content = f"DANKIES 🔔 {count} chatters rated this ad segue an average of {score:.2f}/10 - {splash} {emote}"
 
-    await split.channel.send(content)
+    await averager.channel.send(content)
 
 
-async def send_post(payload: Payload[PartialAverage]) -> None:  # TODO: hasanhub.com integration / callback
+async def send_post(result: BatchAveragerResult) -> None:  # TODO: hasanhub integration / callback
     ...
