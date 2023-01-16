@@ -84,4 +84,6 @@ This bot was made with simplicity in mind - please do not make and/or request a 
 
 ## Etc.
 
-This bot is not associated with any other projects pertaining to Hasan's ad segues. There exists another bot, "Hasanabi_Segways" (yes, that is how it is spelled), that has no association with this project, and whose owner I do not know.
+This bot is *not* associated with any other project pertaining to Hasan's ad segues unless it is also disclosed by this document (the HasanHub integration, for example, *is* an actual, recognized part of TopOTheHourBot's system that chrcit and I agreed upon).
+
+[One post to Hasan's subreddit](https://www.reddit.com/r/okbuddyhasan/comments/102k9mu/stream_segways_visualized/) that Hasan thought was tied to TopOTheHourBot is, in reality, not at all a part of this project. This post was made by an independent user who I have no association with. This user also has their own bot in the chat, "Hasanabi_Segways", that serves an identical purpose to TopOTheHourBot, but there exists no connection between the two.
