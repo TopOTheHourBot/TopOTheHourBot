@@ -4,7 +4,7 @@ TopOTheHourBot is a simple bot that only runs in HasanAbi's chat. It does one th
 
 ![](./.github/assets/example.png)
 
-The bot reads each incoming chat message searching for "scores" - a fraction whose denominator is 10, written vaguely like "X/10", where "X" is any number. If a high density of scores can be found within a certain timespan, TopOTheHourBot will send a notification to the channel, telling the average score.
+The bot reads each incoming chat message searching for "scores" - a fraction whose denominator is 10, written vaguely like "X/10", where "X" is a number between 0 and 10. If a high density of scores can be found within a certain timespan, TopOTheHourBot will send a notification to the channel, telling the average score.
 
 TopOTheHourBot is a recognized partner to the [HasanHub](https://www.hasanhub.com/) project (developed by [chrcit](https://twitter.com/chrcit)). Average scores are sent to a HasanHub database for upcoming features of the website.
 
