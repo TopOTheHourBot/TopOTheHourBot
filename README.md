@@ -6,7 +6,7 @@ TopOTheHourBot is a simple bot that only runs in HasanAbi's chat. It does one th
 
 The bot reads each incoming chat message searching for "scores" - a fraction whose denominator is 10, written vaguely like "X/10", where "X" is a number between 0 and 10. If a high density of scores can be found within a certain timespan, TopOTheHourBot will send a notification to the channel, telling the average score.
 
-TopOTheHourBot is a recognized partner to the [HasanHub](https://www.hasanhub.com/) project (developed by [chrcit](https://twitter.com/chrcit)). Average scores are sent to a HasanHub database for upcoming features of the website.
+TopOTheHourBot is a partner to the [HasanHub](https://www.hasanhub.com/) project (developed by [chrcit](https://twitter.com/chrcit)). Average scores are sent to a HasanHub database for upcoming features of the website.
 
 ## FAQ
 
@@ -50,7 +50,7 @@ I change its name color for certain holiday seasons. Its "default" name color is
 
 ### Why does the bot not have a bot badge like Fossabot?
 
-The bot badge is a [BetterTTV](https://betterttv.com/) designation that must be assigned by the broadcaster. I'm not going to bother Hasan about giving a bot, that only appears every hour, a crudely designed badge.
+The bot badge is a [BetterTTV](https://betterttv.com/) designation that must be assigned by the broadcaster. I'm not going to bother Hasan about giving a bot, that only appears every hour, a crudely designed badge (and please do not do so on my behalf).
 
 ### Are my messages kept somewhere?
 
@@ -84,6 +84,8 @@ This bot was made with simplicity in mind - please do not make and/or request a 
 
 ## Etc.
 
-This bot is *not* associated with any other project pertaining to Hasan's ad segues unless it is also disclosed by this document (the HasanHub integration, for example, *is* an actual, recognized part of TopOTheHourBot's system that chrcit and I agreed upon).
+This bot is *not* directly associated with any other project pertaining to Hasan's ad segues unless it is also disclosed by this document (the HasanHub integration, for example, *is* an actual, recognized part of TopOTheHourBot's system that chrcit and I agreed upon).
 
-[One post to Hasan's subreddit](https://www.reddit.com/r/okbuddyhasan/comments/102k9mu/stream_segways_visualized/) that Hasan thought was tied to TopOTheHourBot is, in reality, not at all a part of this project. This post was made by an independent user who I have no association with. This user also has their own bot in the chat, "Hasanabi_Segways", that serves an identical purpose to TopOTheHourBot, but there exists no connection between the two.
+[One post to Hasan's subreddit](https://www.reddit.com/r/okbuddyhasan/comments/102k9mu/stream_segways_visualized/) that Hasan thought was tied to TopOTheHourBot is, in reality, not at all a part of this project. This post, and the project it showcases, were made by an independent user who I have no association with. This user also has their own bot in the chat, "Hasanabi_Segways", that serves an identical purpose to TopOTheHourBot, but there exists no connection between the two.
+
+You are entirely free to record and/or use data emitted by TopOTheHourBot without my permission (for logging, analysis, etc.). You do *not* need to credit me - in fact, I'd prefer if you didn't. Referencing TopOTheHourBot's Twitch page, or this repository, are okay as a means to provide attribution in cases where it is needed or preferred. Bear in mind that the underlying algorithm for *how* TopOTheHourBot searches for scores has changed a lot, and may continue to change without notice. TopOTheHourBot is subject to server drops like all users, and false positives may occur in circumstances where the chat is providing scores outside of an ad segue.
