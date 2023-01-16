@@ -74,7 +74,7 @@ The bot was written using Python 3.10. Its only external requirement is [TwitchI
 
 Running the bot for yourself requires a "keys.py" module located within the source directory. In it, you must define a `TWITCH_ACCESS_TOKEN` and `TWITCH_CLIENT_SECRET` variable (both strings). [See here for more details](https://dev.twitch.tv/docs/irc/authenticate-bot/).
 
-The bot additionally requires a `HASANHUB_CLIENT_SECRET` variable, but this can be omitted as long as you remove its import in [bot.py](bot.py), and its associated callback routine declared in `TopOTheHourBot.__init__()`.
+The bot additionally requires a `HASANHUB_CLIENT_SECRET` variable, but this can be omitted as long as you remove its import in [bot.py](source/bot.py), and its associated callback routine declared in `TopOTheHourBot.__init__()`.
 
 ## Contributing
 
