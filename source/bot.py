@@ -5,7 +5,7 @@ import uuid
 from typing import Optional
 from uuid import UUID
 
-from aiohttp import ClientSession
+from aiohttp import ClientSession, TCPConnector
 from twitchio import Message
 from twitchio.ext.commands import Bot, Context, command
 
@@ -78,13 +78,13 @@ class TopOTheHourBot(Bot):
             score = result.partial.complete()
             epoch = time.time()
 
-            async with ClientSession() as session:
+            async with ClientSession(connector=TCPConnector(ssl=False)) as session:
                 async with session.post(
                     "https://hasanhub.com/api/add-top-of-the-hour-rating",
                     json={
                         "rating": round(score, ndigits=2),
-                        "timestamp": round(epoch, ndigits=None),
                         "streamUuid": str(STREAM_UUID),
+                        "timestamp": round(epoch, ndigits=None),
                         "secret": str(HASANHUB_CLIENT_SECRET),
                     },
                 ) as response:
