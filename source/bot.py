@@ -94,8 +94,17 @@ class TopOTheHourBot(Bot):
             self,
             channel="hasanabi",
             pattern=re.compile(
-                r"((?<!\d|-)(?:\d?\.\d+|\d|10))\s?/\s?10",
-                flags=re.ASCII,
+                r"""
+                (?:^|\s)            # should proceed the beginning or whitespace
+                (
+                  (?:(?:\d|10)\.?)  # any integer within range 0 to 10
+                  |
+                  (?:\d?\.\d+)      # any decimal within range 0 to 9
+                )
+                \s?/\s?10           # denominator of 10
+                (?:$|\s)            # should precede the end or whitespace
+                """,
+                flags=re.ASCII | re.VERBOSE,
             ),
             callbacks=(chat, post),
         ))
