@@ -6,7 +6,7 @@ TopOTheHourBot is a simple bot that only runs in HasanAbi's chat. It does one th
 
 The bot reads each incoming chat message searching for "scores" - a fraction whose denominator is 10, written vaguely like "X/10", where "X" is a number between 0 and 10. If a high density of scores can be found within a certain timespan, TopOTheHourBot will send a notification to the channel, telling the average score.
 
-TopOTheHourBot is a partner to the [HasanHub](https://www.hasanhub.com/) project (developed by [chrcit](https://twitter.com/chrcit)). Average scores are sent to a HasanHub database for upcoming features of the website.
+TopOTheHourBot is a partner to the [HasanHub](https://www.hasanhub.com/) project, currently being developed by [chrcit](https://github.com/chrcit). Average scores are sent to a HasanHub database for upcoming features of the website.
 
 ## FAQ
 
@@ -17,6 +17,35 @@ You can, yes. In prior iterations of the bot, you were unable to do so unless yo
 ### Can I submit a negative score? A score that's greater than 10? A decimal?
 
 Scores outside of the range 0 to 10 (inclusive) are ignored. Decimal values within this range are completely valid, and counted towards the average as normal.
+
+For any nerds reading this: TopOTheHourBot conducts its search using a [regular expression](https://en.wikipedia.org/wiki/Regular_expression). The exact pattern ([in Python flavor](https://docs.python.org/3/library/re.html)) is:
+
+```python
+r"""
+(?:^|\s)            # should proceed the beginning or whitespace
+(
+  (?:(?:\d|10)\.?)  # any integer within range 0 to 10
+  |
+  (?:\d?\.\d+)      # any decimal within range 0 to 9
+)
+\s?/\s?10           # denominator of 10
+(?:$|\s)            # should precede the end or whitespace
+"""
+```
+
+Example messages that would be contributing a score towards the average:
+
+```
+10/10
+5 /10
+0./10
+3.14159265/ 10 some trailing text
+.456 / 10
+some text 5.5555/10 more text
+4/10 this is a lot of text 5/10
+```
+
+The *first* score is always the one that's chosen by the bot (in cases where a message contains multiple).
 
 ### When does the bot run?
 
