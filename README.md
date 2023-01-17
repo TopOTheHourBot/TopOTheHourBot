@@ -33,6 +33,8 @@ r"""
 """
 ```
 
+[You can mess around with this pattern for yourself here](https://regex101.com/r/YyFggX/1).
+
 Example messages that would be contributing a score towards the average:
 
 ```
