@@ -103,7 +103,7 @@ class TopOTheHourBot(Bot):
                   (?:\d?\.\d+)      # any decimal within range 0 to 9
                 )
                 \s?/\s?10           # denominator of 10
-                (?:$|\s)            # should precede the end or whitespace
+                (?:$|[\s,.!?])      # should precede the end, whitespace, or some punctuation
                 """,
                 flags=re.ASCII | re.VERBOSE,
             ),
