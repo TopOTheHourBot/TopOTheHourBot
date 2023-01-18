@@ -29,11 +29,11 @@ r"""
   (?:\d?\.\d+)      # any decimal within range 0 to 9
 )
 \s?/\s?10           # denominator of 10
-(?:$|\s)            # should precede the end or whitespace
+(?:$|[\s,.!?])      # should precede the end, whitespace, or some punctuation
 """
 ```
 
-[You can mess around with this pattern for yourself here](https://regex101.com/r/YyFggX/1).
+[You can mess around with this pattern for yourself here](https://regex101.com/r/YyFggX/2).
 
 Example messages that would be contributing a score towards the average:
 
