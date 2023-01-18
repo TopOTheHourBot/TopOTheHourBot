@@ -1,3 +1,4 @@
+import logging
 import random
 import re
 import time
@@ -124,6 +125,9 @@ class TopOTheHourBot(Bot):
 
     async def event_command_error(self, ctx: Context, error: Exception) -> None:
         await ctx.send(f"{ctx.author.mention} {error}")
+
+    async def event_ready(self) -> None:
+        logging.info(f"Stream UUID is {STREAM_UUID}")
 
     async def event_message(self, message: Message) -> None:
         if message.echo:
