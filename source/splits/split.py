@@ -25,11 +25,11 @@ class Split(Cog, Generic[T_co]):
         self,
         bot: Bot,
         *,
-        channel: str,
+        channel: Channel | str,
         callbacks: tuple[Callable[[T_co], Coroutine], ...] = (),
     ) -> None:
-        self._bot       = bot
-        self._channel   = channel
+        self._bot = bot
+        self._channel = channel if isinstance(channel, str) else channel.name
         self._callbacks = callbacks
 
     @property

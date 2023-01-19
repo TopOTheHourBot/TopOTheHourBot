@@ -6,7 +6,7 @@ from collections.abc import AsyncIterator, Callable, Coroutine
 from re import Pattern
 from typing import NamedTuple
 
-from twitchio import Message
+from twitchio import Channel, Message
 from twitchio.ext.commands import Bot
 
 from .split import Split
@@ -74,7 +74,7 @@ class BatchAverager(Split[BatchAveragerResult]):
         self,
         bot: Bot,
         *,
-        channel: str,
+        channel: Channel | str,
         pattern: Pattern[str],
         timeout: float = 8.5,
         density: int = 50,
