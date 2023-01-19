@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from asyncio import Queue, TimeoutError
-from collections.abc import AsyncIterator, Callable, Coroutine
+from collections.abc import AsyncIterator, Callable, Coroutine, Iterable
 from re import Pattern
 from typing import NamedTuple
 
@@ -78,7 +78,7 @@ class BatchAverager(Split[BatchAveragerResult]):
         pattern: Pattern[str],
         timeout: float = 8.5,
         density: int = 50,
-        callbacks: tuple[Callable[[BatchAveragerResult], Coroutine], ...] = (),
+        callbacks: Iterable[Callable[[BatchAveragerResult], Coroutine]] = (),
     ) -> None:
         super().__init__(bot, channel=channel, callbacks=callbacks)
         self._pattern = pattern

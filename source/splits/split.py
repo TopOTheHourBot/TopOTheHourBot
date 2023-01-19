@@ -1,4 +1,4 @@
-from collections.abc import AsyncIterator, Callable, Coroutine
+from collections.abc import AsyncIterator, Callable, Coroutine, Iterable
 from typing import Generic, Optional, TypeVar
 
 from twitchio import Channel, Message
@@ -26,11 +26,11 @@ class Split(Cog, Generic[T_co]):
         bot: Bot,
         *,
         channel: Channel | str,
-        callbacks: tuple[Callable[[T_co], Coroutine], ...] = (),
+        callbacks: Iterable[Callable[[T_co], Coroutine]] = (),
     ) -> None:
         self._bot = bot
         self._channel = channel if isinstance(channel, str) else channel.name
-        self._callbacks = callbacks
+        self._callbacks = list(callbacks)
 
     @property
     def bot(self) -> Bot:
@@ -47,11 +47,15 @@ class Split(Cog, Generic[T_co]):
         return self.bot.get_channel(self._channel)
 
     @property
-    def callbacks(self) -> tuple[Callable[[T_co], Coroutine], ...]:
-        """A tuple of async callbacks dispatched when results are yielded by
+    def callbacks(self) -> list[Callable[[T_co], Coroutine]]:
+        """A list of async callbacks dispatched when results are yielded by
         `event_ready()`
         """
-        return self._callbacks
+        return self._callbacks.copy()
+
+    def add_callback(self, callback: Callable[[T_co], Coroutine]) -> None:
+        """Add a callback to the split"""
+        self._callbacks.append(callback)
 
     async def event_ready(self) -> AsyncIterator[T_co]:
         """Event called when the bot has logged in and is ready
