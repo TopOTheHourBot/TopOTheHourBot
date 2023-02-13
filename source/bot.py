@@ -94,6 +94,7 @@ class TopOTheHourBot(Bot):
         self.add_cog(BatchAverager(
             self,
             channel="hasanabi",
+            density=100,
             pattern=re.compile(
                 r"""
                 (?:^|\s)            # should proceed the beginning or whitespace
