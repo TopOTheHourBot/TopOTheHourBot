@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+import re
 from asyncio import Queue, TimeoutError
 from collections.abc import AsyncIterator, Callable, Coroutine, Iterable
-from re import Pattern
 from typing import NamedTuple
 
 from twitchio import Channel, Message
@@ -11,112 +11,105 @@ from twitchio.ext.commands import Bot
 
 from .split import Split
 
-__all__ = ["PartialAverage", "BatchAveragerResult", "BatchAverager"]
+__all__ = ["RatingAveragerResult", "RatingAverager"]
 
 
-class PartialAverage(NamedTuple):
-    """A container wrapping a floating point summand value and count, for use
-    in a fold-like algorithm
+class RatingAveragerResult(NamedTuple):
+    """Yield type emitted by `RatingAverager.event_ready()`
+
+    A simple container wrapping a reference to the channel, the number of
+    participating chatters, and the rating.
     """
 
-    value: float
-    count: int = 1
-
-    def compound(self, other: PartialAverage) -> PartialAverage:
-        """Return a new partial average of the sum between values and counts"""
-        return PartialAverage(
-            value=self.value + other.value,
-            count=self.count + other.count,
-        )
-
-    def complete(self) -> float:
-        """Return the completed average"""
-        return self.value / self.count
+    channel: Channel
+    density: int
+    rating: float
 
 
-class BatchAveragerResult:
-    """Yield type emitted by `BatchAverager.event_ready()`
-
-    A simple class that wraps a reference to the averager, and the partial
-    result that was calculated for a discovered batch.
-    """
-
-    __slots__ = ("_averager", "_partial")
-
-    def __init__(self, averager: BatchAverager, partial: PartialAverage) -> None:
-        self._averager = averager
-        self._partial  = partial
-
-    @property
-    def averager(self) -> BatchAverager:
-        """A reference to the averager instance"""
-        return self._averager
-
-    @property
-    def partial(self) -> PartialAverage:
-        """The partial average calculated during a discovered batch"""
-        return self._partial
-
-
-class BatchAverager(Split[BatchAveragerResult]):
+class RatingAverager(Split[RatingAveragerResult]):
     """A type of `Split` that finds and calculates the average value of
-    discovered "batches" of floating point numbers
+    discovered "batches" of ratings; values that look vaguely like "X/10",
+    where "X" is a number between 0 and 10.
 
-    A "batch" is considered to be a high-density collection of items
-    discoverable within a time limit between subsequent items. A batch begins
-    when the first item is discovered, and ends when no further items can be
-    found within the time limit.
+    We consider a "batch" to be a high-density collection of items discoverable
+    within a time limit between those items. A batch begins when the first item
+    is discovered, and ends when the time limit is left to decay.
     """
 
-    __slots__ = ("_pattern", "_timeout", "_density", "_results")
+    PATTERN = re.compile(
+        r"""
+        (?:^|\s)            # should proceed the beginning or whitespace
+        (
+            (?:(?:\d|10)\.?)  # any integer within range 0 to 10
+            |
+            (?:\d?\.\d+)      # any decimal within range 0 to 9
+        )
+        \s?/\s?10           # denominator of 10
+        (?:$|[\s,.!?])      # should precede the end, whitespace, or some punctuation
+        """,
+        flags=re.ASCII | re.VERBOSE,
+    )
+
+    __slots__ = ("_timeout", "_min_density", "_max_density", "_ratings")
 
     def __init__(
         self,
         bot: Bot,
         *,
         channel: Channel | str,
-        pattern: Pattern[str],
+        callbacks: Iterable[Callable[[RatingAveragerResult], Coroutine]] = (),
         timeout: float = 8.5,
-        density: int = 50,
-        callbacks: Iterable[Callable[[BatchAveragerResult], Coroutine]] = (),
+        min_density: int = 100,
+        max_density: int = 2 ** 16,
     ) -> None:
         super().__init__(bot, channel=channel, callbacks=callbacks)
-        self._pattern = pattern
-        self._timeout = timeout
-        self._density = density
-        self._results = Queue[PartialAverage]()
 
-    @property
-    def pattern(self) -> Pattern[str]:
-        return self._pattern
+        self._timeout = timeout
+        self._min_density = min_density
+        self._max_density = max_density
+
+        self._ratings = Queue[float]()
 
     @property
     def timeout(self) -> float:
         return self._timeout
 
     @property
-    def density(self) -> int:
-        return self._density
+    def min_density(self) -> int:
+        return self._min_density
 
-    async def event_ready(self) -> AsyncIterator[BatchAveragerResult]:
+    @property
+    def max_density(self) -> int:
+        return self._max_density
+
+    def put(self, rating: float) -> None:
+        self._ratings.put_nowait(rating)
+
+    async def get(self) -> float:
+        return await self._ratings.get()
+
+    def done(self) -> None:
+        self._ratings.task_done()
+
+    async def event_ready(self) -> AsyncIterator[RatingAveragerResult]:
         while True:
-            prev_result = await self._results.get()
-            while True:
-                self._results.task_done()
+            rating = await self.get()
+            for density in range(1, self.max_density + 1):
+                self.done()
                 try:
-                    next_result = await asyncio.wait_for(self._results.get(), timeout=self.timeout)
+                    next_rating = await asyncio.wait_for(self.get(), timeout=self.timeout)
                 except TimeoutError:
                     break
                 else:
-                    prev_result = prev_result.compound(next_result)
-            if prev_result.count < self.density:
+                    rating += next_rating
+            if density < self.min_density:
                 continue
-            yield BatchAveragerResult(self, prev_result)
+            yield RatingAveragerResult(self.channel, density=density, rating=rating)
 
     async def event_message(self, message: Message) -> None:
         if message.echo:
             return
-        match = self.pattern.search(message.content)
+        match = self.PATTERN.search(message.content)
         if match is None:
             return
-        self._results.put_nowait(PartialAverage(float(match.group(1))))
+        self.put(float(match.group(1)))

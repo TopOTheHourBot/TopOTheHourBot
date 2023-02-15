@@ -1,5 +1,5 @@
 from collections.abc import AsyncIterator, Callable, Coroutine, Iterable
-from typing import Generic, Optional, TypeVar
+from typing import Generic, Optional, Sequence, TypeVar
 
 from twitchio import Channel, Message
 from twitchio.ext.commands import Bot, Cog
@@ -11,7 +11,7 @@ T_co = TypeVar("T_co", covariant=True)
 
 class Split(Cog, Generic[T_co]):
     """A type of `Cog` that "splits" event handlers by a given, singular
-    channel, with better support for background polling
+    channel
 
     The `event_ready()` method is expected to be an async generator (or a
     method that returns an async iterator). Its yielded values are
@@ -47,11 +47,11 @@ class Split(Cog, Generic[T_co]):
         return self.bot.get_channel(self._channel)
 
     @property
-    def callbacks(self) -> list[Callable[[T_co], Coroutine]]:
-        """A list of async callbacks dispatched when results are yielded by
+    def callbacks(self) -> Sequence[Callable[[T_co], Coroutine]]:
+        """A sequence of async callbacks dispatched when results are yielded by
         `event_ready()`
         """
-        return self._callbacks.copy()
+        return self._callbacks
 
     def add_callback(self, callback: Callable[[T_co], Coroutine]) -> None:
         """Add a callback to the split"""
