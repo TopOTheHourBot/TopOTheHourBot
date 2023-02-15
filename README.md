@@ -53,9 +53,11 @@ The *first* score is always the one that's chosen by the bot (in cases where a m
 
 The bot will go online everyday at 2:00 PM Eastern (or, 11:00 AM Pacific in Hasan's time). It goes offline after 9.5 hours.
 
+I will, on some days, manually stop the bot from running if Hasan announces that he won't be streaming (saves me a little bit of money).
+
 ### How is the bot ran?
 
-The bot currently runs on a [DigitalOcean Droplet](https://www.digitalocean.com/products/droplets) that executes the [main.py](main.py) script as a [cron job](https://en.wikipedia.org/wiki/Cron). The bot has been moved to many different locations, however, and is likely to change again in the future.
+The bot currently runs on a [DigitalOcean Droplet](https://www.digitalocean.com/products/droplets) that simply executes [main.py](main.py) as a [cron job](https://en.wikipedia.org/wiki/Cron).
 
 ### Why does the bot chat normally sometimes?
 
@@ -67,9 +69,11 @@ In the past, I've also made small changes to have it reply to some friends under
 
 ### Why did the bot not send out a message at [some moment in time]?
 
-Either the score density wasn't high enough, or its message was dropped by Twitch servers - the latter being the much more common scenario.
+Either the bot was offline, or the score density wasn't high enough. TopOTheHourBot used to suffer from server drops, but, Hasan had recently (at the time of writing this) granted it VIP status, which prevents this issue.
 
 If you didn't already know: when a Twitch chat is moving quickly, messages get served in batches (this is why it may appear to move and stop periodically). If you don't send a message while the chat is moving, your message is dropped by the Twitch servers to save on resources. This "drop" [is visualized by Chatterino](https://github.com/Chatterino/chatterino2/issues/1213), but not on the native Twitch web client. The native client "lies" to you by displaying your message on the screen when, in actuality, it may have never been sent.
+
+Again, however, this issue has been nullified by Hasan's decision to make TopOTheHourBot a VIP. Users with the "Broadcaster", "Moderator", or "VIP" designation are given message priority over a standard user.
 
 ### Why does the bot not do [this thing] anymore?
 
@@ -85,17 +89,17 @@ The bot badge is a [BetterTTV](https://betterttv.com/) designation that must be 
 
 ### Are my messages kept somewhere?
 
-Your chat messages (the content of the message, the associated username, and the time at which it was sent) are *temporarily* stored to search and extract a score from its content. If a score is found, the number you provided is the only thing that's kept by the bot - everything else is discarded. In the case that no score is found, *everything* is discarded without exception.
+Your chat messages (the content of the message, the associated username, and the time at which it was sent) are *temporarily* stored to search and extract a score from its content. If a score is found, the number you provided is the only thing that's kept by the bot - everything else is discarded. Messages that do not contain a score are completely irrelevant to the bot, and are discarded in their entirety.
 
 To HasanHub, TopOTheHourBot simply tells it each average score, the time at which they were calculated, and [an ID](https://en.wikipedia.org/wiki/Universally_unique_identifier) that signifies what streaming session they're a part of.
 
 ### Is there a log of the bot's messages somewhere?
 
-HasanHub will *potentially* include a record of the bot's scores in the near future, but *not* its chat messages.
+HasanHub will *potentially* include a record of the bot's scores in the near future, but not its chat messages.
 
 Twitch keeps a log of chat messages for the purpose of moderation. The broadcaster and their moderators may view its record of messages. There exists publicly-accessible logging websites, but, per [Twitch's Developer Agreement](https://www.twitch.tv/p/en/legal/developer-agreement/) (under Additional Terms, Requirements for Specific Features and APIs, Chat):
 
-> Only retain chat logs as necessary for the operation of Your Services or to improve Your Services; do not do so for the purpose of creating public databases, or, in general, to collect information about Twitch’s end users.
+> Only retain chat logs as necessary for the operation of Your Services or to improve Your Services; **do not do so for the purpose of creating public databases**, or, in general, to collect information about Twitch’s end users.
 
 And thus, I will not be linking any such website here.
 
@@ -119,4 +123,4 @@ This bot is *not* directly associated with any other project pertaining to Hasan
 
 [One post to Hasan's subreddit](https://www.reddit.com/r/okbuddyhasan/comments/102k9mu/stream_segways_visualized/) that Hasan thought was tied to TopOTheHourBot is, in reality, not at all a part of this project. This post, and the project it showcases, were made by an independent user who I have no association with. This user also has their own bot in the chat, "Hasanabi_Segways", that serves an identical purpose to TopOTheHourBot, but there exists no connection between the two.
 
-You are entirely free to record and/or use data emitted by TopOTheHourBot without my permission (for logging, analysis, etc.). You do *not* need to credit me - **in fact, I'd prefer if you didn't**. Referencing TopOTheHourBot's Twitch page, or this repository, are okay as a means to provide attribution in cases where it is needed or preferred. Bear in mind that the underlying algorithm for *how* TopOTheHourBot searches for scores has changed a lot, and may continue to change without notice. TopOTheHourBot is subject to server drops like all users, and false positives can occur in circumstances where the chat is providing scores outside of an ad segue (this is an open problem for the project at the moment - feel free to create an issue if you have ideas).
+You are entirely free to record and/or use data emitted by TopOTheHourBot without my permission (for logging, analysis, etc.). You do *not* need to credit me - **in fact, I'd prefer if you didn't**. Referencing TopOTheHourBot's Twitch page, or this repository, are okay as a means to provide attribution in cases where it is needed or preferred. Bear in mind that the underlying algorithm for *how* TopOTheHourBot searches for scores has changed a lot, and may continue to change without notice. TopOTheHourBot was subject to server drops like all users before it was granted VIP, and false positives can occur in circumstances where the chat is providing scores outside of an ad segue (this is an open problem for the project at the moment - feel free to create an issue if you have ideas).
