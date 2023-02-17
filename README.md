@@ -53,7 +53,7 @@ The *first* score is always the one that's chosen by the bot (in cases where a m
 
 The bot will go online everyday at 2:00 PM Eastern (or, 11:00 AM Pacific in Hasan's time). It goes offline after 9.5 hours.
 
-I will, on some days, manually stop the bot from running if Hasan announces that he won't be streaming (it saves me a little bit of money). There have been a rare few instances where the bot had suffered from a connection issue - usually a network hiccup, or an expired access token.
+I will, on some days, manually stop the bot from running if Hasan announces that he won't be streaming. There have also been a rare few instances where the bot had suffered from a connection issue, and is unable to recover until the following day - usually due to a network hiccup, or an expired access token.
 
 ### How is the bot ran?
 
@@ -123,4 +123,4 @@ This bot is *not* directly associated with any other project pertaining to Hasan
 
 [One post to Hasan's subreddit](https://www.reddit.com/r/okbuddyhasan/comments/102k9mu/stream_segways_visualized/) that Hasan thought was tied to TopOTheHourBot is, in reality, not at all a part of this project. This post, and the project it showcases, were made by an independent user who I have no association with. This user also has their own bot in the chat, "Hasanabi_Segways", that serves an identical purpose to TopOTheHourBot, but there exists no connection between the two.
 
-You are entirely free to record and/or use data emitted by TopOTheHourBot without my permission (for logging, analysis, etc.). You do *not* need to credit me - **in fact, I'd prefer if you didn't**. Referencing TopOTheHourBot's Twitch page, or this repository, are okay as a means to provide attribution in cases where it is needed or preferred. Bear in mind that the underlying algorithm for *how* TopOTheHourBot searches for scores has changed a lot, and may continue to change without notice. False positives can occur (and have on many occasions) in scenarios where chatters are providing scores for a reason unrelated to ad segues - meaning that its data is somewhat noisy. There is no method of programmatically removing this noise (no method that's easily doable, anyways).
+You are entirely free to record and/or use data emitted by TopOTheHourBot without any kind of permission (for logging, analysis, etc.). Referencing TopOTheHourBot's Twitch page, or its GitHub repository, are okay as a means to provide attribution in cases where it is needed or preferred. Bear in mind that the underlying algorithm for *how* TopOTheHourBot searches for scores has changed a lot, and may continue to change without notice. False positives can occur (and have on many occasions) in scenarios where chatters are providing scores for a reason unrelated to ad segues - meaning that its data is somewhat noisy. There is no method of programmatically removing this noise (no method that's easily doable, anyways).
