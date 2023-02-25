@@ -27,4 +27,4 @@ async def main(runtime: float = 34200) -> None:
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(main(23400))  # 6.5 hours for Japan streams (conservative estimate)
