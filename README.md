@@ -51,7 +51,7 @@ The *first* rating is always the one that's chosen by the bot (in cases where a 
 
 ### When does the bot run?
 
-The bot will go online everyday at 2:00 PM Eastern (or, 11:00 AM Pacific in Hasan's time). It goes offline after 9.5 hours.
+The bot will go online everyday at 2:00 PM Eastern, or, 11:00 AM Pacific in Hasan's time - his typical starting time. It goes offline after 9.5 hours. This may vary depending on the occurrence of certain events, or general changes in stream schedule (The Streamer Awards being an example of the former, and Hasan's Japan trip being an example of the latter).
 
 I will, on some days, manually stop the bot from running if Hasan announces that he won't be streaming. There have also been a rare few instances where the bot had suffered from a connection issue, and is unable to recover until the following day - usually due to a network hiccup, or an expired access token.
 
