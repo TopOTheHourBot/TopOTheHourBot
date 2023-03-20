@@ -21,7 +21,7 @@ STREAM_UUID: UUID = uuid.uuid4()
 
 class TopOTheHourBot(Bot):
 
-    GLOBAL_MODERATORS: set[str] = {"braedye", "bytesized_", "emjaye"}
+    GLOBAL_MODERATORS: set[str] = {"lyystra", "astryyl", "bytesized_", "emjaye"}
 
     __slots__ = ()
 
