@@ -53,22 +53,34 @@ class TopOTheHourBot(Bot):
             if score <= 2.5:
                 splash = "awful one, hassy"
             elif score <= 5.0:
-                splash = "good attempt, hassy"
+                splash = "uhm.. good attempt, hassy"
             elif score <= 7.5:
-                splash = "nice one, hassy!"
+                splash = "not bad, hassy"
             else:
                 splash = "incredible, hassy!"
 
             if score <= 5.0:
-                emote = random.choice((
-                    "Sadge", "widepeepoSad", "unPOGGERS", "😔", "Awkward",
-                    "peepoPogO", "hasCringe", "🫵 LULW", "smHead",
-                ))
+                emote = random.choice(
+                    (
+                        "unPOGGERS",
+                        "Awkward BobaTime",
+                        "hasCringe",
+                        "PoroSad",
+                        "Concerned Clap",
+                        "Dead",
+                    ),
+                )
             else:
-                emote = random.choice((
-                    "Gladge", "widepeepoHappy", "POGGERS", "😳", "pugPls",
-                    "peepoPog", "DRUMMING", "pepeWoah", "HYPERPOGGER",
-                ))
+                emote = random.choice(
+                    (
+                        "Gladge PETTHEHASAN",
+                        "peepoHappy",
+                        "peepoPog Clap",
+                        "daphCheer",
+                        "peepoCheer",
+                        "peepoBlush",
+                    ),
+               )
 
             await result.averager.channel.send(
                 f"DANKIES 🔔 {count} chatters rated this ad segue an average "
