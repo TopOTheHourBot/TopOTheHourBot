@@ -4,7 +4,7 @@ import logging
 from collections.abc import Callable, Sequence
 from typing import Any, TypeVar
 
-from websockets.client import connect
+from websockets import client
 from websockets.exceptions import ConnectionClosed
 from websockets.typing import Data
 
@@ -13,13 +13,13 @@ from .streams import IOStream, UnboundedIOStream
 from .task_manager import TaskManager
 from .writer import Writer
 
-__all__ = ["main"]
+__all__ = ["connect"]
 
 ReadingT = TypeVar("ReadingT")
 WritingT = TypeVar("WritingT")
 
 
-async def main(
+async def connect(
     uri: str,
     writer: Writer[WritingT],
     readers: Sequence[Reader[ReadingT, WritingT]],
@@ -33,7 +33,7 @@ async def main(
         UnboundedIOStream[ReadingT]()
         for _ in range(len(readers))
     ]
-    async for socket in connect(uri, **kwargs):
+    async for socket in client.connect(uri, **kwargs):
         try:
             tasks.create_task(writer(writer_stream, socket))
             for reader, reader_stream in zip(
