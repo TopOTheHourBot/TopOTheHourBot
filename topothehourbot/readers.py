@@ -7,9 +7,9 @@ from collections.abc import Sequence
 from re import Pattern
 from typing import Any, Final, Protocol
 
-from .client import Reader, TaskManager
-from .client.ircv3 import IRCv3Package
-from .client.streams import IStreamBase, OStreamBase, UnboundedIOStream
+from .websocket import Reader, TaskManager
+from .websocket.ircv3 import IRCv3Package
+from .websocket.streams import IStreamBase, OStreamBase, UnboundedIOStream
 
 
 class Channel(Reader[IRCv3Package, str]):
