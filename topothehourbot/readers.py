@@ -51,7 +51,7 @@ class Channel(Reader[IRCv3Package, str]):
             for _ in range(len(self.readers))
         ]
         for reader, reader_stream in zip(self.readers, reader_streams):
-            tasks.create_task(reader(reader_stream, messages))
+            tasks.create_task(reader(self, reader_stream, messages))
         async for package in packages.get_each():
             if package.command not in self.FILTERED_COMMANDS:
                 continue

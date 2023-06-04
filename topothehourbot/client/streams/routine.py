@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 from asyncio import TimeoutError as AsyncTimeoutError
 from collections.abc import AsyncIterable, AsyncIterator, Callable
-from typing import Literal, Optional, ParamSpec, TypeVar, cast, overload
+from typing import Optional, ParamSpec, TypeVar, cast, overload
 
 __all__ = ["Routine", "routine"]
 
