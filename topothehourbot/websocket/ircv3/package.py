@@ -1,53 +1,95 @@
 from __future__ import annotations
 
+import itertools
 from collections.abc import Mapping, Sequence
-from typing import Optional, Self, overload
+from typing import Optional, Self
+
+from websockets.typing import Data
 
 from .parser import Parser
 
 __all__ = ["IRCv3Package"]
 
 
-class IRCv3Package(Sequence[str]):
+class IRCv3Package:
 
-    __slots__ = __match_args__ = (
+    __slots__ = (
+        "_command",
+        "_arguments",
+        "_comment",
+        "_tags",
+        "_source",
+    )
+    __match_args__ = (
         "command",
         "arguments",
         "tags",
         "source",
     )
 
-    command: str
-    arguments: Sequence[str]
-    tags: Optional[Mapping[str, str]]
-    source: Optional[str]
+    _command: str
+    _arguments: Sequence[str]
+    _comment: Optional[str]
+    _tags: Optional[Mapping[str, str]]
+    _source: Optional[str]
 
-    def __init__(self, command: str, arguments: Sequence[str] = (), *, tags: Optional[Mapping[str, str]] = None, source: Optional[str] = None) -> None:
-        self.command = command
-        self.arguments = arguments
-        self.tags = tags
-        self.source = source
+    def __init__(
+        self,
+        command: str,
+        arguments: Sequence[str] = (),
+        comment: Optional[str] = None,
+        *,
+        tags: Optional[Mapping[str, str]] = None,
+        source: Optional[str] = None,
+    ) -> None:
+        self._command = command
+        self._arguments = arguments
+        self._comment = comment
+        self._tags = tags
+        self._source = source
 
     def __repr__(self) -> str:
-        return f"IRCv3Package(command={self.command!r}, arguments={self.arguments!r}, tags={self.tags!r}, source={self.source!r})"
+        return "IRCv3Package(command={}, arguments={}, comment={}, tags={}, source={})".format(
+            self._command,
+            self._arguments,
+            self._comment,
+            self._tags,
+            self._source,
+        )
 
-    def __len__(self) -> int:
-        return len(self.arguments)
+    @property
+    def command(self) -> str:
+        """The package's command"""
+        return self._command
 
-    @overload
-    def __getitem__(self, key: int) -> str: ...
-    @overload
-    def __getitem__(self, key: slice) -> Sequence[str]: ...
+    @property
+    def arguments(self) -> Sequence[str]:
+        """The package's command arguments
 
-    def __getitem__(self, key: slice | int) -> Sequence[str] | str:
-        return self.arguments[key]
+        Includes the comment (or "trailing") argument if present.
+        """
+        arguments = []
+        arguments.extend(self._arguments)
+        if (comment := self._comment) is not None:
+            arguments.append(comment)
+        return arguments
+
+    @property
+    def tags(self) -> Mapping[str, str]:
+        """The package tags"""
+        return self._tags
+
+    @property
+    def source(self) -> str:
+        """The package source"""
+        return self._source
 
     @classmethod
-    def from_string(cls, string: str, /) -> Self:
-        """Return a new ``IRCv3Package`` by destructuring a raw IRCv3-compatible
-        string
-        """
-        parser = Parser(string)
+    def from_data(cls, data: Data, /) -> Self:
+        """Return a new ``IRCv3Package`` from a raw data string"""
+        assert isinstance(data, str)
+
+        parser = Parser(data)
 
         if parser.peek() == "@":
             tags = {
@@ -71,12 +113,27 @@ class IRCv3Package(Sequence[str]):
         arguments = parser.take_until(target=" :", exclude_current=False).split()
 
         if parser.ok():
-            trailing_argument = parser.advance().take_all()
-            arguments.append(trailing_argument)
+            comment = parser.advance().take_all()
+        else:
+            comment = None
 
         return cls(
             command=command,
             arguments=arguments,
+            comment=comment,
             tags=tags,
             source=source,
         )
+
+    def to_data(self) -> str:
+        """Return the ``IRCv3Package`` as a raw data string"""
+        parts = []
+        if (tags := self._tags):
+            parts.append("@" + ";".join(itertools.starmap(lambda label, value: f"{label}={value}", tags.items())))
+        if (source := self._source):
+            parts.append(":" + source)
+        parts.append(self._command)
+        parts.extend(self._arguments)
+        if (comment := self._comment) is not None:
+            parts.append(":" + comment)
+        return " ".join(parts)
