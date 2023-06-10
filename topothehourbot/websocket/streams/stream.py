@@ -108,15 +108,15 @@ class UnboundIOStream(IOStreamBase[T, T], Generic[T]):
 
 class TimeboundIOStream(UnboundIOStream[T]):
 
-    __slots__ = ("_cooldown", "_prev_put_time")
+    __slots__ = ("_cooldown", "_last_put_time")
 
     _cooldown: float
-    _prev_put_time: float
+    _last_put_time: float
 
     def __init__(self, cooldown: float = 0) -> None:
         super().__init__()
         self._cooldown = cooldown
-        self._prev_put_time = 0
+        self._last_put_time = 0
 
     @property
     def cooldown(self) -> float:
@@ -125,24 +125,24 @@ class TimeboundIOStream(UnboundIOStream[T]):
 
     async def put(self, value: T) -> None:
         curr_put_time = asyncio.get_event_loop().time()
-        prev_put_time = self._prev_put_time
+        last_put_time = self._last_put_time
         cooldown = self._cooldown
 
-        delay = max(cooldown - (curr_put_time - prev_put_time), 0)
+        delay = max(cooldown - (curr_put_time - last_put_time), 0)
         await asyncio.sleep(delay)
 
         await UnboundIOStream.put(self, value)
 
-        self._prev_put_time = curr_put_time + delay
+        self._last_put_time = curr_put_time + delay
 
     def put_drop(self, value: T) -> None:
         curr_put_time = asyncio.get_event_loop().time()
-        prev_put_time = self._prev_put_time
+        last_put_time = self._last_put_time
         cooldown = self._cooldown
 
-        if (curr_put_time - prev_put_time) <= cooldown:
+        if (curr_put_time - last_put_time) <= cooldown:
             return
 
         UnboundIOStream.put_drop(self, value)
 
-        self._prev_put_time = curr_put_time
+        self._last_put_time = curr_put_time
