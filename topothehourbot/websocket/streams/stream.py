@@ -6,22 +6,29 @@ from collections import deque as Deque
 from collections.abc import AsyncIterable, AsyncIterator, Awaitable
 from typing import Generic, TypeVar
 
+from websockets.client import WebSocketClientProtocol
+from websockets.typing import Data
+
 from .routine import routine
 
 __all__ = [
-    "CLOSE_STREAM",
+    "CloseStream",
     "IStreamBase",
     "OStreamBase",
     "IOStreamBase",
     "UnboundIOStream",
     "TimeboundIOStream",
+    "SocketStream",
 ]
-
-CLOSE_STREAM = object()  #: Sentinel value to signal stream closure
 
 T = TypeVar("T")
 T_co = TypeVar("T_co", covariant=True)
 T_contra = TypeVar("T_contra", contravariant=True)
+
+
+class CloseStream(Exception):
+
+    __slots__ = ()
 
 
 class IStreamBase(Generic[T_co], metaclass=ABCMeta):
@@ -32,22 +39,22 @@ class IStreamBase(Generic[T_co], metaclass=ABCMeta):
     async def get(self) -> T_co:
         """Wait and return the next value of the stream
 
-        For the purpose of continuous retrieval, this method can return
-        the ``CLOSE_STREAM`` sentinel value to signal that further significant
-        values will never be found.
+        For the purpose of continuous retrieval, this method can raise
+        ``CloseStream`` to signal that further significant values will never be
+        found.
         """
         raise NotImplementedError
 
     @routine
     async def get_each(self) -> AsyncIterator[T_co]:
         """Return a ``Routine`` that continuously retrieves the next stream
-        value until ``CLOSE_STREAM`` is received
+        value until ``CloseStream`` is raised
         """
-        while True:
-            value = await self.get()
-            if value is CLOSE_STREAM:
-                return
-            yield value
+        try:
+            while True:
+                yield await self.get()
+        except CloseStream:
+            return
 
 
 class OStreamBase(Generic[T_contra], metaclass=ABCMeta):
@@ -121,3 +128,19 @@ class TimeboundIOStream(UnboundIOStream[T]):
         await super().put(value)
 
         self._last_put_time = curr_put_time + delay
+
+
+class SocketStream(IOStreamBase[Data, Data]):
+
+    __slots__ = ("_socket")
+
+    _socket: WebSocketClientProtocol
+
+    def __init__(self, socket: WebSocketClientProtocol, /) -> None:
+        self._socket = socket
+
+    async def get(self) -> Data:
+        return await self._socket.recv()
+
+    async def put(self, value: Data, /) -> None:
+        await self._socket.send(value)
