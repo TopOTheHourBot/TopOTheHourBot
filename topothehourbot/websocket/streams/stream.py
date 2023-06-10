@@ -59,20 +59,10 @@ class OStreamBase(Generic[T_contra], metaclass=ABCMeta):
         """Wait and place ``value`` into the stream"""
         raise NotImplementedError
 
-    @abstractmethod
-    def put_drop(self, value: T_contra, /) -> None:
-        """Place ``value`` into the stream, or drop it if at capacity"""
-        raise NotImplementedError
-
     async def put_each(self, values: AsyncIterable[T_contra], /) -> None:
         """Wait and place ``values`` into the stream"""
         async for value in values:
             await self.put(value)
-
-    async def put_drop_each(self, values: AsyncIterable[T_contra], /) -> None:
-        """Place or drop ``values`` into the stream"""
-        async for value in values:
-            self.put_drop(value)
 
 
 class IOStreamBase(IStreamBase[T_co], OStreamBase[T_contra], Generic[T_co, T_contra], metaclass=ABCMeta):
@@ -102,9 +92,6 @@ class UnboundIOStream(IOStreamBase[T, T], Generic[T]):
     async def put(self, value: T) -> None:
         self._values.append(value)
 
-    def put_drop(self, value: T) -> None:
-        self._values.append(value)
-
 
 class TimeboundIOStream(UnboundIOStream[T]):
 
@@ -131,18 +118,6 @@ class TimeboundIOStream(UnboundIOStream[T]):
         delay = max(cooldown - (curr_put_time - last_put_time), 0)
         await asyncio.sleep(delay)
 
-        await UnboundIOStream.put(self, value)
+        await super().put(value)
 
         self._last_put_time = curr_put_time + delay
-
-    def put_drop(self, value: T) -> None:
-        curr_put_time = asyncio.get_event_loop().time()
-        last_put_time = self._last_put_time
-        cooldown = self._cooldown
-
-        if (curr_put_time - last_put_time) <= cooldown:
-            return
-
-        UnboundIOStream.put_drop(self, value)
-
-        self._last_put_time = curr_put_time
