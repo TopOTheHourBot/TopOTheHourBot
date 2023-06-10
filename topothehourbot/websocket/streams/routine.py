@@ -65,7 +65,7 @@ class Routine(AsyncIterator[T_co]):
             return
 
     @routine
-    async def unique_global(self, key: Callable[[T_co], S] = lambda value: value) -> AsyncIterator[T_co]:
+    async def unique_global(self, key: Callable[[T_co], object] = lambda value: value) -> AsyncIterator[T_co]:
         """Return a sub-routine whose call to ``key`` is unique among all
         encountered values
         """
@@ -77,7 +77,7 @@ class Routine(AsyncIterator[T_co]):
                 seen.add(result)
 
     @routine
-    async def unique_local(self, key: Callable[[T_co], S] = lambda value: value) -> AsyncIterator[T_co]:
+    async def unique_local(self, key: Callable[[T_co], object] = lambda value: value) -> AsyncIterator[T_co]:
         """Return a sub-routine whose call to ``key`` is unique as compared to
         the previously encountered value
         """
