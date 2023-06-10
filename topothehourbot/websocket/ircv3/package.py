@@ -75,18 +75,18 @@ class IRCv3Package:
         return arguments
 
     @property
-    def tags(self) -> Mapping[str, str]:
+    def tags(self) -> Optional[Mapping[str, str]]:
         """The package tags"""
         return self._tags
 
     @property
-    def source(self) -> str:
+    def source(self) -> Optional[str]:
         """The package source"""
         return self._source
 
     @classmethod
     def from_data(cls, data: Data, /) -> Self:
-        """Return a new ``IRCv3Package`` from a raw data string"""
+        """Return a new package from a raw data string"""
         assert isinstance(data, str)
 
         parser = Parser(data)
@@ -126,7 +126,7 @@ class IRCv3Package:
         )
 
     def to_data(self) -> str:
-        """Return the ``IRCv3Package`` as a raw data string"""
+        """Return the package as a raw data string"""
         parts = []
         if (tags := self._tags):
             parts.append("@" + ";".join(itertools.starmap(lambda label, value: f"{label}={value}", tags.items())))
