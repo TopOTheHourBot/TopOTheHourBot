@@ -13,7 +13,7 @@ __all__ = [
     "IStreamBase",
     "OStreamBase",
     "IOStreamBase",
-    "UnboundedIOStream",
+    "UnboundIOStream",
     "TimeboundIOStream",
 ]
 
@@ -80,7 +80,7 @@ class IOStreamBase(IStreamBase[T_co], OStreamBase[T_contra], Generic[T_co, T_con
     __slots__ = ()
 
 
-class UnboundedIOStream(IOStreamBase[T, T], Generic[T]):
+class UnboundIOStream(IOStreamBase[T, T], Generic[T]):
 
     __slots__ = ("_values")
 
@@ -106,7 +106,7 @@ class UnboundedIOStream(IOStreamBase[T, T], Generic[T]):
         self._values.append(value)
 
 
-class TimeboundIOStream(UnboundedIOStream[T]):
+class TimeboundIOStream(UnboundIOStream[T]):
 
     __slots__ = ("_cooldown", "_prev_put_time")
 
@@ -131,7 +131,7 @@ class TimeboundIOStream(UnboundedIOStream[T]):
         delay = max(cooldown - (curr_put_time - prev_put_time), 0)
         await asyncio.sleep(delay)
 
-        await UnboundedIOStream.put(self, value)
+        await UnboundIOStream.put(self, value)
 
         self._prev_put_time = curr_put_time + delay
 
@@ -143,6 +143,6 @@ class TimeboundIOStream(UnboundedIOStream[T]):
         if (curr_put_time - prev_put_time) <= cooldown:
             return
 
-        UnboundedIOStream.put_drop(self, value)
+        UnboundIOStream.put_drop(self, value)
 
         self._prev_put_time = curr_put_time
