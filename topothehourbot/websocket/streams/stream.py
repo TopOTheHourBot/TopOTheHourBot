@@ -3,12 +3,12 @@ from __future__ import annotations
 import asyncio
 from abc import ABCMeta, abstractmethod
 from collections import deque as Deque
-from collections.abc import AsyncIterable, AsyncIterator, Awaitable
+from collections.abc import AsyncIterable, AsyncIterator, Awaitable, Iterable
 from typing import Generic, TypeVar
 
 from websockets.client import WebSocketClientProtocol
-from websockets.typing import Data
 
+from ..ircv3 import IRCv3Package
 from .routine import routine
 
 __all__ = [
@@ -17,8 +17,9 @@ __all__ = [
     "OStreamBase",
     "IOStreamBase",
     "UnboundIOStream",
+    "UnboundIRCv3IOStream",
     "TimeboundIOStream",
-    "SocketStream",
+    "TimeboundIRCv3IOStream",
 ]
 
 T = TypeVar("T")
@@ -83,13 +84,8 @@ class UnboundIOStream(IOStreamBase[T, T], Generic[T]):
 
     _values: Deque[T]
 
-    def __init__(self) -> None:
-        self._values = Deque()
-
-    @property
-    def size(self) -> int:
-        """The current number of values"""
-        return len(self._values)
+    def __init__(self, values: Iterable[T] = (), /) -> None:
+        self._values = Deque(values)
 
     async def get(self) -> T:
         while not self._values:
@@ -100,37 +96,7 @@ class UnboundIOStream(IOStreamBase[T, T], Generic[T]):
         self._values.append(value)
 
 
-class TimeboundIOStream(UnboundIOStream[T]):
-
-    __slots__ = ("_cooldown", "_last_put_time")
-
-    _cooldown: float
-    _last_put_time: float
-
-    def __init__(self, cooldown: float = 0) -> None:
-        super().__init__()
-        self._cooldown = cooldown
-        self._last_put_time = 0
-
-    @property
-    def cooldown(self) -> float:
-        """The duration of the stream's cooldown period"""
-        return self._cooldown
-
-    async def put(self, value: T) -> None:
-        curr_put_time = asyncio.get_event_loop().time()
-        last_put_time = self._last_put_time
-        cooldown = self._cooldown
-
-        delay = max(cooldown - (curr_put_time - last_put_time), 0)
-        await asyncio.sleep(delay)
-
-        await super().put(value)
-
-        self._last_put_time = curr_put_time + delay
-
-
-class SocketStream(IOStreamBase[Data, Data]):
+class UnboundIRCv3IOStream(IOStreamBase[IRCv3Package, IRCv3Package]):
 
     __slots__ = ("_socket")
 
@@ -139,8 +105,63 @@ class SocketStream(IOStreamBase[Data, Data]):
     def __init__(self, socket: WebSocketClientProtocol, /) -> None:
         self._socket = socket
 
-    async def get(self) -> Data:
-        return await self._socket.recv()
+    async def get(self) -> IRCv3Package:
+        return IRCv3Package.from_data(await self._socket.recv())
 
-    async def put(self, value: Data, /) -> None:
-        await self._socket.send(value)
+    async def put(self, package: IRCv3Package) -> None:
+        await self._socket.send(package.to_data())
+
+
+class TimeboundIOStreamWrapper(IOStreamBase[T, T], Generic[T]):
+
+    __slots__ = ("_stream", "_cooldown", "_last_put_time")
+
+    _stream: IOStreamBase[T, T]
+    _cooldown: float
+    _last_put_time: float
+
+    @property
+    def cooldown(self) -> float:
+        """The duration of the stream's cooldown period"""
+        return self._cooldown
+
+    async def get(self) -> T:
+        return await self._stream.get()
+
+    async def put(self, value: T) -> None:
+        curr_put_time = asyncio.get_event_loop().time()
+        last_put_time = self._last_put_time
+
+        # It's important to set last_put_time before sleeping, otherwise a
+        # quickly-following call to put() will calculate delay based on an
+        # already "claimed" timestamp
+
+        delay = max(self._cooldown - (curr_put_time - last_put_time), 0)
+        self._last_put_time = curr_put_time + delay
+
+        await asyncio.sleep(delay)
+        await self._stream.put(value)
+
+
+class TimeboundIOStream(TimeboundIOStreamWrapper[T]):
+
+    __slots__ = ()
+
+    _stream: UnboundIOStream[T]
+
+    def __init__(self, values: Iterable[T] = (), /, *, cooldown: float = 0) -> None:
+        self._stream = UnboundIOStream(values)
+        self._cooldown = cooldown
+        self._last_put_time = 0
+
+
+class TimeboundIRCv3IOStream(TimeboundIOStreamWrapper[IRCv3Package]):
+
+    __slots__ = ()
+
+    _stream: UnboundIRCv3IOStream
+
+    def __init__(self, socket: WebSocketClientProtocol, /, *, cooldown: float = 0) -> None:
+        self._stream = UnboundIRCv3IOStream(socket)
+        self._cooldown = cooldown
+        self._last_put_time = 0
