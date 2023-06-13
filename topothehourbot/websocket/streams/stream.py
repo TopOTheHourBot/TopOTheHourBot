@@ -129,18 +129,21 @@ class TimeboundIOStreamWrapper(IOStreamBase[T, T], Generic[T]):
         return await self._stream.get()
 
     async def put(self, value: T) -> None:
+        stream = self._stream
+
         curr_put_time = asyncio.get_event_loop().time()
         last_put_time = self._last_put_time
+        cooldown = self._cooldown
 
         # It's important to set last_put_time before sleeping, otherwise a
         # quickly-following call to put() will calculate delay based on an
         # already "claimed" timestamp
 
-        delay = max(self._cooldown - (curr_put_time - last_put_time), 0)
+        delay = max(cooldown - (curr_put_time - last_put_time), 0)
         self._last_put_time = curr_put_time + delay
 
         await asyncio.sleep(delay)
-        await self._stream.put(value)
+        await stream.put(value)
 
 
 class TimeboundIOStream(TimeboundIOStreamWrapper[T]):
