@@ -81,7 +81,6 @@ class IOStreamBase(IStreamBase[T_co], OStreamBase[T_contra], Generic[T_co, T_con
 class UnboundIOStream(IOStreamBase[T, T], Generic[T]):
 
     __slots__ = ("_values")
-
     _values: Deque[T]
 
     def __init__(self, values: Iterable[T] = (), /) -> None:
@@ -99,7 +98,6 @@ class UnboundIOStream(IOStreamBase[T, T], Generic[T]):
 class UnboundIRCv3IOStream(IOStreamBase[IRCv3Package, IRCv3Package]):
 
     __slots__ = ("_socket")
-
     _socket: WebSocketClientProtocol
 
     def __init__(self, socket: WebSocketClientProtocol, /) -> None:
@@ -115,7 +113,6 @@ class UnboundIRCv3IOStream(IOStreamBase[IRCv3Package, IRCv3Package]):
 class TimeboundIOStreamWrapper(IOStreamBase[T, T], Generic[T]):
 
     __slots__ = ("_stream", "_cooldown", "_last_put_time")
-
     _stream: IOStreamBase[T, T]
     _cooldown: float
     _last_put_time: float
@@ -149,7 +146,6 @@ class TimeboundIOStreamWrapper(IOStreamBase[T, T], Generic[T]):
 class TimeboundIOStream(TimeboundIOStreamWrapper[T]):
 
     __slots__ = ()
-
     _stream: UnboundIOStream[T]
 
     def __init__(self, values: Iterable[T] = (), /, *, cooldown: float = 0) -> None:
@@ -161,7 +157,6 @@ class TimeboundIOStream(TimeboundIOStreamWrapper[T]):
 class TimeboundIRCv3IOStream(TimeboundIOStreamWrapper[IRCv3Package]):
 
     __slots__ = ()
-
     _stream: UnboundIRCv3IOStream
 
     def __init__(self, socket: WebSocketClientProtocol, /, *, cooldown: float = 0) -> None:
