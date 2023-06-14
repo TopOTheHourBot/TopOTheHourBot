@@ -68,7 +68,7 @@ class Parser:
         i = self._index + exclude_current
         j = self._subject.find(target, i)
         if j < 0:
-            j = None
+            j = len(self._subject)
         result = self._subject[i:j]
         self._index = j
         return result
