@@ -1,51 +1,55 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable, Sequence
-from typing import Any, TypeVar
+from asyncio import TaskGroup
+from typing import Self
 
 from websockets import client
 from websockets.exceptions import ConnectionClosed
-from websockets.typing import Data
 
-from .reader import Reader
-from .streams import IOStream, UnboundedIOStream
-from .task_manager import TaskManager
-from .writer import Writer
-
-__all__ = ["connect"]
-
-ReadingT = TypeVar("ReadingT")
-WritingT = TypeVar("WritingT")
+from .ircv3 import IRCv3Package
+from .streams import OStreamBase, TimeboundIRCv3IOStream
 
 
-async def connect(
-    uri: str,
-    writer: Writer[WritingT],
-    readers: Sequence[Reader[ReadingT, WritingT]],
-    *,
-    parser: Callable[[Data], ReadingT] = lambda data: data,
-    **kwargs: Any,
-) -> None:
-    tasks = TaskManager()
-    writer_stream  = IOStream[WritingT](capacity=1)
-    reader_streams = [
-        UnboundedIOStream[ReadingT]()
-        for _ in range(len(readers))
-    ]
-    async for socket in client.connect(uri, **kwargs):
-        try:
-            tasks.create_task(writer(writer_stream, socket))
-            for reader, reader_stream in zip(
-                readers,
-                reader_streams,
-            ):
-                tasks.create_task(reader(reader_stream, writer_stream))
-            async for data in socket:
-                result = parser(data)
-                for reader_stream in reader_streams:
-                    reader_stream.put(result)
-        except ConnectionClosed as exc:
-            logging.exception(exc)
-            await tasks.cancel()
-            continue
+class IRCv3Client:
+
+    __slots__ = ("_uri", "_cooldown", "_streams")
+    _uri: str
+    _cooldown: float
+    _streams: list[OStreamBase[IRCv3Package]]
+
+    def __init__(self, uri: str, *, cooldown: float = 1.5) -> None:
+        self._uri = uri
+        self._cooldown = cooldown
+        self._streams = []
+
+    @property
+    def uri(self) -> str:
+        return self._uri
+
+    @property
+    def cooldown(self) -> float:
+        return self._cooldown
+
+    def subscribe(self, stream: OStreamBase[IRCv3Package]) -> Self:
+        self._streams.append(stream)
+        return self
+
+    async def drain(self) -> None:
+        async for socket in client.connect(self._uri):
+            cooldown = self._cooldown
+            irc_stream = TimeboundIRCv3IOStream(
+                socket=socket,
+                cooldown=cooldown,
+            )
+            try:
+                streams = self._streams
+                async with TaskGroup() as tg:
+                    for stream in streams:
+                        tg.create_task(stream.drain(irc_stream))  # TODO: abstract drain() method added to
+                    async for package in irc_stream.get_each():   # the interface (Pipe?)
+                        for stream in streams:
+                            tg.create_task(stream.put(package))
+            except* ConnectionClosed as exc:
+                logging.exception(exc)
+                continue

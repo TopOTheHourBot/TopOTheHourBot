@@ -63,7 +63,7 @@ class OStreamBase(Generic[T_contra], metaclass=ABCMeta):
     __slots__ = ()
 
     @abstractmethod
-    def put(self, value: T_contra, /) -> Awaitable[None]:
+    async def put(self, value: T_contra, /) -> None:
         """Wait and place ``value`` into the stream"""
         raise NotImplementedError
 
@@ -83,7 +83,7 @@ class UnboundIOStream(IOStreamBase[T, T], Generic[T]):
     __slots__ = ("_values")
     _values: Deque[T]
 
-    def __init__(self, values: Iterable[T] = (), /) -> None:
+    def __init__(self, values: Iterable[T] = ()) -> None:
         self._values = Deque(values)
 
     async def get(self) -> T:
@@ -100,7 +100,7 @@ class UnboundIRCv3IOStream(IOStreamBase[IRCv3Package, IRCv3Package]):
     __slots__ = ("_socket")
     _socket: WebSocketClientProtocol
 
-    def __init__(self, socket: WebSocketClientProtocol, /) -> None:
+    def __init__(self, socket: WebSocketClientProtocol) -> None:
         self._socket = socket
 
     async def get(self) -> IRCv3Package:
@@ -148,7 +148,7 @@ class TimeboundIOStream(TimeboundIOStreamWrapper[T]):
     __slots__ = ()
     _stream: UnboundIOStream[T]
 
-    def __init__(self, values: Iterable[T] = (), /, *, cooldown: float = 0) -> None:
+    def __init__(self, values: Iterable[T] = (), *, cooldown: float = 0) -> None:
         self._stream = UnboundIOStream(values)
         self._cooldown = cooldown
         self._last_put_time = 0
@@ -159,7 +159,7 @@ class TimeboundIRCv3IOStream(TimeboundIOStreamWrapper[IRCv3Package]):
     __slots__ = ()
     _stream: UnboundIRCv3IOStream
 
-    def __init__(self, socket: WebSocketClientProtocol, /, *, cooldown: float = 0) -> None:
+    def __init__(self, socket: WebSocketClientProtocol, *, cooldown: float = 0) -> None:
         self._stream = UnboundIRCv3IOStream(socket)
         self._cooldown = cooldown
         self._last_put_time = 0
