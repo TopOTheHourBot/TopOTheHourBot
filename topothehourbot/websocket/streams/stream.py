@@ -18,6 +18,7 @@ __all__ = [
     "IOStreamBase",
     "UnboundIOStream",
     "UnboundIRCv3IOStream",
+    "TimeboundIOStreamWrapper",
     "TimeboundIOStream",
     "TimeboundIRCv3IOStream",
 ]
@@ -95,7 +96,7 @@ class UnboundIOStream(IOStreamBase[T, T], Generic[T]):
         self._values.append(value)
 
 
-class UnboundIRCv3IOStream(IOStreamBase[IRCv3Package, IRCv3Package]):
+class UnboundIRCv3IOStream(IOStreamBase[IRCv3Package, object]):
 
     __slots__ = ("_socket")
     _socket: WebSocketClientProtocol
@@ -104,28 +105,36 @@ class UnboundIRCv3IOStream(IOStreamBase[IRCv3Package, IRCv3Package]):
         self._socket = socket
 
     async def get(self) -> IRCv3Package:
-        return IRCv3Package.from_data(await self._socket.recv())
+        string = await self._socket.recv()
+        assert isinstance(string, str)
+        return IRCv3Package.from_string(string)
 
-    async def put(self, package: IRCv3Package) -> None:
-        await self._socket.send(package.to_data())
+    async def put(self, package: object) -> None:
+        await self._socket.send(str(package))
 
 
-class TimeboundIOStreamWrapper(IOStreamBase[T, T], Generic[T]):
+class TimeboundIOStreamWrapperBase(IOStreamBase[T_co, T_contra], metaclass=ABCMeta):
 
     __slots__ = ("_stream", "_cooldown", "_last_put_time")
-    _stream: IOStreamBase[T, T]
+    _stream: IOStreamBase[T_co, T_contra]
     _cooldown: float
     _last_put_time: float
 
     @property
     def cooldown(self) -> float:
-        """The duration of the stream's cooldown period"""
+        """The amount of time, in seconds, for which to pause subsequent
+        putting operations
+        """
         return self._cooldown
 
-    async def get(self) -> T:
+    @cooldown.setter
+    def cooldown(self, cooldown: float) -> None:
+        self._cooldown = cooldown
+
+    async def get(self) -> T_co:
         return await self._stream.get()
 
-    async def put(self, value: T) -> None:
+    async def put(self, value: T_contra) -> None:
         curr_put_time = asyncio.get_event_loop().time()
         last_put_time = self._last_put_time
         cooldown = self._cooldown
@@ -141,20 +150,28 @@ class TimeboundIOStreamWrapper(IOStreamBase[T, T], Generic[T]):
         await self._stream.put(value)
 
 
-class TimeboundIOStream(TimeboundIOStreamWrapper[T]):
+class TimeboundIOStreamWrapper(TimeboundIOStreamWrapperBase[T_co, T_contra]):
 
     __slots__ = ()
 
-    def __init__(self, values: IOStreamBase[T, T] | Iterable[T] = (), *, cooldown: float = 0) -> None:
-        if isinstance(values, IOStreamBase):
-            self._stream = values
-        else:
-            self._stream = UnboundIOStream(values)
+    def __init__(self, stream: IOStreamBase[T_co, T_contra], *, cooldown: float = 0) -> None:
+        self._stream = stream
         self._cooldown = cooldown
         self._last_put_time = 0
 
 
-class TimeboundIRCv3IOStream(TimeboundIOStreamWrapper[IRCv3Package]):
+class TimeboundIOStream(TimeboundIOStreamWrapperBase[T, T]):
+
+    __slots__ = ()
+    _stream: UnboundIOStream[T]
+
+    def __init__(self, values: Iterable[T] = (), *, cooldown: float = 0) -> None:
+        self._stream = UnboundIOStream(values)
+        self._cooldown = cooldown
+        self._last_put_time = 0
+
+
+class TimeboundIRCv3IOStream(TimeboundIOStreamWrapperBase[IRCv3Package, object]):
 
     __slots__ = ()
     _stream: UnboundIRCv3IOStream
