@@ -4,8 +4,6 @@ import itertools
 from collections.abc import Mapping, Sequence
 from typing import Optional, Self
 
-from websockets.typing import Data
-
 from .parser import Parser
 
 __all__ = ["IRCv3Package"]
@@ -57,6 +55,18 @@ class IRCv3Package:
             self._source,
         )
 
+    def __str__(self) -> str:
+        parts = []
+        if (tags := self._tags):
+            parts.append("@" + ";".join(itertools.starmap(lambda label, value: f"{label}={value}", tags.items())))
+        if (source := self._source):
+            parts.append(":" + source)
+        parts.append(self._command)
+        parts.extend(self._arguments)
+        if (comment := self._comment) is not None:
+            parts.append(":" + comment)
+        return " ".join(parts)
+
     @property
     def command(self) -> str:
         """The package's command"""
@@ -85,11 +95,9 @@ class IRCv3Package:
         return self._source
 
     @classmethod
-    def from_data(cls, data: Data, /) -> Self:
+    def from_string(cls, string: str, /) -> Self:
         """Return a new package from a raw data string"""
-        assert isinstance(data, str)
-
-        parser = Parser(data)
+        parser = Parser(string)
 
         if parser.peek() == "@":
             tags = {
@@ -124,16 +132,3 @@ class IRCv3Package:
             tags=tags,
             source=source,
         )
-
-    def to_data(self) -> str:
-        """Return the package as a raw data string"""
-        parts = []
-        if (tags := self._tags):
-            parts.append("@" + ";".join(itertools.starmap(lambda label, value: f"{label}={value}", tags.items())))
-        if (source := self._source):
-            parts.append(":" + source)
-        parts.append(self._command)
-        parts.extend(self._arguments)
-        if (comment := self._comment) is not None:
-            parts.append(":" + comment)
-        return " ".join(parts)
