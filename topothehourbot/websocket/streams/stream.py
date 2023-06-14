@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 from abc import ABCMeta, abstractmethod
 from collections import deque as Deque
-from collections.abc import AsyncIterable, AsyncIterator, Awaitable, Iterable
+from collections.abc import AsyncIterable, AsyncIterator, Iterable
 from typing import Generic, TypeVar
 
 from websockets.client import WebSocketClientProtocol
@@ -146,10 +146,12 @@ class TimeboundIOStreamWrapper(IOStreamBase[T, T], Generic[T]):
 class TimeboundIOStream(TimeboundIOStreamWrapper[T]):
 
     __slots__ = ()
-    _stream: UnboundIOStream[T]
 
-    def __init__(self, values: Iterable[T] = (), *, cooldown: float = 0) -> None:
-        self._stream = UnboundIOStream(values)
+    def __init__(self, values: IOStreamBase[T, T] | Iterable[T] = (), *, cooldown: float = 0) -> None:
+        if isinstance(values, IOStreamBase):
+            self._stream = values
+        else:
+            self._stream = UnboundIOStream(values)
         self._cooldown = cooldown
         self._last_put_time = 0
 
