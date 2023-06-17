@@ -16,7 +16,7 @@ __all__ = [
     "IStreamBase",
     "OStreamBase",
     "IOStreamBase",
-    "UnboundIOStream",
+    "IOStream",
     "IRCv3IOSocket",
     "TimeboundOStream",
     "TimeboundIRCv3OSocket",
@@ -78,7 +78,7 @@ class IOStreamBase(IStreamBase[T_co], OStreamBase[T_contra], Generic[T_co, T_con
     __slots__ = ()
 
 
-class UnboundIOStream(IOStreamBase[T, T], Generic[T]):
+class IOStream(IOStreamBase[T, T], Generic[T]):
 
     __slots__ = ("_values")
     _values: Deque[T]
