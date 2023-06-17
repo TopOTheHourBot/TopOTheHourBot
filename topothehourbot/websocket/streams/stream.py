@@ -157,8 +157,11 @@ class TimeboundIRCv3OSocket(TimeboundOStream[IRCv3Package]):
     __slots__ = ()
     _stream: IRCv3IOSocket
 
-    def __init__(self, stream: IRCv3IOSocket, *, cooldown: float = 0) -> None:
-        super().__init__(stream, cooldown=cooldown)
+    def __init__(self, stream: IRCv3IOSocket | WebSocketClientProtocol, *, cooldown: float = 0) -> None:
+        if isinstance(stream, WebSocketClientProtocol):
+            super().__init__(IRCv3IOSocket(stream), cooldown=cooldown)
+        else:
+            super().__init__(stream, cooldown=cooldown)
 
     async def put(self, package: IRCv3Package, /) -> None:
         if package.command != "PRIVMSG":
