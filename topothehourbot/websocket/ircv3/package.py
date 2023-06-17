@@ -55,18 +55,6 @@ class IRCv3Package:
             self._source,
         )
 
-    def __str__(self) -> str:
-        parts = []
-        if (tags := self._tags):
-            parts.append("@" + ";".join(itertools.starmap(lambda label, value: f"{label}={value}", tags.items())))
-        if (source := self._source):
-            parts.append(":" + source)
-        parts.append(self._command)
-        parts.extend(self._arguments)
-        if (comment := self._comment) is not None:
-            parts.append(":" + comment)
-        return " ".join(parts)
-
     @property
     def command(self) -> str:
         """The package's command"""
@@ -132,3 +120,15 @@ class IRCv3Package:
             tags=tags,
             source=source,
         )
+
+    def to_string(self) -> str:
+        parts = []
+        if (tags := self._tags):
+            parts.append("@" + ";".join(itertools.starmap(lambda label, value: f"{label}={value}", tags.items())))
+        if (source := self._source):
+            parts.append(":" + source)
+        parts.append(self._command)
+        parts.extend(self._arguments)
+        if (comment := self._comment) is not None:
+            parts.append(":" + comment)
+        return " ".join(parts)
