@@ -60,7 +60,7 @@ class Routine(AsyncIterator[T_co]):
 
     def split(self, n: int = 2, /) -> Iterator[Routine[T_co]]:
         """Return an iterable containing ``n`` independent sub-routines whose
-        values are published by the acting routine
+        values are retrieved from the acting routine
         """
         for _ in range(n):
             split = Split()
@@ -106,6 +106,9 @@ class Routine(AsyncIterator[T_co]):
     async def global_unique(self, key: Callable[[T_co], object] = identity) -> AsyncIterator[T_co]:
         """Return a sub-routine whose call to ``key`` is unique among all
         encountered values
+
+        Note that this method may require significant auxiliary storage,
+        depending on how often unique values appear.
         """
         seen = set()
         async for value in self:
