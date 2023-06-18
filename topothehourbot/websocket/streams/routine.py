@@ -59,7 +59,9 @@ class Routine(AsyncIterator[T_co]):
         return value
 
     def split(self, n: int = 2, /) -> Iterator[Routine[T_co]]:
-        """Return ``n`` independent routines with identical values"""
+        """Return an iterable containing ``n`` independent sub-routines whose
+        values are published by the acting routine
+        """
         for _ in range(n):
             split = Split()
             self._splits.append(split)
@@ -158,19 +160,46 @@ class Routine(AsyncIterator[T_co]):
             yield mapper(value)
 
     @overload
-    def unpack_map(self: Routine[tuple[T1]], mapper: Callable[[T1], S]) -> Routine[S]: ...
+    def zip(self: Routine[T1]) -> Routine[tuple[T1]]: ...
     @overload
-    def unpack_map(self: Routine[tuple[T1, T2]], mapper: Callable[[T1, T2], S]) -> Routine[S]: ...
+    def zip(self: Routine[T1], other2: AsyncIterable[T2], /) -> Routine[tuple[T1, T2]]: ...
     @overload
-    def unpack_map(self: Routine[tuple[T1, T2, T3]], mapper: Callable[[T1, T2, T3], S]) -> Routine[S]: ...
+    def zip(self: Routine[T1], other2: AsyncIterable[T2], other3: AsyncIterable[T3], /) -> Routine[tuple[T1, T2, T3]]: ...
     @overload
-    def unpack_map(self: Routine[tuple[T1, T2, T3, T4]], mapper: Callable[[T1, T2, T3, T4], S]) -> Routine[S]: ...
+    def zip(self: Routine[T1], other2: AsyncIterable[T2], other3: AsyncIterable[T3], other4: AsyncIterable[T4], /) -> Routine[tuple[T1, T2, T3, T4]]: ...
     @overload
-    def unpack_map(self: Routine[tuple[T1, T2, T3, T4, T5]], mapper: Callable[[T1, T2, T3, T4, T5], S]) -> Routine[S]: ...
+    def zip(self: Routine[T1], other2: AsyncIterable[T2], other3: AsyncIterable[T3], other4: AsyncIterable[T4], other5: AsyncIterable[T5], /) -> Routine[tuple[T1, T2, T3, T4, T5]]: ...
     @overload
-    def unpack_map(self: Routine[tuple], mapper: Callable[..., S]) -> Routine[S]: ...
+    def zip(self, *others: AsyncIterable) -> Routine[tuple]: ...
     @routine
-    async def unpack_map(self: Routine[tuple], mapper: Callable[..., S]) -> AsyncIterator[S]:
+    async def zip(self, *others: AsyncIterable) -> AsyncIterator[tuple]:
+        """Return a sub-routine that concurrently awaits and packs the values
+        from one or more asynchronous iterables
+
+        Iteration stops when the shortest asynchronous iterable has been
+        exhausted.
+        """
+        its = (self, *map(aiter, others))
+        try:
+            while True:
+                yield tuple(await asyncio.gather(*map(anext, its)))
+        except StopAsyncIteration:
+            return
+
+    @overload
+    def star_map(self: Routine[tuple[T1]], mapper: Callable[[T1], S]) -> Routine[S]: ...
+    @overload
+    def star_map(self: Routine[tuple[T1, T2]], mapper: Callable[[T1, T2], S]) -> Routine[S]: ...
+    @overload
+    def star_map(self: Routine[tuple[T1, T2, T3]], mapper: Callable[[T1, T2, T3], S]) -> Routine[S]: ...
+    @overload
+    def star_map(self: Routine[tuple[T1, T2, T3, T4]], mapper: Callable[[T1, T2, T3, T4], S]) -> Routine[S]: ...
+    @overload
+    def star_map(self: Routine[tuple[T1, T2, T3, T4, T5]], mapper: Callable[[T1, T2, T3, T4, T5], S]) -> Routine[S]: ...
+    @overload
+    def star_map(self: Routine[tuple], mapper: Callable[..., S]) -> Routine[S]: ...
+    @routine
+    async def star_map(self: Routine[tuple], mapper: Callable[..., S]) -> AsyncIterator[S]:
         """Return a sub-routine of the results from unpacking and passing each
         ``tuple`` value to ``mapper``
         """
