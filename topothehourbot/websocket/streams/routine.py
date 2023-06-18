@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import asyncio
 from asyncio import TimeoutError as AsyncTimeoutError
-from collections.abc import AsyncIterable, AsyncIterator, Callable
+from collections import deque as Deque
+from collections.abc import AsyncIterable, AsyncIterator, Callable, Iterator
 from typing import Optional, ParamSpec, TypeVar, cast, overload
 
 __all__ = ["Routine", "routine"]
@@ -22,6 +23,11 @@ S = TypeVar("S")
 S_co = TypeVar("S_co", covariant=True)
 
 
+def identity(x: T, /) -> T:
+    """Return ``x``"""
+    return x
+
+
 def routine(func: Callable[P, AsyncIterable[T]], /) -> Callable[P, Routine[T]]:
     """Cast a function's return type from an ``AsyncIterable[T]`` to
     ``Routine[T]``
@@ -38,15 +44,45 @@ def routine(func: Callable[P, AsyncIterable[T]], /) -> Callable[P, Routine[T]]:
 
 class Routine(AsyncIterator[T_co]):
 
-    __slots__ = ("_values")
-
+    __slots__ = ("_values", "_splits")
     _values: AsyncIterator[T_co]
+    _splits: list[Split[T_co]]
 
-    def __init__(self, values: AsyncIterable[T_co]) -> None:
+    def __init__(self, values: AsyncIterable[T_co], /) -> None:
         self._values = aiter(values)
+        self._splits = []
 
     async def __anext__(self) -> T_co:
-        return await anext(self._values)  # type: ignore
+        value = await anext(self._values)
+        for split in self._splits:
+            split.put(value)
+        return value
+
+    def split(self, n: int = 2, /) -> Iterator[Routine[T_co]]:
+        """Return ``n`` independent routines with identical values"""
+        for _ in range(n):
+            split = Split()
+            self._splits.append(split)
+            yield split
+
+    @routine
+    async def stagger(self, delay: float, *, instant_first: bool = True) -> AsyncIterator[T_co]:
+        """Return a sub-routine whose yields are staggered by at least
+        ``delay`` seconds
+
+        If ``instant_first`` is true, the first value is yielded without extra
+        delay applied to the underlying iterator.
+        """
+        if instant_first:
+            try:
+                value = await anext(self)
+            except StopAsyncIteration:
+                return
+            else:
+                yield value
+        async for value in self:
+            await asyncio.sleep(delay)
+            yield value
 
     @routine
     async def timeout(self, delay: float, *, infinite_first: bool = True) -> AsyncIterator[T_co]:
@@ -65,7 +101,7 @@ class Routine(AsyncIterator[T_co]):
             return
 
     @routine
-    async def unique_global(self, key: Callable[[T_co], object] = lambda value: value) -> AsyncIterator[T_co]:
+    async def unique_global(self, key: Callable[[T_co], object] = identity) -> AsyncIterator[T_co]:
         """Return a sub-routine whose call to ``key`` is unique among all
         encountered values
         """
@@ -77,7 +113,7 @@ class Routine(AsyncIterator[T_co]):
                 seen.add(result)
 
     @routine
-    async def unique_local(self, key: Callable[[T_co], object] = lambda value: value) -> AsyncIterator[T_co]:
+    async def unique_local(self, key: Callable[[T_co], object] = identity) -> AsyncIterator[T_co]:
         """Return a sub-routine whose call to ``key`` is unique as compared to
         the previously encountered value
         """
@@ -158,9 +194,9 @@ class Routine(AsyncIterator[T_co]):
         """Return a sub-routine of values filtered by their falseyness"""
         return self.filter(lambda value: not value)
 
-    def not_none(self: Routine[Optional[T]]) -> Routine[T]:
+    def not_none(self: Routine[Optional[S]]) -> Routine[S]:
         """Return a sub-routine of values that are not ``None``"""
-        return cast(Routine[T], self.filter(lambda value: value is not None))
+        return cast(Routine[S], self.filter(lambda value: value is not None))
 
     async def all(self) -> bool:
         """Return true if all values are true, otherwise false"""
@@ -189,3 +225,32 @@ class Routine(AsyncIterator[T_co]):
     async def count(self) -> int:
         """Return the number of values"""
         return await self.reduce(0, lambda count, value: count + 1)
+
+
+class Queue(AsyncIterator[T]):
+
+    __slots__ = ("_values")
+    _values: Deque[T]
+
+    def __init__(self) -> None:
+        self._values = Deque()
+
+    async def __anext__(self) -> T:
+        while not self._values:
+            await asyncio.sleep(0)
+        return self._values.popleft()
+
+    def put(self, value: T, /) -> None:
+        self._values.append(value)
+
+
+class Split(Routine[T]):
+
+    __slots__ = ()
+    _values: Queue[T]
+
+    def __init__(self) -> None:
+        super().__init__(Queue())
+
+    def put(self, value: T, /) -> None:
+        self._values.put(value)
