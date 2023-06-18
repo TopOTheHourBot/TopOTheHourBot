@@ -55,7 +55,7 @@ class Routine(AsyncIterator[T_co]):
     async def __anext__(self) -> T_co:
         value = await anext(self._values)
         for split in self._splits:
-            split.put(value)
+            split._values.put(value)
         return value
 
     def split(self, n: int = 2, /) -> Iterator[Routine[T_co]]:
@@ -224,7 +224,7 @@ class Routine(AsyncIterator[T_co]):
 
     async def count(self) -> int:
         """Return the number of values"""
-        return await self.reduce(0, lambda count, value: count + 1)
+        return await self.reduce(0, lambda count, _: count + 1)
 
 
 class Queue(AsyncIterator[T]):
@@ -244,13 +244,10 @@ class Queue(AsyncIterator[T]):
         self._values.append(value)
 
 
-class Split(Routine[T]):
+class Split(Routine[T_co]):
 
     __slots__ = ()
-    _values: Queue[T]
+    _values: Queue[T_co]
 
     def __init__(self) -> None:
         super().__init__(Queue())
-
-    def put(self, value: T, /) -> None:
-        self._values.put(value)
