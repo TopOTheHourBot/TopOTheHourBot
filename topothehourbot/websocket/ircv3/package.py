@@ -121,7 +121,7 @@ class IRCv3Package:
             source=source,
         )
 
-    def to_string(self) -> str:
+    def into_string(self) -> str:
         parts = []
         if (tags := self._tags):
             parts.append("@" + ";".join(itertools.starmap(lambda label, value: f"{label}={value}", tags.items())))
