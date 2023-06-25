@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import asyncio
 import collections
-from typing import Generic, Optional, TypeVar
+from typing import Generic, Optional, TypeAlias, TypeVar
 
 from websockets.client import WebSocketClientProtocol
 from websockets.exceptions import ConnectionClosed
+from websockets.typing import Data
 
 from ..ircv3 import IRCv3Package
 from .protocols import (RecvError, SendError, SupportsRecv,
@@ -21,8 +22,10 @@ T = TypeVar("T")
 T_co = TypeVar("T_co", covariant=True)
 T_contra = TypeVar("T_contra", contravariant=True)
 
+IRCv3Data: TypeAlias = IRCv3Package | Data
 
-class IRCv3Channel(SupportsRecvAndSend[IRCv3Package, IRCv3Package | str]):
+
+class IRCv3Channel(SupportsRecvAndSend[IRCv3Package, IRCv3Data]):
 
     __slots__ = ("_socket")
     _socket: WebSocketClientProtocol
@@ -38,7 +41,7 @@ class IRCv3Channel(SupportsRecvAndSend[IRCv3Package, IRCv3Package | str]):
         assert isinstance(string, str)
         return IRCv3Package.from_string(string)
 
-    async def send(self, value: IRCv3Package | str, /) -> None:
+    async def send(self, value: IRCv3Data, /) -> None:
         if isinstance(value, IRCv3Package):
             string = value.into_string()
         else:
