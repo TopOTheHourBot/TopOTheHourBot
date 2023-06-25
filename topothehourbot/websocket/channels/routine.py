@@ -5,7 +5,10 @@ from asyncio import TimeoutError as AsyncTimeoutError
 from collections.abc import AsyncIterable, AsyncIterator, Callable
 from typing import Optional, ParamSpec, TypeVar, cast, overload
 
-__all__ = ["Routine", "routine"]
+__all__ = [
+    "Routine",
+    "routine",
+]
 
 P = ParamSpec("P")
 

@@ -6,7 +6,6 @@ from typing import Generic, Optional, TypeVar
 
 from websockets.client import WebSocketClientProtocol
 from websockets.exceptions import ConnectionClosed
-from websockets.typing import Data
 
 from ..ircv3 import IRCv3Package
 from .protocols import (RecvError, SendError, SupportsRecv,
@@ -14,7 +13,7 @@ from .protocols import (RecvError, SendError, SupportsRecv,
 
 __all__ = [
     "IRCv3Channel",
-    "SendingChannel",
+    "SendOnlyChannel",
     "Channel",
 ]
 
@@ -23,7 +22,7 @@ T_co = TypeVar("T_co", covariant=True)
 T_contra = TypeVar("T_contra", contravariant=True)
 
 
-class IRCv3Channel(SupportsRecvAndSend[IRCv3Package, IRCv3Package | Data]):
+class IRCv3Channel(SupportsRecvAndSend[IRCv3Package, IRCv3Package | str]):
 
     __slots__ = ("_socket")
     _socket: WebSocketClientProtocol
@@ -34,23 +33,23 @@ class IRCv3Channel(SupportsRecvAndSend[IRCv3Package, IRCv3Package | Data]):
     async def recv(self) -> IRCv3Package:
         try:
             string = await self._socket.recv()
-            assert isinstance(string, str)
-            return IRCv3Package.from_string(string)
         except ConnectionClosed as exc:
             raise RecvError from exc
+        assert isinstance(string, str)
+        return IRCv3Package.from_string(string)
 
-    async def send(self, value: IRCv3Package | Data, /) -> None:
+    async def send(self, value: IRCv3Package | str, /) -> None:
+        if isinstance(value, IRCv3Package):
+            string = value.into_string()
+        else:
+            string = value
         try:
-            if isinstance(value, IRCv3Package):
-                string = value.into_string()
-            else:
-                string = value
             await self._socket.send(string)
         except ConnectionClosed as exc:
             raise SendError from exc
 
 
-class SendingBuffer(SupportsSend[T_contra], Generic[T_contra]):
+class SendOnlyBuffer(SupportsSend[T_contra], Generic[T_contra]):
 
     __slots__ = ("_values")
     _values: collections.deque[T_contra]
@@ -62,7 +61,7 @@ class SendingBuffer(SupportsSend[T_contra], Generic[T_contra]):
         self._values.append(value)
 
 
-class Buffer(SendingBuffer[T], SupportsRecv[T], Generic[T]):
+class Buffer(SendOnlyBuffer[T], SupportsRecv[T], Generic[T]):
 
     __slots__ = ()
 
@@ -72,7 +71,7 @@ class Buffer(SendingBuffer[T], SupportsRecv[T], Generic[T]):
         return self._values.popleft()
 
 
-class SendingChannel(SupportsSend[T_contra], Generic[T_contra]):
+class SendOnlyChannel(SupportsSend[T_contra], Generic[T_contra]):
 
     __slots__ = ("_linked_channel", "_cooldown", "_prev_send_time")
     _linked_channel: SupportsSend[T_contra]
@@ -80,7 +79,7 @@ class SendingChannel(SupportsSend[T_contra], Generic[T_contra]):
     _prev_send_time: float
 
     def __init__(self, linked_channel: Optional[SupportsSend[T_contra]] = None, *, cooldown: float = 0) -> None:
-        self._linked_channel = SendingBuffer() if linked_channel is None else linked_channel
+        self._linked_channel = SendOnlyBuffer() if linked_channel is None else linked_channel
         self._cooldown = cooldown
         self._prev_send_time = 0
 
@@ -114,7 +113,7 @@ class SendingChannel(SupportsSend[T_contra], Generic[T_contra]):
         return (curr_send_time, next_send_time, delay)
 
 
-class Channel(SendingChannel[T_contra], SupportsRecv[T_co], Generic[T_co, T_contra]):
+class Channel(SendOnlyChannel[T_contra], SupportsRecv[T_co], Generic[T_co, T_contra]):
 
     __slots__ = ()
     _linked_channel: SupportsRecvAndSend[T_co, T_contra]
