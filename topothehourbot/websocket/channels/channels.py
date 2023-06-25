@@ -73,13 +73,13 @@ class Buffer(SendOnlyBuffer[T], SupportsRecv[T], Generic[T]):
 
 class SendOnlyChannel(SupportsSend[T_contra], Generic[T_contra]):
 
-    __slots__ = ("_linked_channel", "_cooldown", "_prev_send_time")
-    _linked_channel: SupportsSend[T_contra]
+    __slots__ = ("_link", "_cooldown", "_prev_send_time")
+    _link: SupportsSend[T_contra]
     _cooldown: float
     _prev_send_time: float
 
-    def __init__(self, linked_channel: Optional[SupportsSend[T_contra]] = None, *, cooldown: float = 0) -> None:
-        self._linked_channel = SendOnlyBuffer() if linked_channel is None else linked_channel
+    def __init__(self, link: Optional[SupportsSend[T_contra]] = None, *, cooldown: float = 0) -> None:
+        self._link = SendOnlyBuffer() if link is None else link
         self._cooldown = cooldown
         self._prev_send_time = 0
 
@@ -98,7 +98,7 @@ class SendOnlyChannel(SupportsSend[T_contra], Generic[T_contra]):
         curr_send_time, next_send_time, delay = self.wait_span()
         self._prev_send_time = next_send_time
         await asyncio.sleep(delay)
-        await self._linked_channel.send(value)
+        await self._link.send(value)
 
     def wait_span(self) -> tuple[float, float, float]:
         """Return a ``(start, stop, step)`` tuple, where ``start`` is the
@@ -116,10 +116,10 @@ class SendOnlyChannel(SupportsSend[T_contra], Generic[T_contra]):
 class Channel(SendOnlyChannel[T_contra], SupportsRecv[T_co], Generic[T_co, T_contra]):
 
     __slots__ = ()
-    _linked_channel: SupportsRecvAndSend[T_co, T_contra]
+    _link: SupportsRecvAndSend[T_co, T_contra]
 
-    def __init__(self, linked_channel: Optional[SupportsRecvAndSend[T_co, T_contra]] = None, *, cooldown: float = 0) -> None:
-        super().__init__(linked_channel=Buffer() if linked_channel is None else linked_channel, cooldown=cooldown)
+    def __init__(self, link: Optional[SupportsRecvAndSend[T_co, T_contra]] = None, *, cooldown: float = 0) -> None:
+        super().__init__(link=Buffer() if link is None else link, cooldown=cooldown)
 
     async def recv(self) -> T_co:
-        return await self._linked_channel.recv()
+        return await self._link.recv()
