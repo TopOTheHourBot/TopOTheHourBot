@@ -176,7 +176,7 @@ class Routine(AsyncIterator[T_co]):
         its = (self, *map(aiter, others))
         try:
             while True:
-                yield await asyncio.gather(*map(anext, its))  # type: ignore
+                yield tuple(await asyncio.gather(*map(anext, its)))
         except StopAsyncIteration:
             return
 
