@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterable, AsyncIterator
 from typing import Any, Protocol, TypeVar
 
 from .routine import routine
@@ -66,7 +66,7 @@ class SupportsSend(Protocol[T_contra]):
         """
         raise NotImplementedError
 
-    async def send_each(self, values: AsyncIterator[T_contra], /) -> Any:
+    async def send_each(self, values: AsyncIterable[T_contra], /) -> Any:
         """Send values from an async iterable until exhaustion, or until
         ``SendError``
         """
