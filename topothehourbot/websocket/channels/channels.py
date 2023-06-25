@@ -8,7 +8,7 @@ from websockets.client import WebSocketClientProtocol
 from websockets.exceptions import ConnectionClosed
 from websockets.typing import Data
 
-from ..ircv3 import IRCv3Package
+from ..ircv3 import IRCv3Command
 from .protocols import (RecvError, SendError, SupportsRecv,
                         SupportsRecvAndSend, SupportsSend)
 
@@ -22,10 +22,10 @@ T = TypeVar("T")
 T_co = TypeVar("T_co", covariant=True)
 T_contra = TypeVar("T_contra", contravariant=True)
 
-IRCv3Data: TypeAlias = IRCv3Package | Data
+IRCv3Data: TypeAlias = Data | IRCv3Command
 
 
-class IRCv3Channel(SupportsRecvAndSend[IRCv3Package, IRCv3Data]):
+class IRCv3Channel(SupportsRecvAndSend[IRCv3Command, IRCv3Data]):
 
     __slots__ = ("_socket")
     _socket: WebSocketClientProtocol
@@ -33,16 +33,16 @@ class IRCv3Channel(SupportsRecvAndSend[IRCv3Package, IRCv3Data]):
     def __init__(self, socket: WebSocketClientProtocol, /) -> None:
         self._socket = socket
 
-    async def recv(self) -> IRCv3Package:
+    async def recv(self) -> IRCv3Command:
         try:
             string = await self._socket.recv()
         except ConnectionClosed as exc:
             raise RecvError from exc
         assert isinstance(string, str)
-        return IRCv3Package.from_string(string)
+        return IRCv3Command.from_string(string)
 
     async def send(self, value: IRCv3Data, /) -> None:
-        if isinstance(value, IRCv3Package):
+        if isinstance(value, IRCv3Command):
             string = value.into_string()
         else:
             string = value

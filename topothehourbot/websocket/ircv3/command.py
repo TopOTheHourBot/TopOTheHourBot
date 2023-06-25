@@ -6,26 +6,26 @@ from typing import Optional, Self
 
 from .parser import Parser
 
-__all__ = ["IRCv3Package"]
+__all__ = ["IRCv3Command"]
 
 
-class IRCv3Package:
+class IRCv3Command:
 
     __slots__ = (
-        "_command",
+        "_name",
         "_arguments",
         "_comment",
         "_tags",
         "_source",
     )
     __match_args__ = (
-        "command",
+        "name",
         "arguments",
         "tags",
         "source",
     )
 
-    _command: str
+    _name: str
     _arguments: Sequence[str]
     _comment: Optional[str]
     _tags: Optional[Mapping[str, str]]
@@ -33,22 +33,22 @@ class IRCv3Package:
 
     def __init__(
         self,
-        command: str,
+        name: str,
         arguments: Sequence[str] = (),
         comment: Optional[str] = None,
         *,
         tags: Optional[Mapping[str, str]] = None,
         source: Optional[str] = None,
     ) -> None:
-        self._command = command
+        self._name = name
         self._arguments = arguments
         self._comment = comment
         self._tags = tags
         self._source = source
 
     def __repr__(self) -> str:
-        return "IRCv3Package(command={}, arguments={}, comment={}, tags={}, source={})".format(
-            self._command,
+        return "IRCv3Command(name={}, arguments={}, comment={}, tags={}, source={})".format(
+            self._name,
             self._arguments,
             self._comment,
             self._tags,
@@ -56,13 +56,13 @@ class IRCv3Package:
         )
 
     @property
-    def command(self) -> str:
-        """The package's command"""
-        return self._command
+    def name(self) -> str:
+        """The command's name"""
+        return self._name
 
     @property
     def arguments(self) -> Sequence[str]:
-        """The package's command arguments
+        """The command's arguments
 
         Includes the comment (or "trailing") argument if present.
         """
@@ -74,17 +74,17 @@ class IRCv3Package:
 
     @property
     def tags(self) -> Optional[Mapping[str, str]]:
-        """The package tags"""
+        """The command's tags"""
         return self._tags
 
     @property
     def source(self) -> Optional[str]:
-        """The package source"""
+        """The command's source"""
         return self._source
 
     @classmethod
     def from_string(cls, string: str, /) -> Self:
-        """Return a new package from a raw data string"""
+        """Return a new command from a raw data string"""
         parser = Parser(string)
 
         if parser.peek() == "@":
@@ -105,7 +105,7 @@ class IRCv3Package:
         else:
             source = None
 
-        command   = parser.take_until(exclude_current=False)
+        command = parser.take_until(exclude_current=False)
         arguments = parser.take_until(target=" :", exclude_current=False).split()
 
         if parser.ok():
@@ -122,12 +122,13 @@ class IRCv3Package:
         )
 
     def into_string(self) -> str:
+        """Return the command as a raw data string"""
         parts = []
         if (tags := self._tags):
             parts.append("@" + ";".join(itertools.starmap(lambda label, value: f"{label}={value}", tags.items())))
         if (source := self._source):
             parts.append(":" + source)
-        parts.append(self._command)
+        parts.append(self._name)
         parts.extend(self._arguments)
         if (comment := self._comment) is not None:
             parts.append(":" + comment)
