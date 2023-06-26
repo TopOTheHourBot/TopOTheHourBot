@@ -1,20 +1,25 @@
 from __future__ import annotations
 
-from typing import Self, TypeVar
+from typing import Self, TypeVar, final
 
 __all__ = ["Parser"]
 
 DefaultT = TypeVar("DefaultT")
 
 
+@final
 class Parser:
+    """A simple string parser
+
+    Parser objects are a thin wrapper around a subject string, and an index
+    that can be "moved" across it - commonly by targeting of sub-strings.
+    """
 
     __slots__ = ("_subject", "_index")
-
     _subject: str
     _index: int
 
-    def __init__(self, subject: str, index: int = 0) -> None:
+    def __init__(self, subject: str, *, index: int = 0) -> None:
         self._subject = subject
         self._index = index
 
@@ -67,8 +72,7 @@ class Parser:
         """
         i = self._index + exclude_current
         j = self._subject.find(target, i)
-        if j < 0:
-            j = len(self._subject)
+        if j == -1: j = len(self._subject)
         result = self._subject[i:j]
         self._index = j
         return result
