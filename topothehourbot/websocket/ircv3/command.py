@@ -24,7 +24,6 @@ class IRCv3Command:
         "tags",
         "source",
     )
-
     _name: str
     _arguments: Sequence[str]
     _comment: Optional[str]
@@ -105,7 +104,7 @@ class IRCv3Command:
         else:
             source = None
 
-        command = parser.take_until(exclude_current=False)
+        name = parser.take_until(exclude_current=False)
         arguments = parser.take_until(target=" :", exclude_current=False).split()
 
         if parser.ok():
@@ -114,7 +113,7 @@ class IRCv3Command:
             comment = None
 
         return cls(
-            command=command,
+            name=name,
             arguments=arguments,
             comment=comment,
             tags=tags,
