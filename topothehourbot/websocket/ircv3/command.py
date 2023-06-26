@@ -46,13 +46,18 @@ class IRCv3Command:
         self._source = source
 
     def __repr__(self) -> str:
-        return "IRCv3Command(name={name!r}, arguments={arguments!r}, comment={comment!r}, tags={tags!r}, source={source!r})".format(
-            name=self._name,
-            arguments=self._arguments,
-            comment=self._comment,
-            tags=self._tags,
-            source=self._source,
-        )
+        parts = []
+        name  = self._name
+        parts.append("name=" + repr(name))
+        if (arguments := self._arguments):
+            parts.append("arguments=" + repr(arguments))
+        if (comment := self._comment):
+            parts.append("comment=" + repr(comment))
+        if (tags := self._tags):
+            parts.append("tags=" + repr(tags))
+        if (source := self._source):
+            parts.append("source=" + repr(source))
+        return "IRCv3Command(" + ", ".join(parts) + ")"
 
     @property
     def name(self) -> str:
@@ -65,8 +70,8 @@ class IRCv3Command:
 
         Includes the comment (or "trailing") argument if present.
         """
-        arguments = []
-        arguments.extend(self._arguments)
+        arguments = []                     # Most commands have just 1-3 arguments, so
+        arguments.extend(self._arguments)  # this should be fairly quick
         if (comment := self._comment) is not None:
             arguments.append(comment)
         return arguments
@@ -88,7 +93,7 @@ class IRCv3Command:
 
         if parser.peek() == "@":
             tags = {
-                label.removeprefix("+"): value  # TODO: unescape values
+                label.removeprefix("+"): value  # TODO: Unescape values
                 for label, _, value in map(
                     lambda tag: tag.partition("="),
                     parser.take_until().split(";"),
