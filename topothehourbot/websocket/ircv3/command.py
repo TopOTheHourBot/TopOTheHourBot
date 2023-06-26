@@ -46,12 +46,12 @@ class IRCv3Command:
         self._source = source
 
     def __repr__(self) -> str:
-        return "IRCv3Command(name={}, arguments={}, comment={}, tags={}, source={})".format(
-            self._name,
-            self._arguments,
-            self._comment,
-            self._tags,
-            self._source,
+        return "IRCv3Command(name={name!r}, arguments={arguments!r}, comment={comment!r}, tags={tags!r}, source={source!r})".format(
+            name=self._name,
+            arguments=self._arguments,
+            comment=self._comment,
+            tags=self._tags,
+            source=self._source,
         )
 
     @property
