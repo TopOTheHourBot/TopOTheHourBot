@@ -6,7 +6,6 @@ from typing import Generic, Optional, TypeAlias, TypeVar
 
 from websockets.client import WebSocketClientProtocol
 from websockets.exceptions import ConnectionClosed
-from websockets.typing import Data
 
 from ..ircv3 import IRCv3Command
 from .protocols import (RecvError, SendError, SupportsRecv,
@@ -22,7 +21,7 @@ T = TypeVar("T")
 T_co = TypeVar("T_co", covariant=True)
 T_contra = TypeVar("T_contra", contravariant=True)
 
-IRCv3Data: TypeAlias = Data | IRCv3Command
+IRCv3Data: TypeAlias = IRCv3Command | str
 
 
 class IRCv3Channel(SupportsRecvAndSend[IRCv3Command, IRCv3Data]):
@@ -42,10 +41,7 @@ class IRCv3Channel(SupportsRecvAndSend[IRCv3Command, IRCv3Data]):
         return IRCv3Command.from_string(string)
 
     async def send(self, value: IRCv3Data, /) -> None:
-        if isinstance(value, IRCv3Command):
-            string = value.into_string()
-        else:
-            string = value
+        string = str(value)
         try:
             await self._socket.send(string)
         except ConnectionClosed as exc:

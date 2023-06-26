@@ -121,7 +121,7 @@ class IRCv3Command:
             source=source,
         )
 
-    def into_string(self) -> str:
+    def to_string(self) -> str:
         """Return the command as a raw data string"""
         parts = []
         if (tags := self._tags):
@@ -133,3 +133,5 @@ class IRCv3Command:
         if (comment := self._comment) is not None:
             parts.append(":" + comment)
         return " ".join(parts)
+
+    __str__ = to_string
