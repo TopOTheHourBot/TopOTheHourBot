@@ -49,13 +49,13 @@ class IRCv3Command:
         parts = []
         name  = self._name
         parts.append("name=" + repr(name))
-        if (arguments := self._arguments):
+        if (arguments := self._arguments) is not None:
             parts.append("arguments=" + repr(arguments))
-        if (comment := self._comment):
+        if (comment := self._comment) is not None:
             parts.append("comment=" + repr(comment))
-        if (tags := self._tags):
+        if (tags := self._tags) is not None:
             parts.append("tags=" + repr(tags))
-        if (source := self._source):
+        if (source := self._source) is not None:
             parts.append("source=" + repr(source))
         return "IRCv3Command(" + ", ".join(parts) + ")"
 
@@ -128,9 +128,9 @@ class IRCv3Command:
     def to_string(self) -> str:
         """Return the command as a raw data string"""
         parts = []
-        if (tags := self._tags):
+        if (tags := self._tags) is not None:
             parts.append("@" + ";".join(itertools.starmap(lambda label, value: f"{label}={value}", tags.items())))
-        if (source := self._source):
+        if (source := self._source) is not None:
             parts.append(":" + source)
         parts.append(self._name)
         parts.extend(self._arguments)
