@@ -1,18 +1,12 @@
 from __future__ import annotations
 
 import asyncio
-import collections
-from typing import Generic, Optional, TypeAlias, TypeVar
+from collections import deque
+from typing import Generic, Optional, TypeVar
 
-from websockets.client import WebSocketClientProtocol
-from websockets.exceptions import ConnectionClosed
-
-from ..ircv3 import IRCv3Command
-from .protocols import (RecvError, SendError, SupportsRecv,
-                        SupportsRecvAndSend, SupportsSend)
+from .protocols import SupportsRecv, SupportsRecvAndSend, SupportsSend
 
 __all__ = [
-    "IRCv3Channel",
     "SendOnlyChannel",
     "Channel",
 ]
@@ -21,40 +15,14 @@ T = TypeVar("T")
 T_co = TypeVar("T_co", covariant=True)
 T_contra = TypeVar("T_contra", contravariant=True)
 
-IRCv3Data: TypeAlias = IRCv3Command | str
-
-
-class IRCv3Channel(SupportsRecvAndSend[IRCv3Command, IRCv3Data]):
-
-    __slots__ = ("_socket")
-    _socket: WebSocketClientProtocol
-
-    def __init__(self, socket: WebSocketClientProtocol, /) -> None:
-        self._socket = socket
-
-    async def recv(self) -> IRCv3Command:
-        try:
-            string = await self._socket.recv()
-        except ConnectionClosed as exc:
-            raise RecvError from exc
-        assert isinstance(string, str)
-        return IRCv3Command.from_string(string)
-
-    async def send(self, value: IRCv3Data, /) -> None:
-        string = str(value)
-        try:
-            await self._socket.send(string)
-        except ConnectionClosed as exc:
-            raise SendError from exc
-
 
 class SendOnlyBuffer(SupportsSend[T_contra], Generic[T_contra]):
 
     __slots__ = ("_values")
-    _values: collections.deque[T_contra]
+    _values: deque[T_contra]
 
     def __init__(self) -> None:
-        self._values = collections.deque()
+        self._values = deque()
 
     async def send(self, value: T_contra, /) -> None:
         self._values.append(value)
