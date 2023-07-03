@@ -3,12 +3,14 @@ from __future__ import annotations
 import asyncio
 from asyncio import TimeoutError as AsyncTimeoutError
 from collections.abc import AsyncIterable, AsyncIterator, Callable
-from typing import Optional, ParamSpec, TypeVar, cast, overload
+from typing import Optional, ParamSpec, TypeVar, TypeVarTuple, cast, overload
 
 __all__ = [
     "Series",
     "series",
 ]
+
+Ts = TypeVarTuple("Ts")
 
 P = ParamSpec("P")
 
@@ -17,7 +19,6 @@ T2 = TypeVar("T2")
 T3 = TypeVar("T3")
 T4 = TypeVar("T4")
 T5 = TypeVar("T5")
-
 S1 = TypeVar("S1")
 S2 = TypeVar("S2")
 
@@ -180,22 +181,10 @@ class Series(AsyncIterator[T_co]):
         except StopAsyncIteration:
             return
 
-    @overload
-    def star_map(self: Series[tuple[T1]], mapper: Callable[[T1], S]) -> Series[S]: ...
-    @overload
-    def star_map(self: Series[tuple[T1, T2]], mapper: Callable[[T1, T2], S]) -> Series[S]: ...
-    @overload
-    def star_map(self: Series[tuple[T1, T2, T3]], mapper: Callable[[T1, T2, T3], S]) -> Series[S]: ...
-    @overload
-    def star_map(self: Series[tuple[T1, T2, T3, T4]], mapper: Callable[[T1, T2, T3, T4], S]) -> Series[S]: ...
-    @overload
-    def star_map(self: Series[tuple[T1, T2, T3, T4, T5]], mapper: Callable[[T1, T2, T3, T4, T5], S]) -> Series[S]: ...
-    @overload
-    def star_map(self: Series[tuple], mapper: Callable[..., S]) -> Series[S]: ...
     @series
-    async def star_map(self: Series[tuple], mapper: Callable[..., S]) -> AsyncIterator[S]:
+    async def star_map(self: Series[tuple[*Ts]], mapper: Callable[[*Ts], S]) -> AsyncIterator[S]:
         """Return a sub-series of the results from unpacking and passing each
-        ``tuple`` value to ``mapper``
+        value to ``mapper``
         """
         async for values in self:
             yield mapper(*values)
