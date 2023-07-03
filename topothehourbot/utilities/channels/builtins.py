@@ -28,9 +28,10 @@ class Buffer(SupportsRecvAndSend[T, T], Generic[T]):
         self._values.append(value)
 
     async def recv(self) -> T:
-        while not self._values:
+        values = self._values
+        while not values:
             await asyncio.sleep(0)
-        return self._values.popleft()
+        return values.popleft()
 
 
 class SendOnlyChannel(SupportsSend[T_contra], Generic[T_contra]):
