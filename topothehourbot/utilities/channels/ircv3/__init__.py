@@ -1,2 +1,2 @@
-from .channel import *
+from .channels import *
 from .command import *
