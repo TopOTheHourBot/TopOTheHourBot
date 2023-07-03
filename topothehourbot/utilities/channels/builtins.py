@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from collections import deque
+from collections import deque as Deque
 from typing import Generic, Optional, TypeVar
 
 from .protocols import SupportsRecv, SupportsRecvAndSend, SupportsSend
@@ -16,21 +16,16 @@ T_co = TypeVar("T_co", covariant=True)
 T_contra = TypeVar("T_contra", contravariant=True)
 
 
-class SendOnlyBuffer(SupportsSend[T_contra], Generic[T_contra]):
+class Buffer(SupportsRecvAndSend[T, T], Generic[T]):
 
     __slots__ = ("_values")
-    _values: deque[T_contra]
+    _values: Deque[T]
 
     def __init__(self) -> None:
-        self._values = deque()
+        self._values = Deque()
 
-    async def send(self, value: T_contra, /) -> None:
+    async def send(self, value: T, /) -> None:
         self._values.append(value)
-
-
-class Buffer(SendOnlyBuffer[T], SupportsRecv[T], Generic[T]):
-
-    __slots__ = ()
 
     async def recv(self) -> T:
         while not self._values:
@@ -40,13 +35,13 @@ class Buffer(SendOnlyBuffer[T], SupportsRecv[T], Generic[T]):
 
 class SendOnlyChannel(SupportsSend[T_contra], Generic[T_contra]):
 
-    __slots__ = ("_link", "_cooldown", "_prev_send_time")
-    _link: SupportsSend[T_contra]
+    __slots__ = ("_source", "_cooldown", "_prev_send_time")
+    _source: SupportsSend[T_contra]
     _cooldown: float
     _prev_send_time: float
 
-    def __init__(self, link: Optional[SupportsSend[T_contra]] = None, *, cooldown: float = 0) -> None:
-        self._link = SendOnlyBuffer() if link is None else link
+    def __init__(self, source: Optional[SupportsSend[T_contra]] = None, *, cooldown: float = 0) -> None:
+        self._source = Buffer() if source is None else source
         self._cooldown = cooldown
         self._prev_send_time = 0
 
@@ -65,7 +60,7 @@ class SendOnlyChannel(SupportsSend[T_contra], Generic[T_contra]):
         curr_send_time, next_send_time, delay = self.wait_span()
         self._prev_send_time = next_send_time
         await asyncio.sleep(delay)
-        await self._link.send(value)
+        await self._source.send(value)
 
     def wait_span(self) -> tuple[float, float, float]:
         """Return a ``(start, stop, step)`` tuple, where ``start`` is the
@@ -83,10 +78,10 @@ class SendOnlyChannel(SupportsSend[T_contra], Generic[T_contra]):
 class Channel(SendOnlyChannel[T_contra], SupportsRecv[T_co], Generic[T_co, T_contra]):
 
     __slots__ = ()
-    _link: SupportsRecvAndSend[T_co, T_contra]
+    _source: SupportsRecvAndSend[T_co, T_contra]
 
-    def __init__(self, link: Optional[SupportsRecvAndSend[T_co, T_contra]] = None, *, cooldown: float = 0) -> None:
-        super().__init__(link=Buffer() if link is None else link, cooldown=cooldown)
+    def __init__(self, source: Optional[SupportsRecvAndSend[T_co, T_contra]] = None, *, cooldown: float = 0) -> None:
+        super().__init__(source=source, cooldown=cooldown)
 
     async def recv(self) -> T_co:
-        return await self._link.recv()
+        return await self._source.recv()
