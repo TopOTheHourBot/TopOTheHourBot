@@ -6,8 +6,8 @@ from collections.abc import AsyncIterable, AsyncIterator, Callable
 from typing import Optional, ParamSpec, TypeVar, cast, overload
 
 __all__ = [
-    "Routine",
-    "routine",
+    "Series",
+    "series",
 ]
 
 P = ParamSpec("P")
@@ -33,21 +33,21 @@ def identity(value: T, /) -> T:
     return value
 
 
-def routine(func: Callable[P, AsyncIterable[T]], /) -> Callable[P, Routine[T]]:
+def series(func: Callable[P, AsyncIterable[T]], /) -> Callable[P, Series[T]]:
     """Convert a function's return type from an ``AsyncIterable[T]`` to
-    ``Routine[T]``
+    ``Series[T]``
     """
 
-    def routine_wrapper(*args: P.args, **kwargs: P.kwargs) -> Routine[T]:
-        return Routine(func(*args, **kwargs))
+    def series_wrapper(*args: P.args, **kwargs: P.kwargs) -> Series[T]:
+        return Series(func(*args, **kwargs))
 
-    routine_wrapper.__name__ = func.__name__
-    routine_wrapper.__doc__  = func.__doc__
+    series_wrapper.__name__ = func.__name__
+    series_wrapper.__doc__  = func.__doc__
 
-    return routine_wrapper
+    return series_wrapper
 
 
-class Routine(AsyncIterator[T_co]):
+class Series(AsyncIterator[T_co]):
     """A wrapper type for asynchronous iterators that adds common iterable
     operations and waiting utilities
     """
@@ -62,10 +62,10 @@ class Routine(AsyncIterator[T_co]):
         value = await anext(self._values)
         return value
 
-    @routine
+    @series
     async def stagger(self, delay: float, *, instant_first: bool = True) -> AsyncIterator[T_co]:
-        """Return a sub-routine whose yields are staggered by at least
-        ``delay`` seconds
+        """Return a sub-series whose yields are staggered by at least ``delay``
+        seconds
 
         If ``instant_first`` is true, the first value is yielded without extra
         delay applied to the underlying iterator.
@@ -81,9 +81,9 @@ class Routine(AsyncIterator[T_co]):
             await asyncio.sleep(delay)
             yield value
 
-    @routine
+    @series
     async def timeout(self, delay: float, *, infinite_first: bool = True) -> AsyncIterator[T_co]:
-        """Return a sub-routine whose value retrievals are time restricted by
+        """Return a sub-series whose value retrievals are time restricted by
         ``delay`` seconds
 
         If ``infinite_first`` is true, the first retrieval is awaited for
@@ -97,9 +97,9 @@ class Routine(AsyncIterator[T_co]):
         except (StopAsyncIteration, AsyncTimeoutError):
             return
 
-    @routine
+    @series
     async def global_unique(self, key: Callable[[T_co], object] = identity) -> AsyncIterator[T_co]:
-        """Return a sub-routine of the values whose call to ``key`` is unique
+        """Return a sub-series of the values whose call to ``key`` is unique
         among all encountered values
 
         Note that this method may require significant auxiliary storage,
@@ -112,9 +112,9 @@ class Routine(AsyncIterator[T_co]):
                 yield value
                 seen.add(result)
 
-    @routine
+    @series
     async def local_unique(self, key: Callable[[T_co], object] = identity) -> AsyncIterator[T_co]:
-        """Return a sub-routine of the values whose call to ``key`` is unique
+        """Return a sub-series of the values whose call to ``key`` is unique
         as compared to the previously encountered value
         """
         seen = object()
@@ -124,17 +124,17 @@ class Routine(AsyncIterator[T_co]):
                 yield value
                 seen = result
 
-    @routine
+    @series
     async def enumerate(self, start: int = 0) -> AsyncIterator[tuple[int, T_co]]:
-        """Return a sub-routine whose values are enumerated from ``start``"""
+        """Return a sub-series whose values are enumerated from ``start``"""
         index = start
         async for value in self:
             yield (index, value)
             index += 1
 
-    @routine
+    @series
     async def limit(self, bound: int) -> AsyncIterator[T_co]:
-        """Return a sub-routine limited to the first ``bound`` values
+        """Return a sub-series limited to the first ``bound`` values
 
         Negative values for ``bound`` are treated equivalently to 0.
         """
@@ -147,29 +147,29 @@ class Routine(AsyncIterator[T_co]):
                 return
             count += 1
 
-    @routine
+    @series
     async def map(self, mapper: Callable[[T_co], S]) -> AsyncIterator[S]:
-        """Return a sub-routine of the results from passing each value to
+        """Return a sub-series of the results from passing each value to
         ``mapper``
         """
         async for value in self:
             yield mapper(value)
 
     @overload
-    def zip(self: Routine[T1]) -> Routine[tuple[T1]]: ...
+    def zip(self: Series[T1]) -> Series[tuple[T1]]: ...
     @overload
-    def zip(self: Routine[T1], other2: AsyncIterable[T2], /) -> Routine[tuple[T1, T2]]: ...
+    def zip(self: Series[T1], other2: AsyncIterable[T2], /) -> Series[tuple[T1, T2]]: ...
     @overload
-    def zip(self: Routine[T1], other2: AsyncIterable[T2], other3: AsyncIterable[T3], /) -> Routine[tuple[T1, T2, T3]]: ...
+    def zip(self: Series[T1], other2: AsyncIterable[T2], other3: AsyncIterable[T3], /) -> Series[tuple[T1, T2, T3]]: ...
     @overload
-    def zip(self: Routine[T1], other2: AsyncIterable[T2], other3: AsyncIterable[T3], other4: AsyncIterable[T4], /) -> Routine[tuple[T1, T2, T3, T4]]: ...
+    def zip(self: Series[T1], other2: AsyncIterable[T2], other3: AsyncIterable[T3], other4: AsyncIterable[T4], /) -> Series[tuple[T1, T2, T3, T4]]: ...
     @overload
-    def zip(self: Routine[T1], other2: AsyncIterable[T2], other3: AsyncIterable[T3], other4: AsyncIterable[T4], other5: AsyncIterable[T5], /) -> Routine[tuple[T1, T2, T3, T4, T5]]: ...
+    def zip(self: Series[T1], other2: AsyncIterable[T2], other3: AsyncIterable[T3], other4: AsyncIterable[T4], other5: AsyncIterable[T5], /) -> Series[tuple[T1, T2, T3, T4, T5]]: ...
     @overload
-    def zip(self, *others: AsyncIterable) -> Routine[tuple]: ...
-    @routine
+    def zip(self, *others: AsyncIterable) -> Series[tuple]: ...
+    @series
     async def zip(self, *others: AsyncIterable) -> AsyncIterator[tuple]:
-        """Return a sub-routine zipped with other asynchronous iterables
+        """Return a sub-series zipped with other asynchronous iterables
 
         Iteration stops when the shortest iterable has been exhausted.
         """
@@ -181,45 +181,45 @@ class Routine(AsyncIterator[T_co]):
             return
 
     @overload
-    def star_map(self: Routine[tuple[T1]], mapper: Callable[[T1], S]) -> Routine[S]: ...
+    def star_map(self: Series[tuple[T1]], mapper: Callable[[T1], S]) -> Series[S]: ...
     @overload
-    def star_map(self: Routine[tuple[T1, T2]], mapper: Callable[[T1, T2], S]) -> Routine[S]: ...
+    def star_map(self: Series[tuple[T1, T2]], mapper: Callable[[T1, T2], S]) -> Series[S]: ...
     @overload
-    def star_map(self: Routine[tuple[T1, T2, T3]], mapper: Callable[[T1, T2, T3], S]) -> Routine[S]: ...
+    def star_map(self: Series[tuple[T1, T2, T3]], mapper: Callable[[T1, T2, T3], S]) -> Series[S]: ...
     @overload
-    def star_map(self: Routine[tuple[T1, T2, T3, T4]], mapper: Callable[[T1, T2, T3, T4], S]) -> Routine[S]: ...
+    def star_map(self: Series[tuple[T1, T2, T3, T4]], mapper: Callable[[T1, T2, T3, T4], S]) -> Series[S]: ...
     @overload
-    def star_map(self: Routine[tuple[T1, T2, T3, T4, T5]], mapper: Callable[[T1, T2, T3, T4, T5], S]) -> Routine[S]: ...
+    def star_map(self: Series[tuple[T1, T2, T3, T4, T5]], mapper: Callable[[T1, T2, T3, T4, T5], S]) -> Series[S]: ...
     @overload
-    def star_map(self: Routine[tuple], mapper: Callable[..., S]) -> Routine[S]: ...
-    @routine
-    async def star_map(self: Routine[tuple], mapper: Callable[..., S]) -> AsyncIterator[S]:
-        """Return a sub-routine of the results from unpacking and passing each
+    def star_map(self: Series[tuple], mapper: Callable[..., S]) -> Series[S]: ...
+    @series
+    async def star_map(self: Series[tuple], mapper: Callable[..., S]) -> AsyncIterator[S]:
+        """Return a sub-series of the results from unpacking and passing each
         ``tuple`` value to ``mapper``
         """
         async for values in self:
             yield mapper(*values)
 
-    @routine
+    @series
     async def filter(self, predicate: Callable[[T_co], object]) -> AsyncIterator[T_co]:
-        """Return a sub-routine of the values whose call to ``predicate``
+        """Return a sub-series of the values whose call to ``predicate``
         evaluates true
         """
         async for value in self:
             if predicate(value):
                 yield value
 
-    def truthy(self) -> Routine[T_co]:
-        """Return a sub-routine of the values filtered by their truthyness"""
+    def truthy(self) -> Series[T_co]:
+        """Return a sub-series of the values filtered by their truthyness"""
         return self.filter(lambda value: value)
 
-    def falsy(self) -> Routine[T_co]:
-        """Return a sub-routine of the values filtered by their falsyness"""
+    def falsy(self) -> Series[T_co]:
+        """Return a sub-series of the values filtered by their falsyness"""
         return self.filter(lambda value: not value)
 
-    def not_none(self: Routine[Optional[S]]) -> Routine[S]:
-        """Return a sub-routine of the values that are not ``None``"""
-        return cast(Routine[S], self.filter(lambda value: value is not None))
+    def not_none(self: Series[Optional[S]]) -> Series[S]:
+        """Return a sub-series of the values that are not ``None``"""
+        return cast(Series[S], self.filter(lambda value: value is not None))
 
     async def all(self) -> bool:
         """Return true if all values are true, otherwise false"""

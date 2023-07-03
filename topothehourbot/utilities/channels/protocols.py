@@ -4,7 +4,7 @@ from abc import abstractmethod
 from collections.abc import AsyncIterable, AsyncIterator
 from typing import Any, Protocol, TypeVar
 
-from .routine import routine
+from .series import series
 
 __all__ = [
     "RecvError",
@@ -42,7 +42,7 @@ class SupportsRecv(Protocol[T_co]):
         """
         raise NotImplementedError
 
-    @routine
+    @series
     async def recv_each(self) -> AsyncIterator[T_co]:
         """Return an async iterator that continuously receives values until
         ``RecvError``
