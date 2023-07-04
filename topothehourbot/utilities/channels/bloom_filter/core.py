@@ -6,7 +6,7 @@ __all__ = [
 ]
 
 import math
-from collections.abc import Iterator
+from collections.abc import Iterator, Sized
 from random import Random
 from typing import Final, Generic, TypeVar
 
@@ -14,7 +14,7 @@ from .bits import Bits
 
 LN2: Final[float] = 0.6931471805599453  #: Natural logarithm of 2
 
-T = TypeVar("T")
+T_contra = TypeVar("T_contra", contravariant=True)
 
 
 def seed(obj: object, /) -> int:
@@ -43,7 +43,7 @@ class CapacityError(Exception):
     __slots__ = ()
 
 
-class BloomFilter(Generic[T]):
+class BloomFilter(Sized, Generic[T_contra]):
 
     __slots__ = ("_size", "_max_size", "_gen_size", "_bits")
     _size: int
@@ -68,8 +68,8 @@ class BloomFilter(Generic[T]):
     def __len__(self) -> int:
         return self._size
 
-    def __contains__(self, value: T, /) -> bool:
-        return all(map(self._bits.__getitem__, self.seed_indices(value)))
+    def __contains__(self, value: T_contra, /) -> bool:
+        return all(map(self._bits.__getitem__, self.seeded_indices(value)))
 
     @property
     def size(self) -> int:
@@ -81,17 +81,19 @@ class BloomFilter(Generic[T]):
         """The maximum number of elements"""
         return self._max_size
 
-    def seed_indices(self, value: T, /) -> Iterator[int]:
+    def seeded_indices(self, value: T_contra, /) -> Iterator[int]:
+        """Return an iterator of random indices, seeded by ``value``, for use
+        in searching or setting filter bits
+        """
         random = Random(seed(value))
         nbits = len(self._bits)
         for _ in range(self._gen_size):
             scale = random.random()
             yield int(scale * nbits)
 
-    def add(self, value: T, /) -> bool:
-        """Add ``value`` to the filter, or do nothing if it already exists
-
-        Returns true if the value was added, otherwise false.
+    def add(self, value: T_contra, /) -> bool:
+        """Add ``value`` to the filter and return true, otherwise do nothing
+        and return false
 
         Raises ``CapacityError`` if the filter has reached its ``max_size``.
         """
@@ -99,11 +101,10 @@ class BloomFilter(Generic[T]):
         if size == self._max_size:
             raise CapacityError("filter has reached its capacity")
         bits = self._bits
-        dupe = True
-        for index in self.seed_indices(value):
-            if (not dupe) or (not bits[index]):
-                dupe = False
+        open = False
+        for index in self.seeded_indices(value):
+            if open or not bits[index]:
+                open = True
                 bits[index] = True
-        result = not dupe
-        self._size = size + result
-        return result
+        self._size = size + open
+        return open
