@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 __all__ = [
+    "BYTE_TYPE_CODE",
     "BYTE_SIZE",
     "Bit",
     "Bits",
@@ -12,6 +13,7 @@ from array import array as Array
 from collections.abc import Iterable, Iterator, Sequence
 from typing import Final, Literal, Self, SupportsIndex, TypeAlias, overload
 
+BYTE_TYPE_CODE: Final[Literal["B"]] = "B"  #: Byte-sized integer type code used by ``Array`` instances
 BYTE_SIZE: Final[Literal[8]] = 8  #: The number of bits in a single byte
 
 Bit: TypeAlias = Literal[0, 1]  #: Literal 0 and 1
@@ -43,7 +45,7 @@ class Bits(Sequence[Bit]):
 
     def __init__(self, values: Iterable[object] = (), /) -> None:
         self._size = 0
-        self._data = Array("B")
+        self._data = Array(BYTE_TYPE_CODE)
         self.extend(values)
 
     def __repr__(self) -> str:
@@ -76,7 +78,7 @@ class Bits(Sequence[Bit]):
             values  = obj
             if __debug__:
                 m = len(indices)
-                n = len( values)
+                n = len(values)
                 if m != n:
                     raise ValueError(f"{m} entries were selected, but sequence has {n} values")
             for index, value in zip(indices, values):
@@ -91,15 +93,15 @@ class Bits(Sequence[Bit]):
         return map(self._get_bit, indices)
 
     def __reversed__(self) -> Iterator[Bit]:
-        indices = range(len(self))
-        return map(self._get_bit, reversed(indices))
+        indices = range(len(self) - 1, -1, -1)
+        return map(self._get_bit, indices)
 
     def _resolve_index(self, key: SupportsIndex) -> int:
         bound = len(self)
         try:
             index = resolve_index(key, bound)
         except IndexError:
-            raise IndexError(f"bit array has {bound} bits, but index is {key}") from None
+            raise IndexError(f"array has {bound} bits, but index is {key}") from None
         else:
             return index
 
@@ -130,20 +132,17 @@ class Bits(Sequence[Bit]):
 
         A negative ``size`` is interpreted as 0.
         """
+        data = Array(BYTE_TYPE_CODE)
         size = max(size, 0)
-        data = Array("B")
 
         byte_count, bit_count = divmod(size, BYTE_SIZE)
         data.extend(itertools.repeat(255 if value else 0, byte_count))
         if bit_count:
-            if value:
-                data.append(2 ** bit_count - 1)
-            else:
-                data.append(0)
+            data.append((2 ** bit_count - 1) if value else 0)
 
         self = cls.__new__(cls)
-        self._size = size
         self._data = data
+        self._size = size
 
         return self
 
@@ -166,7 +165,7 @@ class Bits(Sequence[Bit]):
             data.append(0)
         if value:
             mask = 1 << bit_index
-            data[-1] |= mask
+            data[byte_index] |= mask
         self._size = size + 1
 
     def extend(self, values: Iterable[object], /) -> None:
