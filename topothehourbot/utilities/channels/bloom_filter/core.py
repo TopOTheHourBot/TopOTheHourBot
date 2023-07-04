@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 __all__ = [
+    "Status",
     "BloomFilter",
 ]
 
+import enum
 import math
 from collections.abc import Iterator, Sized
+from enum import Flag
 from random import Random
 from typing import Final, Generic, TypeVar
 
@@ -34,6 +37,17 @@ def seed(obj: object, /) -> int:
     if obj_type is str:
         return int.from_bytes(obj.encode())  # type: ignore
     return hash(obj)
+
+
+class Status(Flag):
+    """Flags used to signal the result of adding a value to a bloom filter"""
+
+    ACCEPTED = enum.auto()
+    REJECTED = enum.auto()
+    FULL = enum.auto()
+
+    def __bool__(self) -> bool:
+        return self is Status.ACCEPTED
 
 
 class BloomFilter(Sized, Generic[T_contra]):
@@ -90,13 +104,16 @@ class BloomFilter(Sized, Generic[T_contra]):
         """
         return self._size >= self._max_size
 
-    def add(self, value: T_contra, /) -> bool:
-        """Add ``value`` to the filter and return true, or do nothing and
-        return false if the value probably exists, or if the filter has reached
-        its maximum size
+    def add(self, value: T_contra, /) -> Status:
+        """Add ``value`` to the filter and return a truthy object, or do
+        nothing and return a falsy object if the value probably exists, or if
+        the filter has reached its maximum size
+
+        This method returns a member of the ``Status`` enum. See its
+        documentation for more details.
         """
         if self.full():
-            return False
+            return Status.FULL
         bits = self._bits
         open = False
         for index in self.seeded_indices(value):
@@ -104,4 +121,6 @@ class BloomFilter(Sized, Generic[T_contra]):
                 open = True
                 bits[index] = True
         self._size += open
-        return open
+        if open:
+            return Status.ACCEPTED
+        return Status.REJECTED
