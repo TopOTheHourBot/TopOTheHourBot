@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 __all__ = [
-    "CapacityError",
     "BloomFilter",
 ]
 
@@ -35,12 +34,6 @@ def seed(obj: object, /) -> int:
     if obj_type is str:
         return int.from_bytes(obj.encode())  # type: ignore
     return hash(obj)
-
-
-class CapacityError(Exception):
-    """Collection has reached a capacity"""
-
-    __slots__ = ()
 
 
 class BloomFilter(Sized, Generic[T_contra]):
@@ -91,20 +84,24 @@ class BloomFilter(Sized, Generic[T_contra]):
             scale = random.random()
             yield int(scale * nbits)
 
-    def add(self, value: T_contra, /) -> bool:
-        """Add ``value`` to the filter and return true, otherwise do nothing
-        and return false
-
-        Raises ``CapacityError`` if the filter has reached its ``max_size``.
+    def full(self) -> bool:
+        """Return true if the filter has reached its maximum size, otherwise
+        false
         """
-        size = self._size
-        if size == self._max_size:
-            raise CapacityError("filter has reached its capacity")
+        return self._size >= self._max_size
+
+    def add(self, value: T_contra, /) -> bool:
+        """Add ``value`` to the filter and return true, or do nothing and
+        return false if the value probably exists, or if the filter has reached
+        its maximum size
+        """
+        if self.full():
+            return False
         bits = self._bits
         open = False
         for index in self.seeded_indices(value):
             if open or not bits[index]:
                 open = True
                 bits[index] = True
-        self._size = size + open
+        self._size += open
         return open
