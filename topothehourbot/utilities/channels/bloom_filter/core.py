@@ -12,7 +12,7 @@ from typing import Final, Generic, TypeVar
 
 from .bits import Bits
 
-ln2: Final[float] = 0.6931471805599453  #: Natural logarithm of 2
+LN2: Final[float] = 0.6931471805599453  #: Natural logarithm of 2
 
 T = TypeVar("T")
 
@@ -45,10 +45,10 @@ class CapacityError(Exception):
 
 class BloomFilter(Generic[T]):
 
-    __slots__ = ("_size", "_max_size", "_gen_count", "_bits")
+    __slots__ = ("_size", "_max_size", "_gen_size", "_bits")
     _size: int
     _max_size: int
-    _gen_count: int
+    _gen_size: int
     _bits: Bits
 
     def __init__(self, max_size: int, error: float = 0.01) -> None:
@@ -57,44 +57,53 @@ class BloomFilter(Generic[T]):
             if not (0 < error <= 1):
                 raise ValueError("error must be a value between 0 and 1")
 
-        # See here for calculations:
-        # https://en.wikipedia.org/wiki/Bloom_filter#Optimal_number_of_hash_functions
-
-        m = math.ceil((-max_size * math.log(error)) / (ln2 * ln2))
-        k = math.ceil((ln2 * m) / max_size)
+        m = math.ceil((-max_size * math.log(error)) / (LN2 * LN2))
+        k = math.ceil((LN2 * m) / max_size)
 
         self._size = 0
         self._max_size = max_size
-        self._gen_count = k
+        self._gen_size = k
         self._bits = Bits.zeros(m)
 
     def __len__(self) -> int:
         return self._size
 
     def __contains__(self, value: T, /) -> bool:
-        return all(map(self._bits.__getitem__, self.indices(value)))
+        return all(map(self._bits.__getitem__, self.seed_indices(value)))
 
     @property
     def size(self) -> int:
+        """The current number of elements"""
         return self._size
 
     @property
     def max_size(self) -> int:
+        """The maximum number of elements"""
         return self._max_size
 
-    def indices(self, value: T, /) -> Iterator[int]:
-        randomizer = Random(seed(value))
-        bit_count = len(self._bits)
-        gen_count = self._gen_count
-        for _ in range(gen_count):
-            scale = randomizer.random()
-            yield int(scale * bit_count)
+    def seed_indices(self, value: T, /) -> Iterator[int]:
+        random = Random(seed(value))
+        nbits = len(self._bits)
+        for _ in range(self._gen_size):
+            scale = random.random()
+            yield int(scale * nbits)
 
-    def add(self, value: T, /) -> None:
+    def add(self, value: T, /) -> bool:
+        """Add ``value`` to the filter, or do nothing if it already exists
+
+        Returns true if the value was added, otherwise false.
+
+        Raises ``CapacityError`` if the filter has reached its ``max_size``.
+        """
         size = self._size
         if size == self._max_size:
             raise CapacityError("filter has reached its capacity")
         bits = self._bits
-        for index in self.indices(value):
-            bits[index] = True
-        self._size = size + 1
+        dupe = True
+        for index in self.seed_indices(value):
+            if (not dupe) or (not bits[index]):
+                dupe = False
+                bits[index] = True
+        result = not dupe
+        self._size = size + result
+        return result
