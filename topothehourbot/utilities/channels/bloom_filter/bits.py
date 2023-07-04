@@ -38,6 +38,15 @@ def resolve_slice(key: slice, bound: int) -> range:
 
 
 class Bits(Sequence[Bit]):
+    """A compact, growable array of bits
+
+    ``Bits`` objects maintain a basic size and an array of bytes. The actual
+    bits are stored in the binary of these bytes to significantly reduce memory
+    overhead.
+
+    Note that deleting operations are currently unsupported, meaning that this
+    type does not inherit from the built-in ``MutableSequence`` ABC.
+    """
 
     __slots__ = ("_size", "_data")
     _size: int
