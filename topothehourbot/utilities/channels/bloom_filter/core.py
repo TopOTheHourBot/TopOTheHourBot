@@ -7,7 +7,7 @@ __all__ = [
 
 import enum
 import math
-from collections.abc import Iterator, Sized
+from collections.abc import Iterable, Iterator, Sized
 from enum import Flag
 from random import Random
 from typing import Final, Generic, TypeVar
@@ -58,7 +58,7 @@ class BloomFilter(Sized, Generic[T_contra]):
     _gen_size: int
     _bits: Bits
 
-    def __init__(self, max_size: int, error: float = 0.01) -> None:
+    def __init__(self, max_size: int, values: Iterable[T_contra] = (), /, *, error: float = 0.01) -> None:
         max_size = max(max_size, 0)
         if __debug__:
             if not (0 < error <= 1):
@@ -71,6 +71,9 @@ class BloomFilter(Sized, Generic[T_contra]):
         self._max_size = max_size
         self._gen_size = k
         self._bits = Bits.zeros(m)
+
+        for value in values:
+            self.add(value)
 
     def __len__(self) -> int:
         return self._size
