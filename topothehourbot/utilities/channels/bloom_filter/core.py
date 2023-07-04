@@ -42,15 +42,28 @@ def seed(obj: object, /) -> int:
 class Status(Flag):
     """Flags used to signal the result of adding a value to a bloom filter"""
 
-    ACCEPTED = enum.auto()
-    REJECTED = enum.auto()
-    FULL = enum.auto()
+    ACCEPTED = enum.auto()  #: Value was added to the filter
+    REJECTED = enum.auto()  #: Value was not added to the filter
+    FULL     = enum.auto()  #: Filter has reached its capacity
 
     def __bool__(self) -> bool:
         return self is Status.ACCEPTED
 
 
 class BloomFilter(Sized, Generic[T_contra]):
+    """A basic bloom filter
+
+    Supports objects of any type that implements ``__hash__()``. Fast-paths are
+    employed for certain built-in types.
+
+    The indices into the underlying bit array are generated via the built-in
+    ``random.Random`` class, where the object's hash is used as its seed.
+
+    Note that, due to the filter's reliance on ``__hash__()``, it is especially
+    susceptible to false positives when operating with a union type, as objects
+    of differing type can produce the same hash. It is therefore recommended to
+    only use non-union types with this class.
+    """
 
     __slots__ = ("_size", "_max_size", "_gen_size", "_bits")
     _size: int
