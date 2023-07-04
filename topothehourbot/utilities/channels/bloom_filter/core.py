@@ -115,12 +115,12 @@ class BloomFilter(Sized, Generic[T_contra]):
         if self.full():
             return Status.FULL
         bits = self._bits
-        open = False
+        new = False
         for index in self.seeded_indices(value):
-            if open or not bits[index]:
-                open = True
+            if new or not bits[index]:
+                new = True
                 bits[index] = True
-        self._size += open
-        if open:
+        if new:
+            self._size += 1
             return Status.ACCEPTED
         return Status.REJECTED
