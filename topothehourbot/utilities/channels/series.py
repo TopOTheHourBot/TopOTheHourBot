@@ -1,14 +1,16 @@
 from __future__ import annotations
 
+__all__ = [
+    "Series",
+    "series",
+]
+
 import asyncio
 from asyncio import TimeoutError as AsyncTimeoutError
 from collections.abc import AsyncIterable, AsyncIterator, Callable
 from typing import Optional, ParamSpec, TypeVar, TypeVarTuple, cast, overload
 
-__all__ = [
-    "Series",
-    "series",
-]
+from .bloom_filter import BloomFilter
 
 Ts = TypeVarTuple("Ts")
 
@@ -99,19 +101,25 @@ class Series(AsyncIterator[T_co]):
             return
 
     @series
-    async def global_unique(self, key: Callable[[T_co], object] = identity) -> AsyncIterator[T_co]:
+    async def global_unique(self, key: Callable[[T_co], object] = identity, *, max_size: int = 128, error: float = 0.01) -> AsyncIterator[T_co]:
         """Return a sub-series of the values whose call to ``key`` is unique
         among all encountered values
 
-        Note that this method may require significant auxiliary storage,
-        depending on how often unique values appear.
+        This method uses a probabalistic set to determine uniqueness, called a
+        "bloom filter". Bloom filters are susceptible to false positives, but
+        the parameters, ``max_size`` and ``error``, provide the ability to
+        mitigate this risk at the cost of additional memory. ``max_size`` is an
+        estimate for the number of unique values. ``error`` is the desired rate
+        of false positives as a percentage.
+
+        See the ``BloomFilter`` class documentation for more details.
         """
-        seen = set()
+        seen = BloomFilter[object](max_size, error=error)
         async for value in self:
             result = key(value)
-            if result not in seen:
+            status = seen.add(result)
+            if status:
                 yield value
-                seen.add(result)
 
     @series
     async def local_unique(self, key: Callable[[T_co], object] = identity) -> AsyncIterator[T_co]:
