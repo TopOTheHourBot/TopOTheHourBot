@@ -1,12 +1,17 @@
 from __future__ import annotations
 
+__all__ = [
+    "IRCv3Command",
+    "Privmsg",
+    "Join",
+    "Part",
+]
+
 import itertools
-from collections.abc import Mapping, Sequence
-from typing import Optional, Self
+from collections.abc import Iterable, Mapping, Sequence
+from typing import Final, Literal, Optional
 
 from .parser import Parser
-
-__all__ = ["IRCv3Command"]
 
 
 class IRCv3Command:
@@ -86,8 +91,8 @@ class IRCv3Command:
         """The command's source"""
         return self._source
 
-    @classmethod
-    def from_string(cls, string: str, /) -> Self:
+    @staticmethod
+    def from_string(string: str, /) -> IRCv3Command:
         """Return a new command from a raw data string"""
         parser = Parser(string)
 
@@ -117,7 +122,7 @@ class IRCv3Command:
         else:
             comment = None
 
-        return cls(
+        return IRCv3Command(
             name=name,
             arguments=arguments,
             comment=comment,
@@ -139,3 +144,90 @@ class IRCv3Command:
         return " ".join(parts)
 
     __str__ = to_string
+
+
+class Privmsg(IRCv3Command):
+
+    __slots__ = ()
+    _name: Final[Literal["PRIVMSG"]] = "PRIVMSG"
+    _comment: str
+
+    def __init__(self, channels: Iterable[str], comment: str, *, tags: Optional[Mapping[str, str]] = None, source: Optional[str] = None) -> None:
+        arguments = []
+        arguments.append(",".join(channels))
+        super().__init__(self._name, arguments, comment, tags=tags, source=source)
+
+    def __repr__(self) -> str:
+        parts = []
+        channels = self._arguments[0].split(",")
+        parts.append("channels=" + repr(channels))
+        comment = self._comment
+        parts.append("comment=" + repr(comment))
+        if (tags := self._tags) is not None:
+            parts.append("tags=" + repr(tags))
+        if (source := self._source) is not None:
+            parts.append("source=" + repr(source))
+        return "Privmsg(" + ", ".join(parts) + ")"
+
+    @property
+    def name(self) -> Literal["PRIVMSG"]:
+        return self._name
+
+
+class Join(IRCv3Command):
+
+    __slots__ = ()
+    _name: Final[Literal["JOIN"]] = "JOIN"
+    _comment: Final[None] = None
+
+    def __init__(self, channels: Iterable[str], keys: Optional[Iterable[str]] = None, *, tags: Optional[Mapping[str, str]] = None, source: Optional[str] = None) -> None:
+        arguments = []
+        arguments.append(",".join(channels))
+        if keys is not None:
+            arguments.append(",".join(keys))
+        super().__init__(self._name, arguments, self._comment, tags=tags, source=source)
+
+    def __repr__(self) -> str:
+        parts = []
+        arguments = self._arguments
+        channels = arguments[0].split(",")
+        parts.append("channels=" + repr(channels))
+        if len(arguments) == 2:
+            keys = arguments[1].split(",")
+            parts.append("keys=" + repr(keys))
+        if (tags := self._tags) is not None:
+            parts.append("tags=" + repr(tags))
+        if (source := self._source) is not None:
+            parts.append("source=" + repr(source))
+        return "Join(" + ", ".join(parts) + ")"
+
+    @property
+    def name(self) -> Literal["JOIN"]:
+        return self._name
+
+
+class Part(IRCv3Command):
+
+    __slots__ = ()
+    _name: Final[Literal["PART"]] = "PART"
+
+    def __init__(self, channels: Iterable[str], reason: Optional[str] = None, *, tags: Optional[Mapping[str, str]] = None, source: Optional[str] = None) -> None:
+        arguments = []
+        arguments.append(",".join(channels))
+        super().__init__(self._name, arguments, reason, tags=tags, source=source)
+
+    def __repr__(self) -> str:
+        parts = []
+        channels = self._arguments[0].split(",")
+        parts.append("channels=" + repr(channels))
+        if (reason := self._comment) is not None:
+            parts.append("reason=" + repr(reason))
+        if (tags := self._tags) is not None:
+            parts.append("tags=" + repr(tags))
+        if (source := self._source) is not None:
+            parts.append("source=" + repr(source))
+        return "Part(" + ", ".join(parts) + ")"
+
+    @property
+    def name(self) -> Literal["PART"]:
+        return self._name
