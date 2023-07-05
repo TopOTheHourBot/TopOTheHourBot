@@ -105,12 +105,12 @@ class Series(AsyncIterator[T_co]):
         """Return a sub-series of the values whose call to ``key`` is unique
         among all encountered values
 
-        This method uses a probabalistic set to determine uniqueness, called a
-        "bloom filter". Bloom filters are susceptible to false positives, but
-        the parameters, ``max_size`` and ``error``, provide the ability to
-        mitigate this risk at the cost of additional memory. ``max_size`` is an
-        estimate for the number of unique values. ``error`` is the desired rate
-        of false positives as a percentage.
+        This method uses a compact probabalistic set to determine uniqueness,
+        called a "bloom filter". Bloom filters are susceptible to false
+        positives, but the parameters, ``max_size`` and ``error``, provide the
+        ability to mitigate this risk at the cost of additional memory.
+        ``max_size`` is an estimate for the number of unique values. ``error``
+        is the desired rate of false positives as a percentage.
 
         See the ``BloomFilter`` class documentation for more details.
         """

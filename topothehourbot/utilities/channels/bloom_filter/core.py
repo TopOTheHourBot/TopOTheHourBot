@@ -79,10 +79,10 @@ class BloomFilter(Sized, Generic[T_contra]):
         max_size = max(max_size, 0)
         if __debug__:
             if not (0 < error <= 1):
-                raise ValueError("error must be a value between 0 and 1")
+                raise ValueError("error must be a value greater than 0, and less than or equal to 1")
 
         m = math.ceil((-max_size * math.log(error)) / (LN2 * LN2))
-        k = math.ceil((LN2 * m) / max_size)
+        k = math.ceil((m * LN2) / max_size)
 
         self._size = 0
         self._max_size = max_size
