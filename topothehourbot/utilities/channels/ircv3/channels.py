@@ -6,7 +6,7 @@ from websockets.client import WebSocketClientProtocol
 from websockets.exceptions import ConnectionClosed
 
 from ..protocols import RecvError, SendError, SupportsRecvAndSend
-from .command import IRCv3Command
+from .commands import IRCv3Command
 
 __all__ = [
     "IRCv3Data",
