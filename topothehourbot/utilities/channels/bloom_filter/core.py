@@ -75,14 +75,17 @@ class BloomFilter(Sized, Generic[T_contra]):
     _gen_size: int
     _bits: Bits
 
-    def __init__(self, max_size: int, values: Iterable[T_contra] = (), /, *, error: float = 0.01) -> None:
+    def __init__(self, values: Iterable[T_contra] = (), /, *, max_size: int = 256, error: float = 0.01) -> None:
         max_size = max(max_size, 0)
         if __debug__:
             if not (0 < error <= 1):
                 raise ValueError("error must be a value greater than 0, and less than or equal to 1")
 
         m = math.ceil((-max_size * math.log(error)) / (LN2 * LN2))
-        k = math.ceil((m * LN2) / max_size)
+        if max_size:
+            k = math.ceil((m * LN2) / max_size)
+        else:
+            k = 0
 
         self._size = 0
         self._max_size = max_size
@@ -96,7 +99,17 @@ class BloomFilter(Sized, Generic[T_contra]):
         return self._size
 
     def __contains__(self, value: T_contra, /) -> bool:
-        return all(map(self._bits.__getitem__, self.seeded_indices(value)))
+        return all(map(self._bits.__getitem__, self._seed_indices(value)))
+
+    def _seed_indices(self, value: T_contra, /) -> Iterator[int]:
+        """Return an iterator of random indices, seeded by ``value``, for use
+        in searching or setting filter bits
+        """
+        random = Random(seed(value))
+        nbits = len(self._bits)
+        for _ in range(self._gen_size):
+            scale = random.random()
+            yield int(scale * nbits)
 
     @property
     def size(self) -> int:
@@ -107,16 +120,6 @@ class BloomFilter(Sized, Generic[T_contra]):
     def max_size(self) -> int:
         """The maximum number of elements"""
         return self._max_size
-
-    def seeded_indices(self, value: T_contra, /) -> Iterator[int]:
-        """Return an iterator of random indices, seeded by ``value``, for use
-        in searching or setting filter bits
-        """
-        random = Random(seed(value))
-        nbits = len(self._bits)
-        for _ in range(self._gen_size):
-            scale = random.random()
-            yield int(scale * nbits)
 
     def full(self) -> bool:
         """Return true if the filter has reached its maximum size, otherwise
@@ -136,7 +139,7 @@ class BloomFilter(Sized, Generic[T_contra]):
             return Status.FULL
         bits = self._bits
         new = False
-        for index in self.seeded_indices(value):
+        for index in self._seed_indices(value):
             if new or not bits[index]:
                 new = True
                 bits[index] = True

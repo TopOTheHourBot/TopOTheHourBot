@@ -101,7 +101,7 @@ class Series(AsyncIterator[T_co]):
             return
 
     @series
-    async def global_unique(self, key: Callable[[T_co], object] = identity, *, max_size: int = 128, error: float = 0.01) -> AsyncIterator[T_co]:
+    async def global_unique(self, key: Callable[[T_co], object] = identity, *, max_size: int = 256, error: float = 0.01) -> AsyncIterator[T_co]:
         """Return a sub-series of the values whose call to ``key`` is unique
         among all encountered values
 
@@ -114,7 +114,7 @@ class Series(AsyncIterator[T_co]):
 
         See the ``BloomFilter`` class documentation for more details.
         """
-        seen = BloomFilter[object](max_size, error=error)
+        seen = BloomFilter[object](max_size=max_size, error=error)
         async for value in self:
             result = key(value)
             status = seen.add(result)
@@ -130,8 +130,8 @@ class Series(AsyncIterator[T_co]):
         async for value in self:
             result = key(value)
             if result != seen:
-                yield value
                 seen = result
+                yield value
 
     @series
     async def enumerate(self, start: int = 0) -> AsyncIterator[tuple[int, T_co]]:
