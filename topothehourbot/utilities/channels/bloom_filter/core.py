@@ -28,6 +28,7 @@ def seed(obj: object, /) -> int:
 
     # We don't use an instance check because it's possible to have user-defined
     # subclasses with other data
+    # TODO: SupportsSeed protocol?
 
     obj_type = type(obj)
     if obj_type is int:
@@ -76,16 +77,15 @@ class BloomFilter(Sized, Generic[T_contra]):
     _bits: Bits
 
     def __init__(self, values: Iterable[T_contra] = (), /, *, max_size: int = 256, error: float = 0.01) -> None:
-        max_size = max(max_size, 0)
         if __debug__:
             if not (0 < error <= 1):
                 raise ValueError("error must be a value greater than 0, and less than or equal to 1")
 
-        m = math.ceil((-max_size * math.log(error)) / (LN2 * LN2))
-        if max_size:
-            k = math.ceil((m * LN2) / max_size)
+        if max_size <= 0:
+            m = k = 0
         else:
-            k = 0
+            m = math.ceil((-max_size * math.log(error)) / (LN2 * LN2))
+            k = math.ceil((m / max_size) * LN2)
 
         self._size = 0
         self._max_size = max_size
@@ -102,14 +102,11 @@ class BloomFilter(Sized, Generic[T_contra]):
         return all(map(self._bits.__getitem__, self._seed_indices(value)))
 
     def _seed_indices(self, value: T_contra, /) -> Iterator[int]:
-        """Return an iterator of random indices, seeded by ``value``, for use
-        in searching or setting filter bits
-        """
         random = Random(seed(value))
-        nbits = len(self._bits)
+        n = len(self._bits)
         for _ in range(self._gen_size):
             scale = random.random()
-            yield int(scale * nbits)
+            yield int(scale * n)
 
     @property
     def size(self) -> int:
@@ -137,13 +134,22 @@ class BloomFilter(Sized, Generic[T_contra]):
         """
         if self.full():
             return Status.FULL
-        bits = self._bits
-        new = False
-        for index in self._seed_indices(value):
-            if new or not bits[index]:
-                new = True
-                bits[index] = True
-        if new:
-            self._size += 1
-            return Status.ACCEPTED
-        return Status.REJECTED
+
+        bits    = self._bits
+        indices = self._seed_indices(value)
+
+        zero_index = None
+        for index in indices:
+            if not bits[index]:
+                zero_index = index
+                break
+        if zero_index is None:
+            return Status.REJECTED
+
+        bits[zero_index] = True
+        for index in indices:
+            bits[index] = True
+
+        self._size += 1
+
+        return Status.ACCEPTED
