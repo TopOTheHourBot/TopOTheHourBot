@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 __all__ = [
+    "SupportsSeed",
+    "seed",
     "Status",
     "BloomFilter",
 ]
@@ -10,7 +12,7 @@ import math
 from collections.abc import Iterable, Iterator, Sized
 from enum import Flag
 from random import Random
-from typing import Final, Generic, TypeVar
+from typing import Final, Generic, Protocol, TypeVar, runtime_checkable
 
 from .bits import Bits
 
@@ -19,17 +21,28 @@ LN2: Final[float] = 0.6931471805599453  #: Natural logarithm of 2
 T_contra = TypeVar("T_contra", contravariant=True)
 
 
+@runtime_checkable
+class SupportsSeed(Protocol):
+
+    def seed(self) -> int:
+        """Return a seed unique to the object
+
+        Can be implemented in a similar fashion to built-in ``__hash__()``, but
+        the type does not have to be immutable.
+
+        Acts as an alias for ``__hash__()`` by default.
+        """
+        return hash(self)
+
+
 def seed(obj: object, /) -> int:
     """Return a seed unique to ``obj`` for use in random number generation
 
     Special behavior is employed for certain built-in types. User-defined types
-    will commonly have their ``__hash__()`` implementation called upon.
+    can explicitly or implicitly support seeding by implementing the
+    ``SupportsSeed`` protocol, or the built-in ``__hash__()`` method,
+    respectively.
     """
-
-    # We don't use an instance check because it's possible to have user-defined
-    # subclasses with other data
-    # TODO: SupportsSeed protocol?
-
     obj_type = type(obj)
     if obj_type is int:
         return obj  # type: ignore
@@ -37,7 +50,15 @@ def seed(obj: object, /) -> int:
         return int.from_bytes(obj)  # type: ignore
     if obj_type is str:
         return int.from_bytes(obj.encode())  # type: ignore
-    return hash(obj)
+    try:
+        return obj.seed()  # type: ignore
+    except AttributeError:
+        pass
+    try:
+        return hash(obj)
+    except TypeError:
+        pass
+    raise TypeError(f"cannot create seed from object of type {obj_type.__name__!r}")
 
 
 class Status(Flag):
