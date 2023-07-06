@@ -117,8 +117,7 @@ class Series(AsyncIterator[T_co]):
         seen = BloomFilter[object](max_size=max_size, error=error)
         async for value in self:
             result = key(value)
-            status = seen.add(result)
-            if status:
+            if seen.add(result):
                 yield value
 
     @series
