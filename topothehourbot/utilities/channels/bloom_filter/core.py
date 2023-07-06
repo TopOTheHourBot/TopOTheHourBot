@@ -103,7 +103,7 @@ class BloomFilter(Sized, Generic[T_contra]):
                 raise ValueError("error must be a value greater than 0, and less than or equal to 1")
 
         if max_size <= 0:
-            m = k = 0
+            max_size = m = k = 0
         else:
             m = math.ceil((-max_size * math.log(error)) / (LN2 * LN2))
             k = math.ceil((m / max_size) * LN2)
@@ -164,12 +164,13 @@ class BloomFilter(Sized, Generic[T_contra]):
             if not bits[index]:
                 zero_index = index
                 break
+
         if zero_index is None:
             return Status.REJECTED
 
         bits[zero_index] = True
         for index in indices:
-            bits[index] = True
+            bits[index]  = True
 
         self._size += 1
 
