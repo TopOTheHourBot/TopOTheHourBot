@@ -68,12 +68,12 @@ class Bits(Sequence[Bit]):
     @overload
     def __getitem__(self, key: SupportsIndex, /) -> Bit: ...
     @overload
-    def __getitem__(self, key: slice, /) -> Bits: ...
+    def __getitem__(self, key: slice, /) -> Self: ...
 
     def __getitem__(self, key, /):
         if isinstance(key, slice):
             indices = self._resolve_slice(key)
-            return Bits(map(self._get_bit, indices))
+            return self.__class__(map(self._get_bit, indices))
         else:
             index = self._resolve_index(key)
             return self._get_bit(index)
