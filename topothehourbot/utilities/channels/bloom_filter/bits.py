@@ -56,7 +56,7 @@ class Bits(Sequence[Bit]):
             self._data = values._data.copy()
         else:
             self._size = 0
-            self._data = bytearray(operator.length_hint(values, 0))
+            self._data = bytearray(operator.length_hint(values, 0) // BYTE_SIZE)
             self.extend(values)
 
     def __repr__(self) -> str:
@@ -123,7 +123,8 @@ class Bits(Sequence[Bit]):
 
     def _resolve_slice(self, key: slice) -> range:
         bound = len(self)
-        return resolve_slice(key, bound)
+        range = resolve_slice(key, bound)
+        return range
 
     def _get_bit(self, index: int) -> Bit:
         byte_index, bit_index = divmod(index, BYTE_SIZE)
@@ -161,12 +162,16 @@ class Bits(Sequence[Bit]):
     @classmethod
     def zeros(cls, size: int) -> Self:
         """Return a new array of length ``size``, filled entirely by zeros"""
-        return cls.fill(0, size=size)
+        return cls.fill(0, size)
 
     @classmethod
     def ones(cls, size: int) -> Self:
         """Return a new array of length ``size``, filled entirely by ones"""
-        return cls.fill(1, size=size)
+        return cls.fill(1, size)
+
+    def copy(self) -> Self:
+        """Return a copy of the array"""
+        return self.__copy__()
 
     def append(self, value: object, /) -> None:
         """Add the truth of ``value`` to the end of the array"""
