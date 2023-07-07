@@ -153,7 +153,7 @@ class Bits(Sequence[Bit]):
         byte_count, bit_count = divmod(size, BYTE_SIZE)
         data = bytearray(itertools.repeat(255 if value else 0, byte_count))
         if bit_count:
-            data.append((2 ** bit_count - 1) if value else 0)
+            data.append(2 ** bit_count - 1 if value else 0)
         self = cls.__new__(cls)
         self._size = size
         self._data = data
