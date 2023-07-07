@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 __all__ = [
-    "BYTE_TYPE_CODE",
     "BYTE_SIZE",
     "Bit",
     "Bits",
@@ -9,11 +8,9 @@ __all__ = [
 
 import itertools
 import operator
-from array import array as Array
 from collections.abc import Iterable, Iterator, Sequence
 from typing import Final, Literal, Self, SupportsIndex, TypeAlias, overload
 
-BYTE_TYPE_CODE: Final[Literal["B"]] = "B"  #: Byte-sized integer type code used by ``Array`` instances
 BYTE_SIZE: Final[Literal[8]] = 8  #: The number of bits in a single byte
 
 Bit: TypeAlias = Literal[0, 1]  #: Literal 0 and 1
@@ -50,11 +47,11 @@ class Bits(Sequence[Bit]):
 
     __slots__ = ("_size", "_data")
     _size: int
-    _data: Array
+    _data: bytearray
 
     def __init__(self, values: Iterable[object] = (), /) -> None:
         self._size = 0
-        self._data = Array(BYTE_TYPE_CODE)
+        self._data = bytearray(operator.length_hint(values, 0))
         self.extend(values)
 
     def __repr__(self) -> str:
@@ -122,7 +119,7 @@ class Bits(Sequence[Bit]):
         byte_index, bit_index = divmod(index, BYTE_SIZE)
         byte = self._data[byte_index] >> bit_index
         mask = 1
-        return byte & mask
+        return byte & mask  # type: ignore
 
     def _set_bit(self, index: int, value: object) -> None:
         byte_index, bit_index = divmod(index, BYTE_SIZE)
@@ -139,20 +136,16 @@ class Bits(Sequence[Bit]):
         """Return a new array of length ``size``, filled entirely by the truth
         of ``value``
 
-        A negative ``size`` is interpreted as 0.
+        A negative ``size`` is treated as 0.
         """
-        data = Array(BYTE_TYPE_CODE)
         size = max(size, 0)
-
         byte_count, bit_count = divmod(size, BYTE_SIZE)
-        data.extend(itertools.repeat(255 if value else 0, byte_count))
+        data = bytearray(itertools.repeat(255 if value else 0, byte_count))
         if bit_count:
             data.append((2 ** bit_count - 1) if value else 0)
-
         self = cls.__new__(cls)
-        self._data = data
         self._size = size
-
+        self._data = data
         return self
 
     @classmethod
