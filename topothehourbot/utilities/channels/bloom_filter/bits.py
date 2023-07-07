@@ -9,7 +9,8 @@ __all__ = [
 import itertools
 import operator
 from collections.abc import Iterable, Iterator, Sequence
-from typing import Final, Literal, Self, SupportsIndex, TypeAlias, overload
+from typing import (Final, Literal, Optional, Self, SupportsIndex, TypeAlias,
+                    overload)
 
 BYTE_SIZE: Final[Literal[8]] = 8  #: The number of bits in a single byte
 
@@ -50,12 +51,16 @@ class Bits(Sequence[Bit]):
     _data: bytearray
 
     def __init__(self, values: Iterable[object] = (), /) -> None:
-        self._size = 0
-        self._data = bytearray(operator.length_hint(values, 0))
-        self.extend(values)
+        if isinstance(values, Bits):
+            self._size = values._size
+            self._data = values._data.copy()
+        else:
+            self._size = 0
+            self._data = bytearray(operator.length_hint(values, 0))
+            self.extend(values)
 
     def __repr__(self) -> str:
-        return f"Bits([{', '.join(map(repr, self))}])"
+        return f"{self.__class__.__name__}([{', '.join(map(repr, self))}])"
 
     def __len__(self) -> int:
         return self._size
@@ -101,6 +106,11 @@ class Bits(Sequence[Bit]):
     def __reversed__(self) -> Iterator[Bit]:
         indices = range(len(self) - 1, -1, -1)
         return map(self._get_bit, indices)
+
+    def __deepcopy__(self, memo: Optional[dict[int, object]] = None) -> Self:
+        return self.__class__(self)
+
+    __copy__ = __deepcopy__
 
     def _resolve_index(self, key: SupportsIndex) -> int:
         bound = len(self)
