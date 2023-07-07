@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+__all__ = [
+    "IRCv3Data",
+    "IRCv3Channel",
+]
+
 from typing import TypeAlias
 
 from websockets.client import WebSocketClientProtocol
@@ -7,11 +12,6 @@ from websockets.exceptions import ConnectionClosed
 
 from ..protocols import RecvError, SendError, SupportsRecvAndSend
 from .commands import IRCv3Command
-
-__all__ = [
-    "IRCv3Data",
-    "IRCv3Channel",
-]
 
 IRCv3Data: TypeAlias = IRCv3Command | str
 

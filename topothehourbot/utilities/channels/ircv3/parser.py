@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from typing import Self, TypeVar, final
-
 __all__ = ["Parser"]
+
+from typing import Self, TypeVar, final
 
 DefaultT = TypeVar("DefaultT")
 
@@ -21,7 +21,7 @@ class Parser:
 
     def __init__(self, subject: str, *, index: int = 0) -> None:
         self._subject = subject
-        self._index = index
+        self._index   = index
 
     def __repr__(self) -> str:
         return f"Parser(subject={self._subject!r}, index={self._index!r})"
@@ -70,10 +70,12 @@ class Parser:
         Advances the index to the position of ``target``'s first character if
         discovered, otherwise the length of the subject string.
         """
+        subject = self._subject
         i = self._index + exclude_current
-        j = self._subject.find(target, i)
-        if j == -1: j = len(self._subject)
-        result = self._subject[i:j]
+        j = subject.find(target, i)
+        if j == -1:
+            j = len(subject)
+        result = subject[i:j]
         self._index = j
         return result
 
@@ -83,7 +85,8 @@ class Parser:
 
         Excludes the current value if ``exclude_current`` is true (the default).
         """
+        subject = self._subject
         i = self._index + exclude_current
-        result = self._subject[i:]
-        self._index = len(self._subject)
+        result = subject[i:]
+        self._index = len(subject)
         return result
