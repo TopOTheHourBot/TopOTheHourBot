@@ -1,11 +1,5 @@
 from __future__ import annotations
 
-from abc import abstractmethod
-from collections.abc import AsyncIterable, AsyncIterator
-from typing import Any, Protocol, TypeVar
-
-from .series import series
-
 __all__ = [
     "RecvError",
     "SendError",
@@ -13,6 +7,12 @@ __all__ = [
     "SupportsSend",
     "SupportsRecvAndSend",
 ]
+
+from abc import abstractmethod
+from collections.abc import AsyncIterable, AsyncIterator
+from typing import Any, Protocol, TypeVar
+
+from .series import series
 
 T_co = TypeVar("T_co", covariant=True)
 T_contra = TypeVar("T_contra", contravariant=True)

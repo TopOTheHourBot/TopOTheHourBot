@@ -1,15 +1,15 @@
 from __future__ import annotations
 
+__all__ = [
+    "SendOnlyChannel",
+    "Channel",
+]
+
 import asyncio
 from collections import deque as Deque
 from typing import Generic, Optional, TypeVar
 
 from .protocols import SupportsRecv, SupportsRecvAndSend, SupportsSend
-
-__all__ = [
-    "SendOnlyChannel",
-    "Channel",
-]
 
 T = TypeVar("T")
 T_co = TypeVar("T_co", covariant=True)

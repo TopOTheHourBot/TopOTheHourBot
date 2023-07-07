@@ -8,13 +8,11 @@ __all__ = [
 import asyncio
 from asyncio import TimeoutError as AsyncTimeoutError
 from collections.abc import AsyncIterable, AsyncIterator, Callable
-from typing import Optional, ParamSpec, TypeVar, TypeVarTuple, cast, overload
+from typing import Optional, ParamSpec, TypeVar, TypeVarTuple, overload
 
 from .bloom_filter import BloomFilter
 
 Ts = TypeVarTuple("Ts")
-
-P = ParamSpec("P")
 
 T1 = TypeVar("T1")
 T2 = TypeVar("T2")
@@ -29,6 +27,8 @@ S = TypeVar("S")
 
 T_co = TypeVar("T_co", covariant=True)
 S_co = TypeVar("S_co", covariant=True)
+
+P = ParamSpec("P")
 
 
 def identity(value: T, /) -> T:
@@ -215,7 +215,7 @@ class Series(AsyncIterator[T_co]):
 
     def not_none(self: Series[Optional[S]]) -> Series[S]:
         """Return a sub-series of the values that are not ``None``"""
-        return cast(Series[S], self.filter(lambda value: value is not None))
+        return self.filter(lambda value: value is not None)  # type: ignore
 
     async def all(self) -> bool:
         """Return true if all values are true, otherwise false"""
@@ -227,17 +227,17 @@ class Series(AsyncIterator[T_co]):
 
     async def collect(self) -> list[T_co]:
         """Return the values accumulated as a ``list``"""
-        results = []
+        result = []
         async for value in self:
-            results.append(value)
-        return results
+            result.append(value)
+        return result
 
     async def reduce(self, initial: S1, reducer: Callable[[S1, T_co], S1], finalizer: Callable[[S1], S2] = identity) -> S2:
         """Return the values accumulated as one via left-fold"""
-        medial = initial
+        reduction = initial
         async for value in self:
-            medial = reducer(medial, value)
-        result = finalizer(medial)
+            reduction = reducer(reduction, value)
+        result = finalizer(reduction)
         return result
 
     async def count(self) -> int:
