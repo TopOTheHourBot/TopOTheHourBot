@@ -10,7 +10,7 @@ from typing import TypeAlias
 from websockets.client import WebSocketClientProtocol
 from websockets.exceptions import ConnectionClosed
 
-from ..protocols import RecvError, SendError, SupportsRecvAndSend
+from .channeling import RecvError, SendError, SupportsRecvAndSend
 from .commands import IRCv3Command
 
 IRCv3Data: TypeAlias = IRCv3Command | str

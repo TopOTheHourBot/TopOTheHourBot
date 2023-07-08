@@ -10,7 +10,7 @@ __all__ = [
 
 from abc import abstractmethod
 from collections.abc import AsyncIterable, AsyncIterator
-from typing import Any, Protocol, TypeVar
+from typing import Protocol, TypeVar
 
 from .series import series
 
@@ -58,7 +58,7 @@ class SupportsSend(Protocol[T_contra]):
     """Type supports the ``send()`` and ``send_each()`` operations"""
 
     @abstractmethod
-    async def send(self, value: T_contra, /) -> Any:
+    async def send(self, value: T_contra, /) -> object:
         """Send a value, waiting for an appropriate time to do so
 
         This method can raise ``SendError`` to signal that no further values
@@ -66,7 +66,7 @@ class SupportsSend(Protocol[T_contra]):
         """
         raise NotImplementedError
 
-    async def send_each(self, values: AsyncIterable[T_contra], /) -> Any:
+    async def send_each(self, values: AsyncIterable[T_contra], /) -> object:
         """Send values from an async iterable until exhaustion, or until
         ``SendError``
         """

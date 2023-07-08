@@ -1,1 +1,1 @@
-from .channels import *
+from .ircv3 import *
