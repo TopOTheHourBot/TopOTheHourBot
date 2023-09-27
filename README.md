@@ -51,13 +51,19 @@ The *first* rating is always the one that's chosen by the bot (in cases where a 
 
 ### When does the bot run?
 
-The bot will go online everyday at 2:00 PM Eastern, or, 11:00 AM Pacific in Hasan's time - his typical starting time. It goes offline after 9.5 hours. This may vary depending on the occurrence of certain events, or general changes in stream schedule (The Streamer Awards being an example of the former, and Hasan's Japan trip being an example of the latter).
+The bot will go online everyday at roughly 2:00 PM Eastern, or, 11:00 AM Pacific in Hasan's time - his typical starting time. It goes offline after 9.5 hours. This may vary depending on the occurrence of certain events, or general changes in stream schedule (The Streamer Awards being an example of the former, and Hasan's Japan trip being an example of the latter).
 
 I will, on some days, manually stop the bot from running if Hasan announces that he won't be streaming. There have also been a rare few instances where the bot had suffered from a connection issue, and is unable to recover until the following day - usually due to a network hiccup, or an expired access token.
+
+### How can I tell if the bot is running?
+
+The native Twitch chat has a viewer list that tracks all active moderators and VIPs - you can check if the bot is online by looking for its name beneath the VIPs section.
 
 ### How is the bot ran?
 
 The bot currently runs on a [DigitalOcean Droplet](https://www.digitalocean.com/products/droplets) that simply executes [main.py](main.py) as a [cron job](https://en.wikipedia.org/wiki/Cron).
+
+A method of running the bot via a live status query is in development.
 
 ### Why does the bot chat normally sometimes?
 
