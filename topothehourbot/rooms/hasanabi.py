@@ -65,7 +65,7 @@ class HasanAbiChat(Pipe):
                 partial_average := await istream
                     .recv_each()
                     .map(lambda command: command.arguments[1])
-                    .map(lambda comment: RATING_PATTERN.search(comment))
+                    .map(RATING_PATTERN.search)
                     .not_none()
                     .timeout(8.5)
                     .map(lambda match: match.group(1))
