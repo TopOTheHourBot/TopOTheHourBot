@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from asyncio import TaskGroup
 from typing import Final
 
 from channels import (Channel, RecvError, SendError, SupportsRecv,
@@ -10,7 +11,6 @@ from websockets.client import WebSocketClientProtocol
 from websockets.exceptions import ConnectionClosed
 
 from .pipe import Pipe
-from .task_manager import TaskManager
 
 # The amount of time, in seconds, to delay before sending subsequent messages
 # to the Twitch IRC server.
@@ -18,8 +18,10 @@ from .task_manager import TaskManager
 # is not the broadcaster or a moderator of a chat room, the rate limit is 20
 # messages every 30 seconds.
 # A blanket messaging delay works well to solve this problem - no need to get
-# fancier. We solve 20m * Xs/m = 30s for X, which works out to be 1.5s/m (i.e.
-# 1.5 seconds for every 1 message).
+# fancier. We solve 20m * Xs/m = 30s for X, which is 1.5s/m (i.e. 1.5 seconds
+# for every 1 message).
+# The one drawback to this methodology is that our client won't be able to
+# "spam" at a very fast rate, but we don't really have a need to.
 OUTGOING_DELAY: Final[float] = 1.5
 
 
@@ -49,7 +51,6 @@ class IRCv3Channel(SupportsRecvAndSend[IRCv3Command, IRCv3Command]):
 
 
 async def main(*pipes: Pipe) -> None:
-    tasks = TaskManager()
 
     async def sink(
         istream: SupportsRecv[IRCv3Command],
@@ -62,19 +63,23 @@ async def main(*pipes: Pipe) -> None:
         )
         await ostream.send_each(commands)
 
-    reader_streams: list[Channel[IRCv3Command]] = []
-    writer_stream: Channel[IRCv3Command] = Channel()
-
-    for pipe in pipes:
-        reader_stream = Channel()
-        reader_streams.append(reader_stream)
-        tasks.create_task(pipe(reader_stream, writer_stream))
-
     async for socket in client.connect(""):
-        socket_stream = IRCv3Channel(socket)
-        tasks.create_task(sink(writer_stream, socket_stream))
 
-        commands = socket_stream.recv_each()
-        async for command in commands:
-            for reader_stream in reader_streams:
-                tasks.create_task(reader_stream.send(command))
+        reader_streams: list[Channel[IRCv3Command]] = []
+        writer_stream = Channel[IRCv3Command]()
+        socket_stream = IRCv3Channel(socket)
+
+        # TODO: Send auth, tags request commands (here?)
+
+        async with TaskGroup() as tasks:
+            tasks.create_task(sink(writer_stream, socket_stream))
+
+            for pipe in pipes:
+                reader_stream = Channel()
+                reader_streams.append(reader_stream)
+                tasks.create_task(pipe(reader_stream, writer_stream))
+
+            commands = socket_stream.recv_each()
+            async for command in commands:
+                for reader_stream in reader_streams:
+                    tasks.create_task(reader_stream.send(command))
