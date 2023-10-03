@@ -68,6 +68,8 @@ class TopOTheHourBot(Bot):
                         "PoroSad",
                         "Concerned Clap",
                         "Dead",
+                        "HuhChamp TeaTime",
+                        "HUHHH",
                     ),
                 )
             else:
@@ -76,9 +78,11 @@ class TopOTheHourBot(Bot):
                         "Gladge PETTHEHASAN",
                         "peepoHappy",
                         "peepoPog Clap",
-                        "daphCheer",
+                        "chatPls",
                         "peepoCheer",
-                        "peepoBlush",
+                        "PeepoBlush",
+                        "Jigglin",
+                        "veryCat",
                     ),
                )
 
