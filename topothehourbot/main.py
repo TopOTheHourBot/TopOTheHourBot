@@ -1,16 +1,21 @@
 from __future__ import annotations
 
+import logging
 from asyncio import TaskGroup
-from typing import Final
+from typing import Final, Literal
 
-from channels import (Channel, RecvError, SendError, SupportsRecv,
-                      SupportsRecvAndSend, SupportsSend)
+from channels import Channel, RecvError, SendError, SupportsRecvAndSend
 from ircv3 import IRCv3Command
 from websockets import client
 from websockets.client import WebSocketClientProtocol
 from websockets.exceptions import ConnectionClosed
 
 from .pipe import Pipe
+
+URI: Final[Literal["ws://irc-ws.chat.twitch.tv:80"]] = "ws://irc-ws.chat.twitch.tv:80"
+
+ACCESS_TOKEN: Final[str]  # These will likely be imports (from toml?) in the future
+CLIENT_SECRET: Final[str]
 
 # The amount of time, in seconds, to delay before sending subsequent messages
 # to the Twitch IRC server.
@@ -25,7 +30,7 @@ from .pipe import Pipe
 OUTGOING_DELAY: Final[float] = 1.5
 
 
-class IRCv3Channel(SupportsRecvAndSend[IRCv3Command, IRCv3Command]):
+class IRCv3Channel(SupportsRecvAndSend[IRCv3Command, IRCv3Command | str]):
 
     __slots__ = ("_socket")
     _socket: WebSocketClientProtocol
@@ -37,47 +42,42 @@ class IRCv3Channel(SupportsRecvAndSend[IRCv3Command, IRCv3Command]):
         try:
             data = await self._socket.recv()
         except ConnectionClosed as error:
+            logging.exception(error)
             raise RecvError from error
         else:
             assert isinstance(data, str)
             return IRCv3Command.from_string(data)
 
-    async def send(self, command: IRCv3Command) -> None:
-        data = command.to_string()
+    async def send(self, command: IRCv3Command | str) -> None:
+        data = str(command)
         try:
             await self._socket.send(data)
         except ConnectionClosed as error:
+            logging.exception(error)
             raise SendError from error
 
 
 async def main(*pipes: Pipe) -> None:
 
-    async def sink(
-        istream: SupportsRecv[IRCv3Command],
-        ostream: SupportsSend[IRCv3Command],
-    ) -> None:
-        commands = (
-            istream
-                .recv_each()
-                .stagger(OUTGOING_DELAY)
-        )
-        await ostream.send_each(commands)
+    reader_streams = [Channel[IRCv3Command]() for _ in range(len(pipes))]
+    writer_stream = Channel[IRCv3Command]()
 
-    async for socket in client.connect(""):
+    async with TaskGroup() as tasks:
 
-        reader_streams: list[Channel[IRCv3Command]] = []
-        writer_stream = Channel[IRCv3Command]()
-        socket_stream = IRCv3Channel(socket)
+        for pipe, reader_stream in zip(pipes, reader_streams):
+            tasks.create_task(pipe(reader_stream, writer_stream))
 
-        # TODO: Send auth, tags request commands (here?)
+        async for socket in client.connect(URI):
+            socket_stream = IRCv3Channel(socket)
+            tasks.create_task(
+                socket_stream.send_each(
+                    writer_stream.recv_each().stagger(OUTGOING_DELAY),
+                ),
+            )
 
-        async with TaskGroup() as tasks:
-            tasks.create_task(sink(writer_stream, socket_stream))
-
-            for pipe in pipes:
-                reader_stream = Channel()
-                reader_streams.append(reader_stream)
-                tasks.create_task(pipe(reader_stream, writer_stream))
+            await socket_stream.send("CAP REQ :twitch.tv/membership twitch.tv/tags twitch.tv/commands")
+            await socket_stream.send("PASS oauth:" + ACCESS_TOKEN)
+            await socket_stream.send("NICK topothehourbot")
 
             commands = socket_stream.recv_each()
             async for command in commands:
