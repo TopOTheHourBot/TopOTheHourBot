@@ -64,9 +64,6 @@ async def main(*pipes: Pipe) -> None:
 
     async with TaskGroup() as tasks:
 
-        for pipe, reader_stream in zip(pipes, reader_streams):
-            tasks.create_task(pipe(reader_stream, writer_stream))
-
         async for socket in client.connect(URI):
             socket_stream = IRCv3Channel(socket)
             tasks.create_task(
@@ -74,6 +71,8 @@ async def main(*pipes: Pipe) -> None:
                     writer_stream.recv_each().stagger(OUTGOING_DELAY),
                 ),
             )
+            for pipe, reader_stream in zip(pipes, reader_streams):
+                tasks.create_task(pipe(reader_stream, writer_stream))
 
             await socket_stream.send("CAP REQ :twitch.tv/membership twitch.tv/tags twitch.tv/commands")
             await socket_stream.send("PASS oauth:" + ACCESS_TOKEN)
