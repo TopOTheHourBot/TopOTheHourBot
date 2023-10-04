@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from asyncio import TaskGroup
-from typing import Final, Literal
+from typing import Final
 
 from channels import Channel, RecvError, SendError, SupportsRecvAndSend
 from ircv3 import IRCv3Command
@@ -12,7 +12,7 @@ from websockets.exceptions import ConnectionClosed
 
 from .pipe import Pipe
 
-URI: Final[Literal["ws://irc-ws.chat.twitch.tv:80"]] = "ws://irc-ws.chat.twitch.tv:80"
+URI: Final[str] = "ws://irc-ws.chat.twitch.tv:80"
 
 ACCESS_TOKEN: Final[str]  # These will likely be imports (from toml?) in the future
 CLIENT_SECRET: Final[str]
