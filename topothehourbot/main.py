@@ -14,9 +14,6 @@ from .pipe import Pipe
 
 URI: Final[str] = "ws://irc-ws.chat.twitch.tv:80"
 
-ACCESS_TOKEN: Final[str]  # These will likely be imports (from toml?) in the future
-CLIENT_SECRET: Final[str]
-
 # The amount of time, in seconds, to delay before sending subsequent messages
 # to the Twitch IRC server.
 # This is necessary to avoid exceeding the server's rate limits. If the client
@@ -75,7 +72,7 @@ async def main(*pipes: Pipe) -> None:
                 tasks.create_task(pipe(reader_stream, writer_stream))
 
             await socket_stream.send("CAP REQ :twitch.tv/membership twitch.tv/tags twitch.tv/commands")
-            await socket_stream.send("PASS oauth:" + ACCESS_TOKEN)
+            await socket_stream.send("PASS oauth:" + "ACCESS_TOKEN")
             await socket_stream.send("NICK topothehourbot")
 
             commands = socket_stream.recv_each()
