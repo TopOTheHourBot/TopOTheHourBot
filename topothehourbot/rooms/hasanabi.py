@@ -43,7 +43,7 @@ class PartialAverage:
         return self.sum / self.count
 
 
-class HasanAbiChat(Pipe):
+class HasanAbiRoom(Pipe):
 
     ROOM_NAME: Final[Literal["#hasanabi"]] = "#hasanabi"
 
