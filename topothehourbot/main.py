@@ -60,7 +60,10 @@ class IRCv3Channel(SupportsRecvAndSend[IRCv3CommandProtocol, IRCv3CommandProtoco
             raise StopSend from error
 
 
-async def main(*pipes: Pipe[IRCv3CommandProtocol, IRCv3CommandProtocol | str]) -> None:
+async def main(
+    *pipes: Pipe[IRCv3CommandProtocol, IRCv3CommandProtocol | str],
+    request_tags: bool = True,
+) -> None:
 
     writer_stream = Channel[IRCv3CommandProtocol | str]()
     pipelines = [
@@ -80,7 +83,8 @@ async def main(*pipes: Pipe[IRCv3CommandProtocol, IRCv3CommandProtocol | str]) -
             for pipeline in pipelines:
                 tasks.create_task(pipeline.join())
 
-            await socket_stream.send("CAP REQ :twitch.tv/membership twitch.tv/tags twitch.tv/commands")
+            if request_tags:
+                await socket_stream.send("CAP REQ :twitch.tv/membership twitch.tv/tags twitch.tv/commands")
             await socket_stream.send("PASS oauth:" + "ACCESS_TOKEN")
             await socket_stream.send("NICK topothehourbot")
 
