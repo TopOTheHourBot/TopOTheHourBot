@@ -8,7 +8,8 @@ from re import Pattern
 from typing import Final, Literal
 
 from channels import SupportsRecv, SupportsSend
-from ircv3 import IRCv3Command
+from ircv3 import IRCv3CommandProtocol
+from ircv3.dialects.twitch import Join, Privmsg
 
 from ..pipe import Pipe
 
@@ -43,23 +44,32 @@ class PartialAverage:
         return self.sum / self.count
 
 
-class HasanAbiRoom(Pipe):
+class HasanAbiPipe(Pipe):
 
-    ROOM_NAME: Final[Literal["#hasanabi"]] = "#hasanabi"
+    ROOM: Final[Literal["#hasanabi"]] = "#hasanabi"
 
     __slots__ = ()
 
-    async def __call__(self, istream: SupportsRecv[IRCv3Command], ostream: SupportsSend[IRCv3Command]) -> None:
-        await ostream.send(IRCv3Command(name="JOIN", arguments=[self.ROOM_NAME]))
+    async def __call__(
+        self,
+        istream: SupportsRecv[IRCv3CommandProtocol],
+        ostream: SupportsSend[IRCv3CommandProtocol | str],
+    ) -> None:
+        await ostream.send(Join(self.ROOM))
         async with TaskGroup() as tasks:
-            commands = (
+            async for command in (
                 istream
                     .recv_each()
                     .filter(lambda command: command.name == "PRIVMSG")
-                    .filter(lambda command: command.arguments[0] == self.ROOM_NAME)
-            )
+                    .filter(lambda command: command.room == self.ROOM)  # type: ignore
+            ):
+                assert isinstance(command, Privmsg)
 
-    async def rating_average(self, istream: SupportsRecv[IRCv3Command], ostream: SupportsSend[IRCv3Command]) -> None:
+    async def rating_average(
+        self,
+        istream: SupportsRecv[IRCv3CommandProtocol],
+        ostream: SupportsSend[IRCv3CommandProtocol | str],
+    ) -> None:
         async with TaskGroup() as tasks:
             while (
                 partial_average := await istream
@@ -115,10 +125,10 @@ class HasanAbiRoom(Pipe):
                     else:
                         splash = "incredible, hassy!"
 
-                command = IRCv3Command(
-                    name="PRIVMSG",
-                    arguments=[self.ROOM_NAME],
-                    comment=f"DANKIES 🔔 {partial_average.count} chatters rated this ad segue an average of {average:.2f}/10 - {splash} {emote}"
+                command = Privmsg(
+                    self.ROOM,
+                    f"DANKIES 🔔 {partial_average.count} chatters rated this ad"
+                    f" segue an average of {average:.2f}/10 - {splash} {emote}",
                 )
 
                 tasks.create_task(ostream.send(command))

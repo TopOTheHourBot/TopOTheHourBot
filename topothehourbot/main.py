@@ -5,9 +5,9 @@ from asyncio import TaskGroup
 from typing import Final
 
 from channels import Channel, StopRecv, StopSend, SupportsRecvAndSend
-from ircv3 import IRCv3Command
-from websockets import client
-from websockets.client import WebSocketClientProtocol
+from ircv3 import IRCv3Command, IRCv3CommandProtocol
+from ircv3.dialects.twitch import Join, Privmsg
+from websockets.client import WebSocketClientProtocol, connect
 from websockets.exceptions import ConnectionClosed
 
 from .pipe import Pipe
@@ -27,7 +27,7 @@ URI: Final[str] = "ws://irc-ws.chat.twitch.tv:80"
 OUTGOING_DELAY: Final[float] = 1.5
 
 
-class IRCv3Channel(SupportsRecvAndSend[IRCv3Command, IRCv3Command | str]):
+class IRCv3Channel(SupportsRecvAndSend[IRCv3CommandProtocol, IRCv3CommandProtocol | str]):
 
     __slots__ = ("_socket")
     _socket: WebSocketClientProtocol
@@ -35,17 +35,22 @@ class IRCv3Channel(SupportsRecvAndSend[IRCv3Command, IRCv3Command | str]):
     def __init__(self, socket: WebSocketClientProtocol, /) -> None:
         self._socket = socket
 
-    async def recv(self) -> IRCv3Command:
+    async def recv(self) -> IRCv3CommandProtocol:
         try:
             data = await self._socket.recv()
         except ConnectionClosed as error:
             logging.exception(error)
             raise StopRecv from error
-        else:
-            assert isinstance(data, str)
-            return IRCv3Command.from_string(data)
+        assert isinstance(data, str)
+        command = IRCv3Command.from_string(data)
+        command_name = command.name
+        if command_name == "PRIVMSG":
+            return Privmsg.cast(command)
+        if command_name == "JOIN":
+            return Join.cast(command)
+        return command
 
-    async def send(self, command: IRCv3Command | str) -> None:
+    async def send(self, command: IRCv3CommandProtocol | str) -> None:
         data = str(command)
         try:
             await self._socket.send(data)
@@ -56,10 +61,13 @@ class IRCv3Channel(SupportsRecvAndSend[IRCv3Command, IRCv3Command | str]):
 
 async def main(*pipes: Pipe) -> None:
 
-    reader_streams = [Channel[IRCv3Command]() for _ in range(len(pipes))]
-    writer_stream = Channel[IRCv3Command]()
+    reader_streams = [
+        Channel[IRCv3CommandProtocol]()
+        for _ in range(len(pipes))
+    ]
+    writer_stream = Channel[IRCv3CommandProtocol | str]()
 
-    async for socket in client.connect(URI):
+    async for socket in connect(URI):
         socket_stream = IRCv3Channel(socket)
 
         async with TaskGroup() as tasks:
