@@ -83,10 +83,13 @@ async def main(
             for transport in transports:
                 tasks.create_task(transport.ready())
 
-            if request_tags:
-                await socket_stream.send("CAP REQ :twitch.tv/membership twitch.tv/tags twitch.tv/commands")
-            await socket_stream.send("PASS oauth:" + "ACCESS_TOKEN")
-            await socket_stream.send("NICK topothehourbot")
+            try:
+                if request_tags:
+                    await socket_stream.send("CAP REQ :twitch.tv/membership twitch.tv/tags twitch.tv/commands")
+                await socket_stream.send("PASS oauth:" + "ACCESS_TOKEN")
+                await socket_stream.send("NICK topothehourbot")
+            except StopSend:
+                continue
 
             commands = socket_stream.recv_each()
             async for command in commands:
