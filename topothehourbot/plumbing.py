@@ -33,11 +33,11 @@ class Transport(SupportsSend[T_contra], Generic[T_contra, T_co]):
         self,
         pipe: Pipe[T_contra, T_co],
         *,
-        istream: SupportsRecvAndSend[T_contra, T_contra],
+        iostream: SupportsRecvAndSend[T_contra, T_contra],
         ostream: SupportsSend[T_co],
     ) -> None:
         self._pipe = pipe
-        self._iostream = istream
+        self._iostream = iostream
         self._ostream = ostream
 
     @property
@@ -45,7 +45,7 @@ class Transport(SupportsSend[T_contra], Generic[T_contra, T_co]):
         return self._pipe
 
     @property
-    def istream(self) -> SupportsRecvAndSend[T_contra, T_contra]:
+    def iostream(self) -> SupportsRecvAndSend[T_contra, T_contra]:
         return self._iostream
 
     @property

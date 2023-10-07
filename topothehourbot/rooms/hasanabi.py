@@ -60,7 +60,7 @@ class HasanAbiPipe(Pipe):
     ) -> None:
         await ostream.send(ClientJoin(ROOM))
         transports = [
-            Transport(self.rating_average, istream=Channel(), ostream=ostream),
+            Transport(self.rating_average, iostream=Channel(), ostream=ostream),
         ]
         async with TaskGroup() as tasks:
             for transport in transports:
