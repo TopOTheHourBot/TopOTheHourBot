@@ -33,7 +33,7 @@ RATING_PATTERN: Final[Pattern[str]] = re.compile(
 )
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class PartialAverage:
 
     sum: float
@@ -49,7 +49,7 @@ class PartialAverage:
         return self.sum / self.count
 
 
-class HasanAbiPipe(Pipe):
+class HasanAbiPipe(Pipe[IRCv3CommandProtocol, IRCv3CommandProtocol | str]):
 
     __slots__ = ()
 

@@ -77,7 +77,9 @@ async def main(
         async with TaskGroup() as tasks:
             tasks.create_task(
                 socket_stream.send_each(
-                    writer_stream.recv_each().stagger(WRITE_DELAY),
+                    writer_stream
+                        .recv_each()
+                        .stagger(WRITE_DELAY),
                 ),
             )
             for transport in transports:
