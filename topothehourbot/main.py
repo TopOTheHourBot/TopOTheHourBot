@@ -11,7 +11,7 @@ from websockets import client
 from websockets.client import WebSocketClientProtocol
 from websockets.exceptions import ConnectionClosed
 
-from .pipe import Pipe
+from .plumbing import Pipe, Pipeline
 
 URI: Final[str] = "ws://irc-ws.chat.twitch.tv:80"
 
@@ -62,11 +62,11 @@ class IRCv3Channel(SupportsRecvAndSend[IRCv3CommandProtocol, IRCv3CommandProtoco
 
 async def main(*pipes: Pipe) -> None:
 
-    reader_streams = [
-        Channel[IRCv3CommandProtocol]()
-        for _ in range(len(pipes))
-    ]
     writer_stream = Channel[IRCv3CommandProtocol | str]()
+    pipelines = [
+        Pipeline(pipe, Channel[IRCv3CommandProtocol](), writer_stream)
+        for pipe in pipes
+    ]
 
     async for socket in client.connect(URI):
         socket_stream = IRCv3Channel(socket)
@@ -77,8 +77,8 @@ async def main(*pipes: Pipe) -> None:
                     writer_stream.recv_each().stagger(OUTGOING_DELAY),
                 ),
             )
-            for pipe, reader_stream in zip(pipes, reader_streams):
-                tasks.create_task(pipe(reader_stream, writer_stream))
+            for pipeline in pipelines:
+                tasks.create_task(pipeline.join())
 
             await socket_stream.send("CAP REQ :twitch.tv/membership twitch.tv/tags twitch.tv/commands")
             await socket_stream.send("PASS oauth:" + "ACCESS_TOKEN")
@@ -86,5 +86,5 @@ async def main(*pipes: Pipe) -> None:
 
             commands = socket_stream.recv_each()
             async for command in commands:
-                for reader_stream in reader_streams:
-                    tasks.create_task(reader_stream.send(command))
+                for pipeline in pipelines:
+                    tasks.create_task(pipeline.send(command))

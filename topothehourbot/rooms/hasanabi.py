@@ -7,13 +7,17 @@ from dataclasses import dataclass
 from re import Pattern
 from typing import Final, Literal
 
-from channels import SupportsRecv, SupportsSend
+from channels import Channel, SupportsRecv, SupportsSend
 from ircv3 import IRCv3CommandProtocol
 from ircv3.dialects import twitch
 from ircv3.dialects.twitch import ClientJoin, ClientPrivmsg, ServerPrivmsg
 
-from ..pipe import Pipe
+from ..plumbing import Pipe, Pipeline
 
+ROOM: Final[Literal["#hasanabi"]] = "#hasanabi"
+
+RATING_TIMEOUT: Final[float] = 8.5
+RATING_DENSITY: Final[int] = 50
 RATING_PATTERN: Final[Pattern[str]] = re.compile(
     r"""
     (?:^|\s)              # should proceed the beginning or whitespace
@@ -47,8 +51,6 @@ class PartialAverage:
 
 class HasanAbiPipe(Pipe):
 
-    ROOM: Final[Literal["#hasanabi"]] = "#hasanabi"
-
     __slots__ = ()
 
     async def __call__(
@@ -56,15 +58,21 @@ class HasanAbiPipe(Pipe):
         istream: SupportsRecv[IRCv3CommandProtocol],
         ostream: SupportsSend[IRCv3CommandProtocol | str],
     ) -> None:
-        await ostream.send(ClientJoin(self.ROOM))
+        await ostream.send(ClientJoin(ROOM))
+        pipelines = [
+            Pipeline(self.rating_average, Channel[ServerPrivmsg](), ostream),
+        ]
         async with TaskGroup() as tasks:
+            for pipeline in pipelines:
+                tasks.create_task(pipeline.join())
             async for command in (
                 istream
                     .recv_each()
                     .filter(twitch.is_privmsg)
-                    .filter(lambda command: command.room == self.ROOM)
+                    .filter(lambda command: command.room == ROOM)
             ):
-                ...
+                for pipeline in pipelines:
+                    tasks.create_task(pipeline.send(command))
 
     async def rating_average(
         self,
@@ -78,13 +86,13 @@ class HasanAbiPipe(Pipe):
                     .map(lambda command: command.comment)
                     .map(RATING_PATTERN.search)
                     .not_none()
-                    .timeout(8.5)
+                    .timeout(RATING_TIMEOUT)
                     .map(lambda match: match.group(1))
                     .map(float)
                     .map(PartialAverage)
                     .reduce(PartialAverage(0, 0), PartialAverage.compound)
             ):
-                if partial_average.count < 50:
+                if partial_average.count < RATING_DENSITY:
                     continue
 
                 average = partial_average.complete()
@@ -127,7 +135,7 @@ class HasanAbiPipe(Pipe):
                         splash = "incredible, hassy!"
 
                 command = ClientPrivmsg(
-                    self.ROOM,
+                    ROOM,
                     f"DANKIES 🔔 {partial_average.count} chatters rated this ad"
                     f" segue an average of {average:.2f}/10 - {splash} {emote}",
                 )
