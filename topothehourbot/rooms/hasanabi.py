@@ -60,7 +60,7 @@ class HasanAbiPipe(Pipe[IRCv3CommandProtocol, IRCv3CommandProtocol | str]):
     ) -> None:
         await ostream.send(ClientJoin(ROOM))
         transports = [
-            Transport(self.rating_average, iostream=Channel(), ostream=ostream),
+            Transport(self.rating_average, iostream=Channel[ServerPrivmsg](), ostream=ostream),
         ]
         async with TaskGroup() as tasks:
             for transport in transports:

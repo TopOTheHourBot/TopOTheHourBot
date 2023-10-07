@@ -64,7 +64,7 @@ async def main(
 
     writer_stream = Channel[IRCv3CommandProtocol | str]()
     transports = [
-        Transport(pipe, iostream=Channel(), ostream=writer_stream)
+        Transport(pipe, iostream=Channel[IRCv3CommandProtocol](), ostream=writer_stream)
         for pipe in pipes
     ]
 
