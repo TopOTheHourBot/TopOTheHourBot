@@ -16,6 +16,9 @@ T_contra = TypeVar("T_contra", contravariant=True)
 
 
 class Pipe(Protocol[T_contra, T_co]):
+    """Protocol for callable, asynchronous objects that take an input and
+    output stream as arguments - a "pipe"
+    """
 
     @abstractmethod
     def __call__(self, istream: SupportsRecv[T_contra], ostream: SupportsSend[T_co], /) -> Coroutine:
@@ -23,6 +26,18 @@ class Pipe(Protocol[T_contra, T_co]):
 
 
 class Transport(SupportsSend[T_contra], Generic[T_contra, T_co]):
+    """A thin wrapper around a ``Pipe`` and its input and output stream
+
+    Note that this class does not perform any kind of task management or
+    execution - it is simply used as a means to group pipes alongside their
+    streams for easier object consolidation. It is up to the API user to begin
+    data flow in however they see fit.
+
+    Transports are a type of output stream, and thus supports the ``send()``
+    and ``send_each()`` operations. Sends are simply forwarded to the
+    underlying ``iostream``, which is interpreted as the input stream to
+    ``pipe``.
+    """
 
     __slots__ = ("_pipe", "_iostream", "_ostream")
     _pipe: Pipe[T_contra, T_co]
@@ -53,7 +68,11 @@ class Transport(SupportsSend[T_contra], Generic[T_contra, T_co]):
         return self._ostream
 
     def send(self, value: T_contra, /) -> Coroutine:
+        """Send a value to ``iostream``"""
         return self._iostream.send(value)
 
     def ready(self) -> Coroutine:
+        """Call ``pipe`` with ``iostream`` as its input, and ``ostream`` as its
+        output
+        """
         return self._pipe(self._iostream, self._ostream)
