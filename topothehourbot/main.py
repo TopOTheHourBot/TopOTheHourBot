@@ -58,6 +58,7 @@ class IRCv3Channel(SupportsRecvAndSend[IRCv3CommandProtocol, IRCv3CommandProtoco
 
 
 async def main(
+    access_token: str,
     *pipes: Pipe[IRCv3CommandProtocol, IRCv3CommandProtocol | str],
     request_tags: bool = True,
 ) -> None:
@@ -73,7 +74,7 @@ async def main(
         try:
             if request_tags:
                 await socket_stream.send("CAP REQ :twitch.tv/membership twitch.tv/tags twitch.tv/commands")
-            await socket_stream.send("PASS oauth:" + "ACCESS_TOKEN")
+            await socket_stream.send("PASS oauth:" + access_token)
             await socket_stream.send("NICK topothehourbot")
         except StopSend:
             continue
