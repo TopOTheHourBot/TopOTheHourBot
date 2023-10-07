@@ -32,6 +32,7 @@ class Pipeline(SupportsSend[T_contra], Generic[T_contra, T_co]):
     def __init__(
         self,
         pipe: Pipe[T_contra, T_co],
+        *,
         istream: SupportsRecvAndSend[T_contra, T_contra],
         ostream: SupportsSend[T_co],
     ) -> None:

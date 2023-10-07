@@ -60,7 +60,7 @@ class HasanAbiPipe(Pipe):
     ) -> None:
         await ostream.send(ClientJoin(ROOM))
         pipelines = [
-            Pipeline(self.rating_average, Channel[ServerPrivmsg](), ostream),
+            Pipeline(self.rating_average, istream=Channel(), ostream=ostream),
         ]
         async with TaskGroup() as tasks:
             for pipeline in pipelines:

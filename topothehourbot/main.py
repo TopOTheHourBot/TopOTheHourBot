@@ -60,11 +60,11 @@ class IRCv3Channel(SupportsRecvAndSend[IRCv3CommandProtocol, IRCv3CommandProtoco
             raise StopSend from error
 
 
-async def main(*pipes: Pipe) -> None:
+async def main(*pipes: Pipe[IRCv3CommandProtocol, IRCv3CommandProtocol | str]) -> None:
 
     writer_stream = Channel[IRCv3CommandProtocol | str]()
     pipelines = [
-        Pipeline(pipe, Channel[IRCv3CommandProtocol](), writer_stream)
+        Pipeline(pipe, istream=Channel(), ostream=writer_stream)
         for pipe in pipes
     ]
 
