@@ -25,7 +25,7 @@ URI: Final[str] = "ws://irc-ws.chat.twitch.tv:80"
 # for every 1 message).
 # The one drawback to this methodology is that our client won't be able to
 # "spam" at a very fast rate, but we don't really have a need to.
-OUTGOING_DELAY: Final[float] = 1.5
+WRITE_DELAY: Final[float] = 1.5
 
 
 class IRCv3Channel(SupportsRecvAndSend[IRCv3CommandProtocol, IRCv3CommandProtocol | str]):
@@ -77,7 +77,7 @@ async def main(
         async with TaskGroup() as tasks:
             tasks.create_task(
                 socket_stream.send_each(
-                    writer_stream.recv_each().stagger(OUTGOING_DELAY),
+                    writer_stream.recv_each().stagger(WRITE_DELAY),
                 ),
             )
             for transport in transports:
