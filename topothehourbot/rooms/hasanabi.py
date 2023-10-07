@@ -9,7 +9,8 @@ from typing import Final, Literal
 
 from channels import SupportsRecv, SupportsSend
 from ircv3 import IRCv3CommandProtocol
-from ircv3.dialects.twitch import Join, Privmsg
+from ircv3.dialects import twitch
+from ircv3.dialects.twitch import ClientJoin, ClientPrivmsg, ServerPrivmsg
 
 from ..pipe import Pipe
 
@@ -55,26 +56,26 @@ class HasanAbiPipe(Pipe):
         istream: SupportsRecv[IRCv3CommandProtocol],
         ostream: SupportsSend[IRCv3CommandProtocol | str],
     ) -> None:
-        await ostream.send(Join(self.ROOM))
+        await ostream.send(ClientJoin(self.ROOM))
         async with TaskGroup() as tasks:
             async for command in (
                 istream
                     .recv_each()
-                    .filter(lambda command: command.name == "PRIVMSG")
-                    .filter(lambda command: command.room == self.ROOM)  # type: ignore
+                    .filter(twitch.is_privmsg)
+                    .filter(lambda command: command.room == self.ROOM)
             ):
-                assert isinstance(command, Privmsg)
+                ...
 
     async def rating_average(
         self,
-        istream: SupportsRecv[IRCv3CommandProtocol],
-        ostream: SupportsSend[IRCv3CommandProtocol | str],
+        istream: SupportsRecv[ServerPrivmsg],
+        ostream: SupportsSend[ClientPrivmsg],
     ) -> None:
         async with TaskGroup() as tasks:
             while (
                 partial_average := await istream
                     .recv_each()
-                    .map(lambda command: command.arguments[1])
+                    .map(lambda command: command.comment)
                     .map(RATING_PATTERN.search)
                     .not_none()
                     .timeout(8.5)
@@ -125,7 +126,7 @@ class HasanAbiPipe(Pipe):
                     else:
                         splash = "incredible, hassy!"
 
-                command = Privmsg(
+                command = ClientPrivmsg(
                     self.ROOM,
                     f"DANKIES 🔔 {partial_average.count} chatters rated this ad"
                     f" segue an average of {average:.2f}/10 - {splash} {emote}",

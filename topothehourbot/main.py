@@ -6,8 +6,9 @@ from typing import Final
 
 from channels import Channel, StopRecv, StopSend, SupportsRecvAndSend
 from ircv3 import IRCv3Command, IRCv3CommandProtocol
-from ircv3.dialects.twitch import Join, Privmsg
-from websockets.client import WebSocketClientProtocol, connect
+from ircv3.dialects.twitch import ServerJoin, ServerPrivmsg
+from websockets import client
+from websockets.client import WebSocketClientProtocol
 from websockets.exceptions import ConnectionClosed
 
 from .pipe import Pipe
@@ -45,9 +46,9 @@ class IRCv3Channel(SupportsRecvAndSend[IRCv3CommandProtocol, IRCv3CommandProtoco
         command = IRCv3Command.from_string(data)
         command_name = command.name
         if command_name == "PRIVMSG":
-            return Privmsg.cast(command)
+            return ServerPrivmsg.cast(command)
         if command_name == "JOIN":
-            return Join.cast(command)
+            return ServerJoin.cast(command)
         return command
 
     async def send(self, command: IRCv3CommandProtocol | str) -> None:
@@ -67,7 +68,7 @@ async def main(*pipes: Pipe) -> None:
     ]
     writer_stream = Channel[IRCv3CommandProtocol | str]()
 
-    async for socket in connect(URI):
+    async for socket in client.connect(URI):
         socket_stream = IRCv3Channel(socket)
 
         async with TaskGroup() as tasks:
