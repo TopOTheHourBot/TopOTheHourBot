@@ -4,7 +4,7 @@ import logging
 from asyncio import TaskGroup
 from typing import Final
 
-from channels import Channel, RecvError, SendError, SupportsRecvAndSend
+from channels import Channel, StopRecv, StopSend, SupportsRecvAndSend
 from ircv3 import IRCv3Command
 from websockets import client
 from websockets.client import WebSocketClientProtocol
@@ -40,7 +40,7 @@ class IRCv3Channel(SupportsRecvAndSend[IRCv3Command, IRCv3Command | str]):
             data = await self._socket.recv()
         except ConnectionClosed as error:
             logging.exception(error)
-            raise RecvError from error
+            raise StopRecv from error
         else:
             assert isinstance(data, str)
             return IRCv3Command.from_string(data)
@@ -51,7 +51,7 @@ class IRCv3Channel(SupportsRecvAndSend[IRCv3Command, IRCv3Command | str]):
             await self._socket.send(data)
         except ConnectionClosed as error:
             logging.exception(error)
-            raise SendError from error
+            raise StopSend from error
 
 
 async def main(*pipes: Pipe) -> None:
@@ -59,10 +59,10 @@ async def main(*pipes: Pipe) -> None:
     reader_streams = [Channel[IRCv3Command]() for _ in range(len(pipes))]
     writer_stream = Channel[IRCv3Command]()
 
-    async with TaskGroup() as tasks:
+    async for socket in client.connect(URI):
+        socket_stream = IRCv3Channel(socket)
 
-        async for socket in client.connect(URI):
-            socket_stream = IRCv3Channel(socket)
+        async with TaskGroup() as tasks:
             tasks.create_task(
                 socket_stream.send_each(
                     writer_stream.recv_each().stagger(OUTGOING_DELAY),
