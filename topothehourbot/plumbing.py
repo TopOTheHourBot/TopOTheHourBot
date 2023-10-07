@@ -2,7 +2,7 @@ from __future__ import annotations
 
 __all__ = [
     "Pipe",
-    "Pipeline",
+    "Transport",
 ]
 
 from abc import abstractmethod
@@ -22,11 +22,11 @@ class Pipe(Protocol[T_contra, T_co]):
         raise NotImplementedError
 
 
-class Pipeline(SupportsSend[T_contra], Generic[T_contra, T_co]):
+class Transport(SupportsSend[T_contra], Generic[T_contra, T_co]):
 
-    __slots__ = ("_pipe", "_istream", "_ostream")
+    __slots__ = ("_pipe", "_iostream", "_ostream")
     _pipe: Pipe[T_contra, T_co]
-    _istream: SupportsRecvAndSend[T_contra, T_contra]
+    _iostream: SupportsRecvAndSend[T_contra, T_contra]
     _ostream: SupportsSend[T_co]
 
     def __init__(
@@ -37,7 +37,7 @@ class Pipeline(SupportsSend[T_contra], Generic[T_contra, T_co]):
         ostream: SupportsSend[T_co],
     ) -> None:
         self._pipe = pipe
-        self._istream = istream
+        self._iostream = istream
         self._ostream = ostream
 
     @property
@@ -46,14 +46,14 @@ class Pipeline(SupportsSend[T_contra], Generic[T_contra, T_co]):
 
     @property
     def istream(self) -> SupportsRecvAndSend[T_contra, T_contra]:
-        return self._istream
+        return self._iostream
 
     @property
     def ostream(self) -> SupportsSend[T_co]:
         return self._ostream
 
     def send(self, value: T_contra, /) -> Coroutine:
-        return self._istream.send(value)
+        return self._iostream.send(value)
 
-    def join(self) -> Coroutine:
-        return self._pipe(self._istream, self._ostream)
+    def ready(self) -> Coroutine:
+        return self._pipe(self._iostream, self._ostream)

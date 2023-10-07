@@ -11,7 +11,7 @@ from websockets import client
 from websockets.client import WebSocketClientProtocol
 from websockets.exceptions import ConnectionClosed
 
-from .plumbing import Pipe, Pipeline
+from .plumbing import Pipe, Transport
 
 URI: Final[str] = "ws://irc-ws.chat.twitch.tv:80"
 
@@ -66,8 +66,8 @@ async def main(
 ) -> None:
 
     writer_stream = Channel[IRCv3CommandProtocol | str]()
-    pipelines = [
-        Pipeline(pipe, istream=Channel(), ostream=writer_stream)
+    transports = [
+        Transport(pipe, istream=Channel(), ostream=writer_stream)
         for pipe in pipes
     ]
 
@@ -80,8 +80,8 @@ async def main(
                     writer_stream.recv_each().stagger(OUTGOING_DELAY),
                 ),
             )
-            for pipeline in pipelines:
-                tasks.create_task(pipeline.join())
+            for transport in transports:
+                tasks.create_task(transport.ready())
 
             if request_tags:
                 await socket_stream.send("CAP REQ :twitch.tv/membership twitch.tv/tags twitch.tv/commands")
@@ -90,5 +90,5 @@ async def main(
 
             commands = socket_stream.recv_each()
             async for command in commands:
-                for pipeline in pipelines:
-                    tasks.create_task(pipeline.send(command))
+                for transport in transports:
+                    tasks.create_task(transport.send(command))

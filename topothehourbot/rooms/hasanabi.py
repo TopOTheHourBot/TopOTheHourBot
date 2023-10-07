@@ -12,7 +12,7 @@ from ircv3 import IRCv3CommandProtocol
 from ircv3.dialects import twitch
 from ircv3.dialects.twitch import ClientJoin, ClientPrivmsg, ServerPrivmsg
 
-from ..plumbing import Pipe, Pipeline
+from ..plumbing import Pipe, Transport
 
 ROOM: Final[Literal["#hasanabi"]] = "#hasanabi"
 
@@ -59,20 +59,20 @@ class HasanAbiPipe(Pipe):
         ostream: SupportsSend[IRCv3CommandProtocol | str],
     ) -> None:
         await ostream.send(ClientJoin(ROOM))
-        pipelines = [
-            Pipeline(self.rating_average, istream=Channel(), ostream=ostream),
+        transports = [
+            Transport(self.rating_average, istream=Channel(), ostream=ostream),
         ]
         async with TaskGroup() as tasks:
-            for pipeline in pipelines:
-                tasks.create_task(pipeline.join())
+            for transport in transports:
+                tasks.create_task(transport.ready())
             async for command in (
                 istream
                     .recv_each()
                     .filter(twitch.is_privmsg)
                     .filter(lambda command: command.room == ROOM)
             ):
-                for pipeline in pipelines:
-                    tasks.create_task(pipeline.send(command))
+                for transport in transports:
+                    tasks.create_task(transport.send(command))
 
     async def rating_average(
         self,
