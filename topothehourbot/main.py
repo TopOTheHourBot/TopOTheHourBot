@@ -6,7 +6,7 @@ from typing import Final
 
 from channels import Channel, StopRecv, StopSend, SupportsRecvAndSend
 from ircv3 import IRCv3Command, IRCv3CommandProtocol
-from ircv3.dialects.twitch import ServerJoin, ServerPrivmsg
+from ircv3.dialects.twitch import ServerPrivmsg
 from websockets import client
 from websockets.client import WebSocketClientProtocol
 from websockets.exceptions import ConnectionClosed
@@ -44,11 +44,8 @@ class IRCv3Channel(SupportsRecvAndSend[IRCv3CommandProtocol, IRCv3CommandProtoco
             raise StopRecv from error
         assert isinstance(data, str)
         command = IRCv3Command.from_string(data)
-        command_name = command.name
-        if command_name == "PRIVMSG":
+        if command.name == "PRIVMSG":
             return ServerPrivmsg.cast(command)
-        if command_name == "JOIN":
-            return ServerJoin.cast(command)
         return command
 
     async def send(self, command: IRCv3CommandProtocol | str) -> None:
