@@ -19,23 +19,12 @@ from websockets.exceptions import ConnectionClosed
 from .pipes import Pipe, Transport
 
 URI: Final[str] = "ws://irc-ws.chat.twitch.tv:80"
-
-CRLF: Final[Literal["\r\n"]] = "\r\n"
-
-# The amount of time, in seconds, to delay before sending subsequent messages
-# to the Twitch IRC server.
-# This is necessary to avoid exceeding the server's rate limits. If the client
-# is not the broadcaster or a moderator of a chat room, the rate limit is 20
-# messages every 30 seconds.
-# A blanket messaging delay works well to solve this problem - no need to get
-# fancier. We solve 20m * Xs/m = 30s for X, which is 1.5s/m (i.e. 1.5 seconds
-# for every 1 message).
-# The one drawback to this methodology is that our client won't be able to
-# "spam" at a very fast rate, but we don't really have a need to.
-WRITE_DELAY: Final[float] = 1.5
+MESSAGE_DELAY: Final[float] = 1.5
 
 
 class TwitchSocket(SupportsSendAndRecv[IRCv3CommandProtocol | str, Iterator[IRCv3CommandProtocol]]):
+
+    CRLF: Final[Literal["\r\n"]] = "\r\n"
 
     __slots__ = ("_socket")
     _socket: WebSocketClientProtocol
@@ -61,9 +50,10 @@ class TwitchSocket(SupportsSendAndRecv[IRCv3CommandProtocol | str, Iterator[IRCv
         return self._command_iterator(data)
 
     def _command_iterator(self, data: str) -> Iterator[IRCv3CommandProtocol]:
+        crlf = self.CRLF
         for command in map(
             IRCv3Command.from_string,
-            data.rstrip(CRLF).split(CRLF),
+            data.rstrip(crlf).split(crlf),
         ):
             name = command.name
             if name == "PRIVMSG":
@@ -106,7 +96,7 @@ async def run(
         async with TaskGroup() as tasks:
             tasks.create_task(
                 osstream.send_each(
-                    omstream.recv_each().stagger(WRITE_DELAY),
+                    omstream.recv_each().stagger(MESSAGE_DELAY),
                 ),
             )
             for transport in transports:
