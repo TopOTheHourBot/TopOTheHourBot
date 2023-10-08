@@ -115,7 +115,7 @@ async def run(
             async for commands in osstream:
                 for command in commands:
                     if twitch.is_ping(command):
-                        tasks.create_task(osstream.send(f"PONG :{command.comment}"))  # TODO: Handle possible exception
+                        tasks.create_task(osstream.try_send(f"PONG :{command.comment}"))
                         continue
                     for transport in transports:
                         tasks.create_task(transport.send(command))
