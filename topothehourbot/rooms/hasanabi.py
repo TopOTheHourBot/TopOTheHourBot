@@ -83,68 +83,68 @@ class HasanAbi(Pipe):
     async def rating_average(
         self,
         istream: SupportsRecv[ServerPrivmsg],
-        omstream: SupportsSend[ClientPrivmsg],
-        _,
+        omstream: SupportsSend[IRCv3CommandProtocol | str],
+        osstream: SupportsSend[IRCv3CommandProtocol | str],
     ) -> None:
-        async with TaskGroup() as tasks:
-            while (
-                partial_average := await istream
-                    .recv_each()
-                    .map(lambda command: command.comment)
-                    .map(RATING_PATTERN.search)
-                    .not_none()
-                    .timeout(RATING_TIMEOUT)
-                    .map(lambda match: match.group(1))
-                    .map(float)
-                    .map(PartialAverage)
-                    .reduce(PartialAverage(0, 0), PartialAverage.compound)
-            ):
-                if partial_average.count < RATING_DENSITY:
-                    continue
+        while (
+            partial_average := await istream
+                .recv_each()
+                .map(lambda command: command.comment)
+                .map(RATING_PATTERN.search)
+                .not_none()
+                .timeout(RATING_TIMEOUT)
+                .map(lambda match: match.group(1))
+                .map(float)
+                .map(PartialAverage)
+                .reduce(PartialAverage(0, 0), PartialAverage.compound)
+        ):
+            if partial_average.count < RATING_DENSITY:
+                continue
 
-                average = partial_average.complete()
+            average = partial_average.complete()
 
-                if average <= 5.0:
-                    emote = random.choice(
-                        (
-                            "unPOGGERS",
-                            "Awkward BobaTime",
-                            "hasCringe",
-                            "PoroSad",
-                            "Concerned Clap",
-                            "Dead",
-                            "HuhChamp",
-                            "Jupijejnt",
-                            "MikePensive",
-                        ),
-                    )
-                    if average <= 2.5:
-                        splash = "awful one, hassy"
-                    else:
-                        splash = "uhm.. good attempt, hassy"
-                else:
-                    emote = random.choice(
-                        (
-                            "Gladge PETTHEHASAN",
-                            "peepoHappy",
-                            "peepoPog Clap",
-                            "chatPls",
-                            "peepoCheer",
-                            "peepoBlush",
-                            "Jigglin",
-                            "Jupijej",
-                            "veryCat",
-                        ),
-                    )
-                    if average <= 7.5:
-                        splash = "not bad, hassy"
-                    else:
-                        splash = "incredible, hassy!"
-
-                command = ClientPrivmsg(
-                    ROOM,
-                    f"DANKIES 🔔 {partial_average.count} chatters rated this ad"
-                    f" segue an average of {average:.2f}/10 - {splash} {emote}",
+            if average <= 5.0:
+                emote = random.choice(
+                    (
+                        "unPOGGERS",
+                        "Awkward BobaTime",
+                        "hasCringe",
+                        "PoroSad",
+                        "Concerned Clap",
+                        "Dead",
+                        "HuhChamp",
+                        "Jupijejnt",
+                        "MikePensive",
+                    ),
                 )
+                if average <= 2.5:
+                    splash = "awful one, hassy"
+                else:
+                    splash = "uhm.. good attempt, hassy"
+            else:
+                emote = random.choice(
+                    (
+                        "Gladge PETTHEHASAN",
+                        "peepoHappy",
+                        "peepoPog Clap",
+                        "chatPls",
+                        "peepoCheer",
+                        "peepoBlush",
+                        "Jigglin",
+                        "Jupijej",
+                        "veryCat",
+                    ),
+                )
+                if average <= 7.5:
+                    splash = "not bad, hassy"
+                else:
+                    splash = "incredible, hassy!"
 
+            command = ClientPrivmsg(
+                ROOM,
+                f"DANKIES 🔔 {partial_average.count} chatters rated this ad"
+                f" segue an average of {average:.2f}/10 - {splash} {emote}",
+            )
+
+            async with TaskGroup() as tasks:
                 tasks.create_task(omstream.send(command))
