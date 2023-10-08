@@ -7,8 +7,8 @@ from asyncio import TaskGroup
 from collections.abc import Iterator
 from typing import Final, Literal
 
-from channels import (Channel, LatentChannel, StopRecv, StopSend,
-                      SupportsRecvAndSend)
+from channels import (Channel, LatentChannel, StopRecv, StopSend, SupportsRecv,
+                      SupportsRecvAndSend, SupportsSend)
 from ircv3 import IRCv3Command, IRCv3CommandProtocol
 from ircv3.dialects.twitch import ServerPrivmsg
 from websockets import client
@@ -68,6 +68,18 @@ class TwitchSocket(SupportsRecvAndSend[Iterator[IRCv3CommandProtocol], IRCv3Comm
                 yield command
 
 
+async def pong(
+    istream: SupportsRecv[IRCv3CommandProtocol],
+    ostream: SupportsSend[str],
+) -> None:
+    await ostream.send_each(
+        istream
+            .recv_each()
+            .filter(lambda command: command.name == "PING")
+            .map(lambda command: f"PONG :{command.comment}")
+    )
+
+
 async def run(
     access_token: str,
     *pipes: Pipe[IRCv3CommandProtocol, IRCv3CommandProtocol | str],
@@ -79,6 +91,13 @@ async def run(
         Transport(pipe, iostream=Channel[IRCv3CommandProtocol](), ostream=writer_stream)
         for pipe in pipes
     ]
+
+    # FIXME: The writer stream is latent, meaning that pongs may be dropped if
+    # there are too many things that need to be sent out - give pipes access to
+    # the socket stream?
+    transports.append(
+        Transport(pong, iostream=Channel[IRCv3CommandProtocol](), ostream=writer_stream),
+    )
 
     async for socket in client.connect(URI):
         socket_stream = TwitchSocket(socket)
