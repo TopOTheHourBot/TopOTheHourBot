@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+__all__ = ["run"]
+
 import logging
 from asyncio import TaskGroup
 from typing import Final
@@ -58,7 +60,7 @@ class IRCv3Channel(SupportsRecvAndSend[IRCv3CommandProtocol, IRCv3CommandProtoco
             raise StopSend from error
 
 
-async def main(
+async def run(
     access_token: str,
     *pipes: Pipe[IRCv3CommandProtocol, IRCv3CommandProtocol | str],
     request_tags: bool = True,
