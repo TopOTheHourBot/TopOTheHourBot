@@ -77,7 +77,7 @@ async def run(
                 await socket.send("CAP REQ :twitch.tv/membership twitch.tv/tags twitch.tv/commands")
             await socket.send(f"PASS oauth:{access_token}")
             await socket.send(f"NICK {user}")
-        except StopSend:
+        except ConnectionClosed:
             continue
 
         omstream = LatentChannel[ClientPrivmsg | str](5)
