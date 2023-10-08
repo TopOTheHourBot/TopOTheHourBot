@@ -36,7 +36,6 @@ class Transport:
     osstream: SupportsSend[IRCv3CommandProtocol | str]
 
     def send(self, command: IRCv3CommandProtocol) -> Coroutine:
-        """Send a command to ``iosstream``"""
         return self.iosstream.send(command)
 
     def open(self) -> Coroutine:
