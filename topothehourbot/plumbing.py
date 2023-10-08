@@ -29,13 +29,6 @@ class Pipe(Protocol):
 
 @dataclass(slots=True, eq=False, repr=False, match_args=False)
 class Transport:
-    """A thin wrapper around a ``Pipe``, its input stream, and output streams
-
-    Note that this class does not perform any kind of task management or
-    execution - it is simply used as a means to group pipes alongside their
-    streams for easier object consolidation. It is up to the API user to begin
-    data flow in however they see fit.
-    """
 
     pipe: Pipe
     iosstream: SupportsSendAndRecv[IRCv3CommandProtocol, IRCv3CommandProtocol]
