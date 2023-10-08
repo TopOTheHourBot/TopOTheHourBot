@@ -4,7 +4,7 @@ __all__ = ["run"]
 
 import logging
 from asyncio import TaskGroup
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from typing import Final, Literal
 
 from channels import (Channel, LatentChannel, StopRecv, StopSend,
@@ -70,15 +70,17 @@ class TwitchSocket(SupportsSendAndRecv[IRCv3CommandProtocol | str, Iterator[IRCv
 
 async def run(
     access_token: str,
-    *pipes: Pipe,
-    request_tags: bool = True,
+    *,
+    pipes: Sequence[Pipe],
+    tags: bool = True,
+    user: str = "topothehourbot",
 ) -> None:
     async for socket in client.connect(URI):
         try:
-            if request_tags:
+            if tags:
                 await socket.send("CAP REQ :twitch.tv/membership twitch.tv/tags twitch.tv/commands")
-            await socket.send("PASS oauth:" + access_token)
-            await socket.send("NICK topothehourbot")
+            await socket.send(f"PASS oauth:{access_token}")
+            await socket.send(f"NICK {user}")
         except StopSend:
             continue
 
@@ -96,14 +98,18 @@ async def run(
         ]
 
         async with TaskGroup() as tasks:
-            tasks.create_task(osstream.send_each(omstream.recv_each().stagger(WRITE_DELAY)))
+            tasks.create_task(
+                osstream.send_each(
+                    omstream.recv_each().stagger(WRITE_DELAY),
+                ),
+            )
             for transport in transports:
                 tasks.create_task(transport.open())
 
             async for commands in osstream:
                 for command in commands:
                     if command.name == "PING":
-                        tasks.create_task(osstream.send(f"PONG :{command.comment}"))
+                        tasks.create_task(osstream.send(f"PONG :{command.comment}"))  # TODO: Handle possible exception
                         continue
                     for transport in transports:
                         tasks.create_task(transport.send(command))
