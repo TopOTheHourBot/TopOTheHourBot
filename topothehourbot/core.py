@@ -16,7 +16,7 @@ from websockets import client
 from websockets.client import WebSocketClientProtocol
 from websockets.exceptions import ConnectionClosed
 
-from .plumbing import Pipe, Transport
+from .pipes import Pipe, Transport
 
 URI: Final[str] = "ws://irc-ws.chat.twitch.tv:80"
 

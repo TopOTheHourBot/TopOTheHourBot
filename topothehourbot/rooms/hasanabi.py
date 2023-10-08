@@ -12,7 +12,7 @@ from ircv3 import IRCv3CommandProtocol
 from ircv3.dialects import twitch
 from ircv3.dialects.twitch import ClientJoin, ClientPrivmsg, ServerPrivmsg
 
-from ..plumbing import Pipe, Transport
+from ..pipes import Pipe, Transport
 
 ROOM: Final[Literal["#hasanabi"]] = "#hasanabi"
 
