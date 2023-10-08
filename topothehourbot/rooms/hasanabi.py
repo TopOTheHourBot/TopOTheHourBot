@@ -27,7 +27,7 @@ RATING_PATTERN: Final[Pattern[str]] = re.compile(
         (?:\d?\.\d+)      # any decimal within range 0 to 9
     )
     \s?/\s?10             # denominator of 10
-    (?:$|[\s,.!?])        # should precede the end, whitespace, or some punctuation
+    (?:$|[\s,.!?])        # should precede the end, whitespace, or punctuation
     """,
     flags=re.ASCII | re.VERBOSE,
 )
@@ -49,18 +49,24 @@ class PartialAverage:
         return self.sum / self.count
 
 
-class HasanAbiPipe(Pipe[IRCv3CommandProtocol, IRCv3CommandProtocol | str]):
+class HasanAbiPipe(Pipe):
 
     __slots__ = ()
 
     async def __call__(
         self,
         istream: SupportsRecv[IRCv3CommandProtocol],
-        ostream: SupportsSend[IRCv3CommandProtocol | str],
+        omstream: SupportsSend[IRCv3CommandProtocol | str],
+        osstream: SupportsSend[IRCv3CommandProtocol | str],
     ) -> None:
-        await ostream.send(ClientJoin(ROOM))
+        await osstream.send(ClientJoin(ROOM))
         transports = [
-            Transport(self.rating_average, iostream=Channel[ServerPrivmsg](), ostream=ostream),
+            Transport(
+                self.rating_average,  # type: ignore
+                iostream=Channel(),
+                omstream=omstream,
+                osstream=osstream,
+            ),
         ]
         async with TaskGroup() as tasks:
             for transport in transports:
@@ -77,7 +83,8 @@ class HasanAbiPipe(Pipe[IRCv3CommandProtocol, IRCv3CommandProtocol | str]):
     async def rating_average(
         self,
         istream: SupportsRecv[ServerPrivmsg],
-        ostream: SupportsSend[ClientPrivmsg],
+        omstream: SupportsSend[ClientPrivmsg],
+        _,
     ) -> None:
         async with TaskGroup() as tasks:
             while (
@@ -140,4 +147,4 @@ class HasanAbiPipe(Pipe[IRCv3CommandProtocol, IRCv3CommandProtocol | str]):
                     f" segue an average of {average:.2f}/10 - {splash} {emote}",
                 )
 
-                tasks.create_task(ostream.send(command))
+                tasks.create_task(omstream.send(command))
