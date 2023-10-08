@@ -64,7 +64,7 @@ class HasanAbiPipe(Pipe[IRCv3CommandProtocol, IRCv3CommandProtocol | str]):
         ]
         async with TaskGroup() as tasks:
             for transport in transports:
-                tasks.create_task(transport.ready())
+                tasks.create_task(transport.open())
             async for command in (
                 istream
                     .recv_each()

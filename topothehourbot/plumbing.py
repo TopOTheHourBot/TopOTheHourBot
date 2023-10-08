@@ -71,7 +71,7 @@ class Transport(SupportsSend[T_contra], Generic[T_contra, T_co]):
         """Send a value to ``iostream``"""
         return self._iostream.send(value)
 
-    def ready(self) -> Coroutine:
+    def open(self) -> Coroutine:
         """Call ``pipe`` with ``iostream`` as its input, and ``ostream`` as its
         output
         """

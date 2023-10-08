@@ -89,7 +89,7 @@ async def main(
                 ),
             )
             for transport in transports:
-                tasks.create_task(transport.ready())
+                tasks.create_task(transport.open())
 
             commands = socket_stream.recv_each()
             async for command in commands:
