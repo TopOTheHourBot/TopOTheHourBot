@@ -7,8 +7,8 @@ from asyncio import TaskGroup
 from collections.abc import Iterator
 from typing import Final, Literal
 
-from channels import (Channel, LatentChannel, StopRecv, StopSend, SupportsRecv,
-                      SupportsRecvAndSend, SupportsSend)
+from channels import (Channel, LatentChannel, StopRecv, StopSend,
+                      SupportsSendAndRecv)
 from ircv3 import IRCv3Command, IRCv3CommandProtocol
 from ircv3.dialects.twitch import ServerPrivmsg
 from websockets import client
@@ -34,13 +34,21 @@ CRLF: Final[Literal["\r\n"]] = "\r\n"
 WRITE_DELAY: Final[float] = 1.5
 
 
-class TwitchSocket(SupportsRecvAndSend[Iterator[IRCv3CommandProtocol], IRCv3CommandProtocol | str]):
+class TwitchSocket(SupportsSendAndRecv[IRCv3CommandProtocol | str, Iterator[IRCv3CommandProtocol]]):
 
     __slots__ = ("_socket")
     _socket: WebSocketClientProtocol
 
     def __init__(self, socket: WebSocketClientProtocol, /) -> None:
         self._socket = socket
+
+    async def send(self, command: IRCv3CommandProtocol | str) -> None:
+        data = str(command)
+        try:
+            await self._socket.send(data)
+        except ConnectionClosed as error:
+            logging.exception(error)
+            raise StopSend from error
 
     async def recv(self) -> Iterator[IRCv3CommandProtocol]:
         try:
@@ -51,14 +59,6 @@ class TwitchSocket(SupportsRecvAndSend[Iterator[IRCv3CommandProtocol], IRCv3Comm
         assert isinstance(data, str)
         return self._command_iterator(data)
 
-    async def send(self, command: IRCv3CommandProtocol | str) -> None:
-        data = str(command)
-        try:
-            await self._socket.send(data)
-        except ConnectionClosed as error:
-            logging.exception(error)
-            raise StopSend from error
-
     def _command_iterator(self, data: str) -> Iterator[IRCv3CommandProtocol]:
         strings = data.rstrip(CRLF).split(CRLF)
         for command in map(IRCv3Command.from_string, strings):
@@ -68,59 +68,42 @@ class TwitchSocket(SupportsRecvAndSend[Iterator[IRCv3CommandProtocol], IRCv3Comm
                 yield command
 
 
-async def pong(
-    istream: SupportsRecv[IRCv3CommandProtocol],
-    ostream: SupportsSend[str],
-) -> None:
-    await ostream.send_each(
-        istream
-            .recv_each()
-            .filter(lambda command: command.name == "PING")
-            .map(lambda command: f"PONG :{command.comment}")
-    )
-
-
 async def run(
     access_token: str,
-    *pipes: Pipe[IRCv3CommandProtocol, IRCv3CommandProtocol | str],
+    *pipes: Pipe,
     request_tags: bool = True,
 ) -> None:
-
-    writer_stream = LatentChannel[IRCv3CommandProtocol | str](capacity=5)
-    transports = [
-        Transport(pipe, iostream=Channel[IRCv3CommandProtocol](), ostream=writer_stream)
-        for pipe in pipes
-    ]
-
-    # FIXME: The writer stream is latent, meaning that pongs may be dropped if
-    # there are too many things that need to be sent out - give pipes access to
-    # the socket stream?
-    transports.append(
-        Transport(pong, iostream=Channel[IRCv3CommandProtocol](), ostream=writer_stream),
-    )
-
     async for socket in client.connect(URI):
-        socket_stream = TwitchSocket(socket)
         try:
             if request_tags:
-                await socket_stream.send("CAP REQ :twitch.tv/membership twitch.tv/tags twitch.tv/commands")
-            await socket_stream.send("PASS oauth:" + access_token)
-            await socket_stream.send("NICK topothehourbot")
+                await socket.send("CAP REQ :twitch.tv/membership twitch.tv/tags twitch.tv/commands")
+            await socket.send("PASS oauth:" + access_token)
+            await socket.send("NICK topothehourbot")
         except StopSend:
             continue
 
-        async with TaskGroup() as tasks:
-            tasks.create_task(
-                socket_stream.send_each(
-                    writer_stream
-                        .recv_each()
-                        .stagger(WRITE_DELAY),
-                ),
+        omstream = LatentChannel[IRCv3CommandProtocol | str](5)
+        osstream = TwitchSocket(socket)
+
+        transports = [
+            Transport(
+                pipe,
+                iostream=Channel[IRCv3CommandProtocol](),
+                omstream=omstream,
+                osstream=osstream,
             )
+            for pipe in pipes
+        ]
+
+        async with TaskGroup() as tasks:
+            tasks.create_task(osstream.send_each(omstream.recv_each().stagger(WRITE_DELAY)))
             for transport in transports:
                 tasks.create_task(transport.open())
 
-            async for commands in socket_stream.recv_each():
+            async for commands in osstream:
                 for command in commands:
+                    if command.name == "PING":
+                        tasks.create_task(osstream.send(f"PONG :{command.comment}"))
+                        continue
                     for transport in transports:
                         tasks.create_task(transport.send(command))
