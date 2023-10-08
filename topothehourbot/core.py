@@ -77,7 +77,7 @@ class TwitchSocket(SupportsSendAndRecv[IRCv3CommandProtocol | str, Iterator[IRCv
 async def run(
     access_token: str,
     *,
-    pipes: Sequence[Pipe],
+    pipes: Sequence[Pipe[IRCv3CommandProtocol, IRCv3CommandProtocol | str, IRCv3CommandProtocol | str]],
     tags: bool = True,
     user: str = "topothehourbot",
 ) -> None:
@@ -96,7 +96,7 @@ async def run(
         transports = [
             Transport(
                 pipe,
-                iosstream=Channel[IRCv3CommandProtocol](),
+                Channel[IRCv3CommandProtocol](),
                 omstream=omstream,
                 osstream=osstream,
             )

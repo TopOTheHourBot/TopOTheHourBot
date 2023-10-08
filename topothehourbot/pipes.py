@@ -8,34 +8,38 @@ __all__ = [
 from abc import abstractmethod
 from collections.abc import Coroutine
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Generic, Protocol, TypeVar
 
-from ircv3 import IRCv3CommandProtocol
 from channels import SupportsRecv, SupportsSend, SupportsSendAndRecv
+from ircv3 import IRCv3CommandProtocol
+
+T1_co = TypeVar("T1_co", covariant=True, bound=IRCv3CommandProtocol | str)
+T2_co = TypeVar("T2_co", covariant=True, bound=IRCv3CommandProtocol | str)
+T_contra = TypeVar("T_contra", contravariant=True, bound=IRCv3CommandProtocol)
 
 
-class Pipe(Protocol):
+class Pipe(Protocol[T_contra, T1_co, T2_co]):
 
     @abstractmethod
     def __call__(
         self,
-        isstream: SupportsRecv[IRCv3CommandProtocol],
-        omstream: SupportsSend[IRCv3CommandProtocol | str],
-        osstream: SupportsSend[IRCv3CommandProtocol | str],
+        isstream: SupportsRecv[T_contra],
+        omstream: SupportsSend[T1_co],
+        osstream: SupportsSend[T2_co],
         /,
     ) -> Coroutine:
         raise NotImplementedError
 
 
 @dataclass(slots=True, eq=False, repr=False, match_args=False)
-class Transport:
+class Transport(SupportsSend[T_contra], Generic[T_contra, T1_co, T2_co]):
 
-    pipe: Pipe
-    iosstream: SupportsSendAndRecv[IRCv3CommandProtocol, IRCv3CommandProtocol]
-    omstream: SupportsSend[IRCv3CommandProtocol | str]
-    osstream: SupportsSend[IRCv3CommandProtocol | str]
+    pipe: Pipe[T_contra, T1_co, T2_co]
+    iosstream: SupportsSendAndRecv[T_contra, T_contra]
+    omstream: SupportsSend[T1_co]
+    osstream: SupportsSend[T2_co]
 
-    def send(self, command: IRCv3CommandProtocol) -> Coroutine:
+    def send(self, command: T_contra) -> Coroutine:
         return self.iosstream.send(command)
 
     def open(self) -> Coroutine:

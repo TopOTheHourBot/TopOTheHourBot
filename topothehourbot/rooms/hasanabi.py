@@ -62,8 +62,8 @@ class HasanAbi(Pipe):
         await osstream.send(ClientJoin(ROOM))
         transports = [
             Transport(
-                self.rating_average,  # type: ignore
-                iosstream=Channel(),  # TODO: Fix typing here? This was okay before...
+                self.rating_average,
+                Channel[ServerPrivmsg](),
                 omstream=omstream,
                 osstream=osstream,
             ),
