@@ -49,7 +49,7 @@ class PartialAverage:
         return self.sum / self.count
 
 
-class HasanAbiPipe(Pipe):
+class HasanAbi(Pipe):
 
     __slots__ = ()
 
