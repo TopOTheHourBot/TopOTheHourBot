@@ -10,7 +10,8 @@ from typing import Final, Literal
 from channels import (Channel, LatentChannel, StopRecv, StopSend,
                       SupportsSendAndRecv)
 from ircv3 import IRCv3Command, IRCv3CommandProtocol
-from ircv3.dialects.twitch import ServerPrivmsg
+from ircv3.dialects import twitch
+from ircv3.dialects.twitch import Ping, ServerPrivmsg
 from websockets import client
 from websockets.client import WebSocketClientProtocol
 from websockets.exceptions import ConnectionClosed
@@ -60,10 +61,15 @@ class TwitchSocket(SupportsSendAndRecv[IRCv3CommandProtocol | str, Iterator[IRCv
         return self._command_iterator(data)
 
     def _command_iterator(self, data: str) -> Iterator[IRCv3CommandProtocol]:
-        strings = data.rstrip(CRLF).split(CRLF)
-        for command in map(IRCv3Command.from_string, strings):
-            if command.name == "PRIVMSG":
+        for command in map(
+            IRCv3Command.from_string,
+            data.rstrip(CRLF).split(CRLF),
+        ):
+            name = command.name
+            if name == "PRIVMSG":
                 yield ServerPrivmsg.cast(command)
+            elif name == "PING":
+                yield Ping.cast(command)
             else:
                 yield command
 
@@ -108,7 +114,7 @@ async def run(
 
             async for commands in osstream:
                 for command in commands:
-                    if command.name == "PING":
+                    if twitch.is_ping(command):
                         tasks.create_task(osstream.send(f"PONG :{command.comment}"))  # TODO: Handle possible exception
                         continue
                     for transport in transports:
