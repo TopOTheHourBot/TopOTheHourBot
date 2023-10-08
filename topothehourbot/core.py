@@ -90,7 +90,7 @@ async def run(
         transports = [
             Transport(
                 pipe,
-                iostream=Channel[IRCv3CommandProtocol](),
+                iosstream=Channel[IRCv3CommandProtocol](),
                 omstream=omstream,
                 osstream=osstream,
             )

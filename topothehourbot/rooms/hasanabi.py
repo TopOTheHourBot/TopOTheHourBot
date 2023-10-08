@@ -55,7 +55,7 @@ class HasanAbi(Pipe):
 
     async def __call__(
         self,
-        istream: SupportsRecv[IRCv3CommandProtocol],
+        isstream: SupportsRecv[IRCv3CommandProtocol],
         omstream: SupportsSend[IRCv3CommandProtocol | str],
         osstream: SupportsSend[IRCv3CommandProtocol | str],
     ) -> None:
@@ -63,7 +63,7 @@ class HasanAbi(Pipe):
         transports = [
             Transport(
                 self.rating_average,  # type: ignore
-                iostream=Channel(),
+                iosstream=Channel(),  # TODO: Fix typing here? This was okay before...
                 omstream=omstream,
                 osstream=osstream,
             ),
@@ -72,7 +72,7 @@ class HasanAbi(Pipe):
             for transport in transports:
                 tasks.create_task(transport.open())
             async for command in (
-                istream
+                isstream
                     .recv_each()
                     .filter(twitch.is_privmsg)
                     .filter(lambda command: command.room == ROOM)
@@ -82,12 +82,12 @@ class HasanAbi(Pipe):
 
     async def rating_average(
         self,
-        istream: SupportsRecv[ServerPrivmsg],
+        isstream: SupportsRecv[ServerPrivmsg],
         omstream: SupportsSend[IRCv3CommandProtocol | str],
         osstream: SupportsSend[IRCv3CommandProtocol | str],
     ) -> None:
         while (
-            partial_average := await istream
+            partial_average := await isstream
                 .recv_each()
                 .map(lambda command: command.comment)
                 .map(RATING_PATTERN.search)

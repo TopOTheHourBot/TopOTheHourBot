@@ -19,7 +19,7 @@ class Pipe(Protocol):
     @abstractmethod
     def __call__(
         self,
-        istream: SupportsRecv[IRCv3CommandProtocol],
+        isstream: SupportsRecv[IRCv3CommandProtocol],
         omstream: SupportsSend[IRCv3CommandProtocol | str],
         osstream: SupportsSend[IRCv3CommandProtocol | str],
         /,
@@ -38,13 +38,13 @@ class Transport:
     """
 
     pipe: Pipe
-    iostream: SupportsSendAndRecv[IRCv3CommandProtocol, IRCv3CommandProtocol]
+    iosstream: SupportsSendAndRecv[IRCv3CommandProtocol, IRCv3CommandProtocol]
     omstream: SupportsSend[IRCv3CommandProtocol | str]
     osstream: SupportsSend[IRCv3CommandProtocol | str]
 
     def send(self, command: IRCv3CommandProtocol) -> Coroutine:
-        """Send a command to ``iostream``"""
-        return self.iostream.send(command)
+        """Send a command to ``iosstream``"""
+        return self.iosstream.send(command)
 
     def open(self) -> Coroutine:
-        return self.pipe(self.iostream, self.omstream, self.osstream)
+        return self.pipe(self.iosstream, self.omstream, self.osstream)
