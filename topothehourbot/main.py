@@ -4,7 +4,8 @@ import logging
 from asyncio import TaskGroup
 from typing import Final
 
-from channels import Channel, StopRecv, StopSend, SupportsRecvAndSend
+from channels import (Channel, LatentChannel, StopRecv, StopSend,
+                      SupportsRecvAndSend)
 from ircv3 import IRCv3Command, IRCv3CommandProtocol
 from ircv3.dialects.twitch import ServerPrivmsg
 from websockets import client
@@ -63,7 +64,7 @@ async def main(
     request_tags: bool = True,
 ) -> None:
 
-    writer_stream = Channel[IRCv3CommandProtocol | str]()
+    writer_stream = LatentChannel[IRCv3CommandProtocol | str](capacity=4)
     transports = [
         Transport(pipe, iostream=Channel[IRCv3CommandProtocol](), ostream=writer_stream)
         for pipe in pipes
