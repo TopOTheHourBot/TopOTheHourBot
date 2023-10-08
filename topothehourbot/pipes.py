@@ -12,8 +12,9 @@ from typing import Generic, Protocol, TypeVar
 
 from channels import SupportsRecv, SupportsSend, SupportsSendAndRecv
 from ircv3 import IRCv3CommandProtocol
+from ircv3.dialects.twitch import ClientPrivmsg
 
-T1_co = TypeVar("T1_co", covariant=True, bound=IRCv3CommandProtocol | str)
+T1_co = TypeVar("T1_co", covariant=True, bound=ClientPrivmsg | str)
 T2_co = TypeVar("T2_co", covariant=True, bound=IRCv3CommandProtocol | str)
 T_contra = TypeVar("T_contra", contravariant=True, bound=IRCv3CommandProtocol)
 

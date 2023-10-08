@@ -11,7 +11,7 @@ from channels import (Channel, LatentChannel, StopRecv, StopSend,
                       SupportsSendAndRecv)
 from ircv3 import IRCv3Command, IRCv3CommandProtocol
 from ircv3.dialects import twitch
-from ircv3.dialects.twitch import Ping, ServerPrivmsg
+from ircv3.dialects.twitch import ClientPrivmsg, Ping, ServerPrivmsg
 from websockets import client
 from websockets.client import WebSocketClientProtocol
 from websockets.exceptions import ConnectionClosed
@@ -67,7 +67,7 @@ class TwitchSocket(SupportsSendAndRecv[IRCv3CommandProtocol | str, Iterator[IRCv
 async def run(
     access_token: str,
     *,
-    pipes: Sequence[Pipe[IRCv3CommandProtocol, IRCv3CommandProtocol | str, IRCv3CommandProtocol | str]],
+    pipes: Sequence[Pipe[IRCv3CommandProtocol, ClientPrivmsg | str, IRCv3CommandProtocol | str]],
     tags: bool = True,
     user: str = "topothehourbot",
 ) -> None:
@@ -80,7 +80,7 @@ async def run(
         except StopSend:
             continue
 
-        omstream = LatentChannel[IRCv3CommandProtocol | str](5)
+        omstream = LatentChannel[ClientPrivmsg | str](5)
         osstream = TwitchSocket(socket)
 
         transports = [

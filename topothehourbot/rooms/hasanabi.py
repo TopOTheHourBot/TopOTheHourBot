@@ -31,7 +31,7 @@ class PartialAverage:
         return self.sum / self.count
 
 
-class HasanAbi(Pipe[IRCv3CommandProtocol, IRCv3CommandProtocol | str, IRCv3CommandProtocol | str]):
+class HasanAbi(Pipe[IRCv3CommandProtocol, ClientPrivmsg | str, IRCv3CommandProtocol | str]):
 
     ROOM: Final[str] = "#hasanabi"
     DEBUG: Final[bool] = True
@@ -107,7 +107,7 @@ class HasanAbi(Pipe[IRCv3CommandProtocol, IRCv3CommandProtocol | str, IRCv3Comma
     async def rating_average(
         self,
         isstream: SupportsRecv[ServerPrivmsg],
-        omstream: SupportsSend[IRCv3CommandProtocol | str],
+        omstream: SupportsSend[ClientPrivmsg | str],
         osstream: SupportsSend[IRCv3CommandProtocol | str],
     ) -> None:
         while (
