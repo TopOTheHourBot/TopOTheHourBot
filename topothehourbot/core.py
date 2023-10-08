@@ -4,7 +4,8 @@ __all__ = ["run"]
 
 import logging
 from asyncio import TaskGroup
-from typing import Final
+from collections.abc import Iterator
+from typing import Final, Literal
 
 from channels import (Channel, LatentChannel, StopRecv, StopSend,
                       SupportsRecvAndSend)
@@ -17,6 +18,8 @@ from websockets.exceptions import ConnectionClosed
 from .plumbing import Pipe, Transport
 
 URI: Final[str] = "ws://irc-ws.chat.twitch.tv:80"
+
+CRLF: Final[Literal["\r\n"]] = "\r\n"
 
 # The amount of time, in seconds, to delay before sending subsequent messages
 # to the Twitch IRC server.
@@ -31,7 +34,7 @@ URI: Final[str] = "ws://irc-ws.chat.twitch.tv:80"
 WRITE_DELAY: Final[float] = 1.5
 
 
-class IRCv3Channel(SupportsRecvAndSend[IRCv3CommandProtocol, IRCv3CommandProtocol | str]):
+class TwitchSocket(SupportsRecvAndSend[Iterator[IRCv3CommandProtocol], IRCv3CommandProtocol | str]):
 
     __slots__ = ("_socket")
     _socket: WebSocketClientProtocol
@@ -39,17 +42,14 @@ class IRCv3Channel(SupportsRecvAndSend[IRCv3CommandProtocol, IRCv3CommandProtoco
     def __init__(self, socket: WebSocketClientProtocol, /) -> None:
         self._socket = socket
 
-    async def recv(self) -> IRCv3CommandProtocol:
+    async def recv(self) -> Iterator[IRCv3CommandProtocol]:
         try:
             data = await self._socket.recv()
         except ConnectionClosed as error:
             logging.exception(error)
             raise StopRecv from error
         assert isinstance(data, str)
-        command = IRCv3Command.from_string(data)
-        if command.name == "PRIVMSG":
-            return ServerPrivmsg.cast(command)
-        return command
+        return self._command_iterator(data)
 
     async def send(self, command: IRCv3CommandProtocol | str) -> None:
         data = str(command)
@@ -59,6 +59,14 @@ class IRCv3Channel(SupportsRecvAndSend[IRCv3CommandProtocol, IRCv3CommandProtoco
             logging.exception(error)
             raise StopSend from error
 
+    def _command_iterator(self, data: str) -> Iterator[IRCv3CommandProtocol]:
+        strings = data.rstrip(CRLF).split(CRLF)
+        for command in map(IRCv3Command.from_string, strings):
+            if command.name == "PRIVMSG":
+                yield ServerPrivmsg.cast(command)
+            else:
+                yield command
+
 
 async def run(
     access_token: str,
@@ -66,14 +74,14 @@ async def run(
     request_tags: bool = True,
 ) -> None:
 
-    writer_stream = LatentChannel[IRCv3CommandProtocol | str](capacity=4)
+    writer_stream = LatentChannel[IRCv3CommandProtocol | str](capacity=5)
     transports = [
         Transport(pipe, iostream=Channel[IRCv3CommandProtocol](), ostream=writer_stream)
         for pipe in pipes
     ]
 
     async for socket in client.connect(URI):
-        socket_stream = IRCv3Channel(socket)
+        socket_stream = TwitchSocket(socket)
         try:
             if request_tags:
                 await socket_stream.send("CAP REQ :twitch.tv/membership twitch.tv/tags twitch.tv/commands")
@@ -93,7 +101,7 @@ async def run(
             for transport in transports:
                 tasks.create_task(transport.open())
 
-            commands = socket_stream.recv_each()
-            async for command in commands:
-                for transport in transports:
-                    tasks.create_task(transport.send(command))
+            async for commands in socket_stream.recv_each():
+                for command in commands:
+                    for transport in transports:
+                        tasks.create_task(transport.send(command))
