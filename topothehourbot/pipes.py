@@ -1,6 +1,10 @@
 from __future__ import annotations
 
 __all__ = [
+    "ISStream",
+    "OMStream",
+    "OSStream",
+    "IOSStream",
     "Pipe",
     "Transport",
 ]
@@ -8,39 +12,45 @@ __all__ = [
 from abc import abstractmethod
 from collections.abc import Coroutine
 from dataclasses import dataclass
-from typing import Generic, Protocol, TypeVar
+from typing import Generic, Protocol, TypeVar, TypeAlias
 
 from channels import SupportsRecv, SupportsSend, SupportsSendAndRecv
 from ircv3 import IRCv3CommandProtocol
 from ircv3.dialects.twitch import ClientPrivmsg
 
-T1_co = TypeVar("T1_co", covariant=True, bound=ClientPrivmsg | str)
-T2_co = TypeVar("T2_co", covariant=True, bound=IRCv3CommandProtocol | str)
-T_contra = TypeVar("T_contra", contravariant=True, bound=IRCv3CommandProtocol)
+ClientPrivmsgT = TypeVar("ClientPrivmsgT", covariant=True, bound=ClientPrivmsg | str)
+ClientCommandT = TypeVar("ClientCommandT", covariant=True, bound=IRCv3CommandProtocol | str)
+ServerCommandT = TypeVar("ServerCommandT", contravariant=True, bound=IRCv3CommandProtocol)
+
+ISStream: TypeAlias = SupportsRecv[ServerCommandT]  # Input System Stream
+OMStream: TypeAlias = SupportsSend[ClientPrivmsgT]  # Output Message Stream
+OSStream: TypeAlias = SupportsSend[ClientCommandT]  # Output System Stream
+
+IOSStream: TypeAlias = SupportsSendAndRecv[ServerCommandT, ServerCommandT]  # Input/Output System Stream
 
 
-class Pipe(Protocol[T_contra, T1_co, T2_co]):
+class Pipe(Protocol[ServerCommandT, ClientPrivmsgT, ClientCommandT]):
 
     @abstractmethod
     def __call__(
         self,
-        isstream: SupportsRecv[T_contra],
-        omstream: SupportsSend[T1_co],
-        osstream: SupportsSend[T2_co],
+        isstream: ISStream[ServerCommandT],
+        omstream: OMStream[ClientPrivmsgT],
+        osstream: OSStream[ClientCommandT],
         /,
     ) -> Coroutine:
         raise NotImplementedError
 
 
-@dataclass(slots=True, eq=False, repr=False, match_args=False)
-class Transport(SupportsSend[T_contra], Generic[T_contra, T1_co, T2_co]):
+@dataclass(slots=True, repr=False, match_args=False)
+class Transport(SupportsSend[ServerCommandT], Generic[ServerCommandT, ClientPrivmsgT, ClientCommandT]):
 
-    pipe: Pipe[T_contra, T1_co, T2_co]
-    iosstream: SupportsSendAndRecv[T_contra, T_contra]
-    omstream: SupportsSend[T1_co]
-    osstream: SupportsSend[T2_co]
+    pipe: Pipe[ServerCommandT, ClientPrivmsgT, ClientCommandT]
+    iosstream: IOSStream[ServerCommandT]
+    omstream: OMStream[ClientPrivmsgT]
+    osstream: OSStream[ClientCommandT]
 
-    def send(self, command: T_contra) -> Coroutine:
+    def send(self, command: ServerCommandT) -> Coroutine:
         return self.iosstream.send(command)
 
     def open(self) -> Coroutine:
