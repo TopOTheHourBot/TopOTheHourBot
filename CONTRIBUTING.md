@@ -46,3 +46,9 @@ These arguments are:
     - Outgoing PRIVMSG commands. Other IRCv3 commands may be sent to this stream, but are subjected to certain rate limits. This stream is *latent*, meaning that some outgoing messages may be discarded if there are too many in its queue.
 3. `osstream` - **Output System Stream**
     - Outgoing non-PRIVMSG IRCv3 commands. This stream accepts PRIVMSG commands, but they should *not* be sent here - use `omstream` instead. This stream is meant for commands that are not subject to rate limits, such as PONG or PART.
+
+## Open Problems
+
+Listed here are known issues with the current implementation that you may take as a problem to solve:
+
+- There is currently no mechanism to attempt re-JOINing a room in the event that the bot is PARTed. JOINs are rate limited, and thus may require another output stream.
