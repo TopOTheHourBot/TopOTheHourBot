@@ -39,7 +39,7 @@ class HasanAbi(Pipe[IRCv3CommandProtocol, ClientPrivmsg | str, IRCv3CommandProto
     async def __call__(
         self,
         isstream: SupportsRecv[IRCv3CommandProtocol],
-        omstream: SupportsSend[IRCv3CommandProtocol | str],
+        omstream: SupportsSend[ClientPrivmsg | str],
         osstream: SupportsSend[IRCv3CommandProtocol | str],
     ) -> None:
         result = await osstream.try_send(ClientJoin(self.ROOM))
