@@ -5,7 +5,7 @@ import re
 from asyncio import TaskGroup
 from dataclasses import dataclass
 from re import Pattern
-from typing import Final, override
+from typing import Final, final, override
 
 from channels import Channel, StopSend, SupportsRecv, SupportsSend
 from ircv3 import IRCv3CommandProtocol
@@ -15,6 +15,7 @@ from ircv3.dialects.twitch import ClientJoin, ClientPrivmsg, ServerPrivmsg
 from ..pipes import Pipe, Transport
 
 
+@final
 @dataclass(slots=True)
 class PartialAverage:
 
