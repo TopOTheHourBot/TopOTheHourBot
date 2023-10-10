@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-__all__ = ["DatabaseChannel"]
+__all__ = ["DatabaseStream"]
 
 from typing import Any, Coroutine, override
 
@@ -9,7 +9,7 @@ from aiosqlite.context import Result
 from channels import SupportsSend
 
 
-class DatabaseChannel(SupportsSend[str]):
+class DatabaseStream(SupportsSend[str]):
 
     __slots__ = ("_connection")
     _connection: Connection
