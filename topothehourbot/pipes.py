@@ -12,7 +12,7 @@ __all__ = [
 from abc import abstractmethod
 from collections.abc import Coroutine
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Any, Protocol, override
 
 from channels import SupportsRecv, SupportsSend, SupportsSendAndRecv
 from ircv3 import IRCv3CommandProtocol
@@ -38,7 +38,7 @@ class Pipe[
         omstream: OMStream[ClientPrivmsgT],
         osstream: OSStream[ClientCommandT],
         /,
-    ) -> Coroutine:
+    ) -> Coroutine[Any, Any, object]:
         raise NotImplementedError
 
 
@@ -54,8 +54,9 @@ class Transport[
     omstream: OMStream[ClientPrivmsgT]
     osstream: OSStream[ClientCommandT]
 
-    def send(self, command: ServerCommandT) -> Coroutine:
+    @override
+    def send(self, command: ServerCommandT) -> Coroutine[Any, Any, object]:
         return self.iosstream.send(command)
 
-    def open(self) -> Coroutine:
+    def open(self) -> Coroutine[Any, Any, object]:
         return self.pipe(self.iosstream, self.omstream, self.osstream)

@@ -5,7 +5,7 @@ import re
 from asyncio import TaskGroup
 from dataclasses import dataclass
 from re import Pattern
-from typing import Final
+from typing import Final, override
 
 from channels import Channel, StopSend, SupportsRecv, SupportsSend
 from ircv3 import IRCv3CommandProtocol
@@ -36,6 +36,7 @@ class HasanAbi(Pipe[IRCv3CommandProtocol, ClientPrivmsg | str, IRCv3CommandProto
     ROOM: Final[str] = "#hasanabi"
     DEBUG: Final[bool] = True
 
+    @override
     async def __call__(
         self,
         isstream: SupportsRecv[IRCv3CommandProtocol],

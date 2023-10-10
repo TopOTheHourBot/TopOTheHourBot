@@ -5,7 +5,7 @@ __all__ = ["run"]
 import logging
 from asyncio import TaskGroup
 from collections.abc import Iterator, Sequence
-from typing import Final, Literal
+from typing import Final, Literal, override
 
 from channels import (Channel, LatentChannel, StopRecv, StopSend,
                       SupportsSendAndRecv)
@@ -32,6 +32,7 @@ class TwitchSocket(SupportsSendAndRecv[IRCv3CommandProtocol | str, Iterator[IRCv
     def __init__(self, socket: WebSocketClientProtocol, /) -> None:
         self._socket = socket
 
+    @override
     async def send(self, command: IRCv3CommandProtocol | str) -> None:
         data = str(command)
         try:
@@ -40,6 +41,7 @@ class TwitchSocket(SupportsSendAndRecv[IRCv3CommandProtocol | str, Iterator[IRCv
             logging.exception(error)
             raise StopSend from error
 
+    @override
     async def recv(self) -> Iterator[IRCv3CommandProtocol]:
         try:
             data = await self._socket.recv()
