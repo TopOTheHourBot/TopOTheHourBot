@@ -12,6 +12,7 @@ from ircv3 import IRCv3CommandProtocol
 from ircv3.dialects import twitch
 from ircv3.dialects.twitch import ClientJoin, ClientPrivmsg, ServerPrivmsg
 
+from ..channels import SQLiteChannel
 from ..pipes import Pipe, Transport
 
 
@@ -43,6 +44,7 @@ class HasanAbi(Pipe[IRCv3CommandProtocol, ClientPrivmsg | str, IRCv3CommandProto
         isstream: SupportsRecv[IRCv3CommandProtocol],
         omstream: SupportsSend[ClientPrivmsg | str],
         osstream: SupportsSend[IRCv3CommandProtocol | str],
+        dbstream: SQLiteChannel,
     ) -> None:
         result = await osstream.try_send(ClientJoin(self.ROOM))
         if isinstance(result, StopSend):
@@ -53,6 +55,7 @@ class HasanAbi(Pipe[IRCv3CommandProtocol, ClientPrivmsg | str, IRCv3CommandProto
                 Channel[ServerPrivmsg](),
                 omstream=omstream,
                 osstream=osstream,
+                dbstream=dbstream,
             ),
         ]
         async with TaskGroup() as tasks:
@@ -111,6 +114,7 @@ class HasanAbi(Pipe[IRCv3CommandProtocol, ClientPrivmsg | str, IRCv3CommandProto
         isstream: SupportsRecv[ServerPrivmsg],
         omstream: SupportsSend[ClientPrivmsg | str],
         osstream: SupportsSend[IRCv3CommandProtocol | str],
+        dbstream: SQLiteChannel,
     ) -> None:
         while (
             partial_average := await isstream
