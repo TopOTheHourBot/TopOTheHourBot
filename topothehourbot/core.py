@@ -21,7 +21,7 @@ URI: Final[str] = "ws://irc-ws.chat.twitch.tv:80"
 MESSAGE_DELAY: Final[float] = 1.5
 
 
-async def run(
+async def run(  # TODO: In desperate need of clean-up (way too much nesting)
     access_token: str,
     *,
     pipes: Sequence[Pipe[IRCv3CommandProtocol, ClientPrivmsg | str, IRCv3CommandProtocol | str]],
