@@ -2,6 +2,7 @@ from __future__ import annotations
 
 __all__ = ["SQLiteChannel"]
 
+from collections.abc import Mapping, Sequence
 from typing import Any, Coroutine, override
 
 from aiosqlite import Connection, Cursor
@@ -18,7 +19,7 @@ class SQLiteChannel(SupportsSend[str]):
         self._connection = connection
 
     @override
-    def send(self, expr: str, params: tuple[object, ...] | dict[str, object] = ()) -> Result[Cursor]:
+    def send(self, expr: str, params: Sequence[object] | Mapping[str, object] = ()) -> Result[Cursor]:
         return self._connection.execute(expr, params)
 
     def commit(self) -> Coroutine[Any, Any, None]:
