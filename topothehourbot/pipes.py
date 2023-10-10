@@ -12,24 +12,24 @@ __all__ = [
 from abc import abstractmethod
 from collections.abc import Coroutine
 from dataclasses import dataclass
-from typing import Generic, Protocol, TypeVar, TypeAlias
+from typing import Protocol
 
 from channels import SupportsRecv, SupportsSend, SupportsSendAndRecv
 from ircv3 import IRCv3CommandProtocol
 from ircv3.dialects.twitch import ClientPrivmsg
 
-ClientPrivmsgT = TypeVar("ClientPrivmsgT", covariant=True, bound=ClientPrivmsg | str)
-ClientCommandT = TypeVar("ClientCommandT", covariant=True, bound=IRCv3CommandProtocol | str)
-ServerCommandT = TypeVar("ServerCommandT", contravariant=True, bound=IRCv3CommandProtocol)
+type ISStream[ServerCommandT: IRCv3CommandProtocol] = SupportsRecv[ServerCommandT]
+type OMStream[ClientPrivmsgT: ClientPrivmsg | str] = SupportsSend[ClientPrivmsgT]
+type OSStream[ClientCommandT: IRCv3CommandProtocol | str] = SupportsSend[ClientCommandT]
 
-ISStream: TypeAlias = SupportsRecv[ServerCommandT]  # Input System Stream
-OMStream: TypeAlias = SupportsSend[ClientPrivmsgT]  # Output Message Stream
-OSStream: TypeAlias = SupportsSend[ClientCommandT]  # Output System Stream
-
-IOSStream: TypeAlias = SupportsSendAndRecv[ServerCommandT, ServerCommandT]  # Input/Output System Stream
+type IOSStream[ServerCommandT: IRCv3CommandProtocol] = SupportsSendAndRecv[ServerCommandT, ServerCommandT]
 
 
-class Pipe(Protocol[ServerCommandT, ClientPrivmsgT, ClientCommandT]):
+class Pipe[
+    ServerCommandT: IRCv3CommandProtocol,
+    ClientPrivmsgT: ClientPrivmsg | str,
+    ClientCommandT: IRCv3CommandProtocol | str,
+](Protocol):
 
     @abstractmethod
     def __call__(
@@ -43,7 +43,11 @@ class Pipe(Protocol[ServerCommandT, ClientPrivmsgT, ClientCommandT]):
 
 
 @dataclass(slots=True, repr=False, match_args=False)
-class Transport(SupportsSend[ServerCommandT], Generic[ServerCommandT, ClientPrivmsgT, ClientCommandT]):
+class Transport[
+    ServerCommandT: IRCv3CommandProtocol,
+    ClientPrivmsgT: ClientPrivmsg | str,
+    ClientCommandT: IRCv3CommandProtocol | str,
+](SupportsSend[ServerCommandT]):
 
     pipe: Pipe[ServerCommandT, ClientPrivmsgT, ClientCommandT]
     iosstream: IOSStream[ServerCommandT]
