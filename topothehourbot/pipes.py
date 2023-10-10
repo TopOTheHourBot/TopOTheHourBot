@@ -8,6 +8,7 @@ __all__ = [
     "OMStream",
     "OSStream",
     "IOSStream",
+    "DBStream",
     "Pipe",
     "Transport",
 ]
@@ -21,6 +22,8 @@ from channels import SupportsRecv, SupportsSend, SupportsSendAndRecv
 from ircv3 import IRCv3CommandProtocol
 from ircv3.dialects.twitch import ClientPrivmsg
 
+from .channels import SQLiteChannel
+
 type ServerCommand = IRCv3CommandProtocol
 type ClientMessage = ClientPrivmsg | str
 type ClientCommand = IRCv3CommandProtocol | str
@@ -30,6 +33,8 @@ type OMStream[ClientMessageT: ClientMessage] = SupportsSend[ClientMessageT]
 type OSStream[ClientCommandT: ClientCommand] = SupportsSend[ClientCommandT]
 
 type IOSStream[ServerCommandT: ServerCommand] = SupportsSendAndRecv[ServerCommandT, ServerCommandT]
+
+type DBStream = SQLiteChannel  # May be broader in the future?
 
 
 class Pipe[
@@ -44,6 +49,7 @@ class Pipe[
         isstream: ISStream[ServerCommandT],
         omstream: OMStream[ClientMessageT],
         osstream: OSStream[ClientCommandT],
+        dbstream: DBStream,
         /,
     ) -> Coroutine[Any, Any, object]:
         raise NotImplementedError
@@ -60,10 +66,11 @@ class Transport[
     iosstream: IOSStream[ServerCommandT]
     omstream: OMStream[ClientMessageT]
     osstream: OSStream[ClientCommandT]
+    dbstream: DBStream
 
     @override
     def send(self, command: ServerCommandT) -> Coroutine[Any, Any, object]:
         return self.iosstream.send(command)
 
     def open(self) -> Coroutine[Any, Any, object]:
-        return self.pipe(self.iosstream, self.omstream, self.osstream)
+        return self.pipe(self.iosstream, self.omstream, self.osstream, self.dbstream)
