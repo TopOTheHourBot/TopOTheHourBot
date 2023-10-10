@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 __all__ = [
+    "ServerCommand",
+    "ClientMessage",
+    "ClientCommand",
     "ISStream",
     "OMStream",
     "OSStream",
@@ -18,24 +21,28 @@ from channels import SupportsRecv, SupportsSend, SupportsSendAndRecv
 from ircv3 import IRCv3CommandProtocol
 from ircv3.dialects.twitch import ClientPrivmsg
 
-type ISStream[ServerCommandT: IRCv3CommandProtocol] = SupportsRecv[ServerCommandT]
-type OMStream[ClientPrivmsgT: ClientPrivmsg | str] = SupportsSend[ClientPrivmsgT]
-type OSStream[ClientCommandT: IRCv3CommandProtocol | str] = SupportsSend[ClientCommandT]
+type ServerCommand = IRCv3CommandProtocol
+type ClientMessage = ClientPrivmsg | str
+type ClientCommand = IRCv3CommandProtocol | str
 
-type IOSStream[ServerCommandT: IRCv3CommandProtocol] = SupportsSendAndRecv[ServerCommandT, ServerCommandT]
+type ISStream[ServerCommandT: ServerCommand] = SupportsRecv[ServerCommandT]
+type OMStream[ClientMessageT: ClientMessage] = SupportsSend[ClientMessageT]
+type OSStream[ClientCommandT: ClientCommand] = SupportsSend[ClientCommandT]
+
+type IOSStream[ServerCommandT: ServerCommand] = SupportsSendAndRecv[ServerCommandT, ServerCommandT]
 
 
 class Pipe[
-    ServerCommandT: IRCv3CommandProtocol,
-    ClientPrivmsgT: ClientPrivmsg | str,
-    ClientCommandT: IRCv3CommandProtocol | str,
+    ServerCommandT: ServerCommand,
+    ClientMessageT: ClientMessage,
+    ClientCommandT: ClientCommand,
 ](Protocol):
 
     @abstractmethod
     def __call__(
         self,
         isstream: ISStream[ServerCommandT],
-        omstream: OMStream[ClientPrivmsgT],
+        omstream: OMStream[ClientMessageT],
         osstream: OSStream[ClientCommandT],
         /,
     ) -> Coroutine[Any, Any, object]:
@@ -44,14 +51,14 @@ class Pipe[
 
 @dataclass(slots=True, repr=False, match_args=False)
 class Transport[
-    ServerCommandT: IRCv3CommandProtocol,
-    ClientPrivmsgT: ClientPrivmsg | str,
-    ClientCommandT: IRCv3CommandProtocol | str,
+    ServerCommandT: ServerCommand,
+    ClientMessageT: ClientMessage,
+    ClientCommandT: ClientCommand,
 ](SupportsSend[ServerCommandT]):
 
-    pipe: Pipe[ServerCommandT, ClientPrivmsgT, ClientCommandT]
+    pipe: Pipe[ServerCommandT, ClientMessageT, ClientCommandT]
     iosstream: IOSStream[ServerCommandT]
-    omstream: OMStream[ClientPrivmsgT]
+    omstream: OMStream[ClientMessageT]
     osstream: OSStream[ClientCommandT]
 
     @override
