@@ -116,8 +116,20 @@ class HasanAbi(Pipe[IRCv3CommandProtocol, ClientPrivmsg | str, IRCv3CommandProto
         osstream: SupportsSend[IRCv3CommandProtocol | str],
         dbstream: SQLiteChannel,
     ) -> None:
+        await dbstream.send(
+            """
+            CREATE TABLE IF NOT EXISTS
+                RatingAverage(
+                    id INT PRIMARY KEY AUTOINCREMENT,
+                    date TEXT DEFAULT CURRENT_DATE,
+                    time TEXT DEFAULT CURRENT_TIME,
+                    rating REAL NOT NULL,
+                    user_count INT NOT NULL
+                );
+            """,
+        )
         while (
-            partial_average := await isstream
+            payload := await isstream
                 .recv_each()
                 .map(lambda command: command.comment)
                 .map(self.RATING_PATTERN.search)
@@ -128,10 +140,10 @@ class HasanAbi(Pipe[IRCv3CommandProtocol, ClientPrivmsg | str, IRCv3CommandProto
                 .map(PartialAverage)
                 .reduce(PartialAverage(0, 0), PartialAverage.compound)
         ):
-            if partial_average.count < self.RATING_DENSITY:
+            if payload.count < self.RATING_DENSITY:
                 continue
 
-            average = partial_average.complete()
+            average = payload.complete()
 
             if average <= 5.0:
                 emote = random.choice(self.RATING_NEGATIVE_EMOTES)
@@ -148,9 +160,20 @@ class HasanAbi(Pipe[IRCv3CommandProtocol, ClientPrivmsg | str, IRCv3CommandProto
 
             command = ClientPrivmsg(
                 self.ROOM,
-                f"{self.RATING_KEY_EMOTE} 🔔 {partial_average.count} chatters"
-                f" rated this ad segue an average of {average:.2f}/10 -"
-                f" {splash} {emote}",
+                f"{self.RATING_KEY_EMOTE} 🔔 {payload.count} chatters rated this"
+                f" ad segue an average of {average:.2f}/10 - {splash} {emote}",
             )
 
-            await omstream.send(command)  # Might report to a DB in the future as well
+            async with TaskGroup() as tasks:
+                tasks.create_task(omstream.send(command))
+                tasks.create_task(
+                    dbstream.send(
+                        """
+                        INSERT INTO
+                            AverageRating(rating, user_count)
+                        VALUES
+                            (?, ?)
+                        """,
+                        (average, payload.count),
+                    ),
+                )
