@@ -116,7 +116,7 @@ class HasanAbi(Pipe[IRCv3CommandProtocol, ClientPrivmsg | str, IRCv3CommandProto
         osstream: SupportsSend[IRCv3CommandProtocol | str],
         dbstream: SQLiteChannel,
     ) -> None:
-        await dbstream.send(
+        await dbstream.send(  # TODO: Factor out into setup() method? Add to abstract?
             """
             CREATE TABLE IF NOT EXISTS
                 RatingAverage(
