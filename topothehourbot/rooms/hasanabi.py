@@ -109,6 +109,8 @@ class HasanAbi(Pipe[IRCv3CommandProtocol, ClientPrivmsg | str, IRCv3CommandProto
         flags=re.ASCII | re.VERBOSE,
     )
 
+    # TODO: type OS stream more specifically for access to websocket methods?
+    
     async def rating_average(
         self,
         isstream: SupportsRecv[ServerPrivmsg],
