@@ -9,7 +9,7 @@ __all__ = [
 from abc import abstractmethod
 from collections.abc import (AsyncIterator, Coroutine, Iterable, Iterator,
                              Mapping, Sequence)
-from typing import Any, Optional, Protocol, Sequence, overload, override
+from typing import Any, Optional, Protocol, overload, override
 
 from channels import SupportsSend
 
