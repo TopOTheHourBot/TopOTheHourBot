@@ -9,7 +9,7 @@ __all__ = [
 from abc import abstractmethod
 from collections.abc import (AsyncIterator, Coroutine, Iterable, Iterator,
                              Mapping, Sequence)
-from typing import Any, Optional, Protocol, Sequence, overload, override
+from typing import Any, Optional, Protocol, overload, override
 
 from channels import SupportsSend
 
@@ -54,12 +54,15 @@ class CursorProtocol(Protocol):
     async def __aexit__(self, exc_type, exc_val, exc_tb, /) -> None:
         await self.close()
 
+    @abstractmethod
     def fetchone(self) -> Coroutine[Any, Any, Optional[RowProtocol]]:
         raise NotImplementedError
 
+    @abstractmethod
     def fetchmany(self, size: Optional[int] = None, /) -> Coroutine[Any, Any, Iterable[RowProtocol]]:
         raise NotImplementedError
 
+    @abstractmethod
     def fetchall(self) -> Coroutine[Any, Any, Iterable[RowProtocol]]:
         raise NotImplementedError
 
