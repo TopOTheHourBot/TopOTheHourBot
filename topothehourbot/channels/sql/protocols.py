@@ -3,7 +3,7 @@ from __future__ import annotations
 __all__ = [
     "RowProtocol",
     "CursorProtocol",
-    "DatabaseStream",
+    "SQLStream",
 ]
 
 from abc import abstractmethod
@@ -68,7 +68,7 @@ class CursorProtocol(Protocol):
         raise NotImplementedError
 
 
-class DatabaseStream(SupportsSend[str], Protocol):
+class SQLStream(SupportsSend[str], Protocol):
 
     @override
     @abstractmethod

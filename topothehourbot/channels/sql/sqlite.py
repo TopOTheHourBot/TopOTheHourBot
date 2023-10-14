@@ -7,10 +7,10 @@ from typing import Any, Coroutine, override
 
 from aiosqlite import Connection, Cursor
 
-from .protocols import DatabaseStream
+from .protocols import SQLStream
 
 
-class SQLiteChannel(DatabaseStream):
+class SQLiteChannel(SQLStream):
 
     __slots__ = ("_connection")
     _connection: Connection
