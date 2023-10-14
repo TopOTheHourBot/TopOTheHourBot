@@ -30,7 +30,7 @@ class TwitchChannel(IRCv3Stream, SupportsRecv[Iterator[IRCv3CommandProtocol]]):
         return self._connection.latency
 
     @override
-    async def send(self, command: IRCv3CommandProtocol | str) -> None:
+    async def send(self, command: IRCv3CommandProtocol) -> None:
         data = str(command)
         try:
             await self._connection.send(data)
