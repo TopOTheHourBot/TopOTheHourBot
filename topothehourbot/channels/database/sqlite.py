@@ -22,5 +22,6 @@ class SQLiteChannel(DatabaseStream):
     def send(self, expr: str, params: Sequence[object] | Mapping[str, object] = ()) -> Coroutine[Any, Any, Cursor]:
         return self._connection.execute(expr, params)
 
+    @override
     def commit(self) -> Coroutine[Any, Any, None]:
         return self._connection.commit()
