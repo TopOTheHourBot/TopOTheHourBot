@@ -19,7 +19,7 @@ class SQLiteChannel(SQLStream):
         self._connection = connection
 
     @override
-    def send(self, expr: str, params: Sequence[object] | Mapping[str, object] = ()) -> Coroutine[Any, Any, Cursor]:
+    def send(self, expr: str, params: Sequence[Any] | Mapping[str, Any] = ()) -> Coroutine[Any, Any, Cursor]:
         return self._connection.execute(expr, params)
 
     @override
