@@ -75,7 +75,7 @@ class SQLStream(SupportsSend[str], Protocol):
 
     @override
     @abstractmethod
-    def send(self, expr: str, params: Sequence[object] | Mapping[str, object] = (), /) -> Coroutine[Any, Any, CursorProtocol]:
+    def send(self, expr: str, params: Sequence[Any] | Mapping[str, Any] = (), /) -> Coroutine[Any, Any, CursorProtocol]:
         raise NotImplementedError
 
     @abstractmethod
