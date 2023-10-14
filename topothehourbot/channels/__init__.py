@@ -1,2 +1,2 @@
-from .sqlite import *
-from .twitch import *
+from .database import *
+from .ircv3 import *
