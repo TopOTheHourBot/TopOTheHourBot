@@ -7,8 +7,8 @@ __all__ = [
 ]
 
 from abc import abstractmethod
-from collections.abc import (AsyncIterator, Awaitable, Coroutine, Iterable,
-                             Iterator, Mapping, Sequence)
+from collections.abc import (AsyncIterator, Coroutine, Iterable, Iterator,
+                             Mapping, Sequence)
 from typing import Any, Optional, Protocol, Sequence, overload, override
 
 from channels import SupportsSend
@@ -54,17 +54,17 @@ class CursorProtocol(Protocol):
     async def __aexit__(self, exc_type, exc_val, exc_tb, /) -> None:
         await self.close()
 
-    def fetchone(self) -> Awaitable[Optional[RowProtocol]]:
+    def fetchone(self) -> Coroutine[Any, Any, Optional[RowProtocol]]:
         raise NotImplementedError
 
-    def fetchmany(self, size: Optional[int] = None, /) -> Awaitable[Iterable[RowProtocol]]:
+    def fetchmany(self, size: Optional[int] = None, /) -> Coroutine[Any, Any, Iterable[RowProtocol]]:
         raise NotImplementedError
 
-    def fetchall(self) -> Awaitable[Iterable[RowProtocol]]:
+    def fetchall(self) -> Coroutine[Any, Any, Iterable[RowProtocol]]:
         raise NotImplementedError
 
     @abstractmethod
-    def close(self) -> Awaitable[Any]:
+    def close(self) -> Coroutine[Any, Any, Any]:
         raise NotImplementedError
 
 
@@ -76,5 +76,5 @@ class DatabaseStream(SupportsSend[str], Protocol):
         raise NotImplementedError
 
     @abstractmethod
-    def commit(self) -> Coroutine[Any, Any, object]:
+    def commit(self) -> Coroutine[Any, Any, Any]:
         raise NotImplementedError
