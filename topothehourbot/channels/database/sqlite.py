@@ -6,11 +6,11 @@ from collections.abc import Mapping, Sequence
 from typing import Any, Coroutine, override
 
 from aiosqlite import Connection, Cursor
-from aiosqlite.context import Result
-from channels import SupportsSend
+
+from .protocols import DatabaseStream
 
 
-class SQLiteChannel(SupportsSend[str]):
+class SQLiteChannel(DatabaseStream):
 
     __slots__ = ("_connection")
     _connection: Connection
@@ -19,7 +19,7 @@ class SQLiteChannel(SupportsSend[str]):
         self._connection = connection
 
     @override
-    def send(self, expr: str, params: Sequence[object] | Mapping[str, object] = ()) -> Result[Cursor]:
+    def send(self, expr: str, params: Sequence[object] | Mapping[str, object] = ()) -> Coroutine[Any, Any, Cursor]:
         return self._connection.execute(expr, params)
 
     def commit(self) -> Coroutine[Any, Any, None]:
