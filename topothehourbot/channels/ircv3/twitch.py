@@ -34,8 +34,8 @@ class TwitchChannel(IRCv3Stream, SupportsRecv[Iterator[IRCv3CommandProtocol]]):
         data = str(command)
         try:
             await self._connection.send(data)
-        except ConnectionClosed as error:
-            raise StopSend from error
+        except ConnectionClosed:
+            return
 
     @override
     async def recv(self) -> Iterator[IRCv3CommandProtocol]:
