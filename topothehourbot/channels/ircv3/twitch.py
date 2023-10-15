@@ -5,7 +5,7 @@ __all__ = ["TwitchChannel"]
 from collections.abc import Iterator
 from typing import Final, Literal, override
 
-from channels import StopRecv, StopSend, SupportsRecv
+from channels import StopRecv, SupportsRecv
 from ircv3 import IRCv3Command, IRCv3CommandProtocol
 from ircv3.dialects.twitch import Ping, ServerPrivmsg
 from websockets.client import WebSocketClientProtocol
