@@ -9,7 +9,7 @@ from channels import SupportsSend
 from ircv3 import IRCv3CommandProtocol
 
 
-class IRCv3Stream(SupportsSend[IRCv3CommandProtocol], Protocol):
+class IRCv3Stream(SupportsSend[IRCv3CommandProtocol | str], Protocol):
 
     @property
     @abstractmethod

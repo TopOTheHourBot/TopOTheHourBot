@@ -5,7 +5,7 @@ __all__ = ["TwitchChannel"]
 from collections.abc import Iterator
 from typing import Final, Literal, override
 
-from channels import StopRecv, SupportsRecv
+from channels import Signal, SupportsRecv
 from ircv3 import IRCv3Command, IRCv3CommandProtocol
 from ircv3.dialects.twitch import Ping, ServerPrivmsg
 from websockets.client import WebSocketClientProtocol
@@ -30,7 +30,7 @@ class TwitchChannel(IRCv3Stream, SupportsRecv[Iterator[IRCv3CommandProtocol]]):
         return self._connection.latency
 
     @override
-    async def send(self, command: IRCv3CommandProtocol) -> None:
+    async def send(self, command: IRCv3CommandProtocol | str) -> None:
         data = str(command)
         try:
             await self._connection.send(data)
@@ -38,11 +38,11 @@ class TwitchChannel(IRCv3Stream, SupportsRecv[Iterator[IRCv3CommandProtocol]]):
             return
 
     @override
-    async def recv(self) -> Iterator[IRCv3CommandProtocol]:
+    async def recv(self) -> Iterator[IRCv3CommandProtocol] | Signal:
         try:
             data = await self._connection.recv()
-        except ConnectionClosed as error:
-            raise StopRecv from error
+        except ConnectionClosed:
+            return Signal.STOP
         assert isinstance(data, str)
         return self._command_iterator(data)
 
