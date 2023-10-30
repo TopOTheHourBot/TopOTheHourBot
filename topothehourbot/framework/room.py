@@ -41,7 +41,7 @@ class Room(EventBroadcaster):
 
     @override
     def event_callback(self, command: IRCv3ClientCommandProtocol) -> Coroutine[Any, Any, None]:
-        return self._client.send(command)
+        return self._client.event_callback(command)
 
     @override
     @series
