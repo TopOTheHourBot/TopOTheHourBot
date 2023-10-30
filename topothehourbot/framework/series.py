@@ -176,12 +176,6 @@ class Series[T](AsyncIterator[T]):
         except StopAsyncIteration:
             return
 
-    @series
-    async def broadcast[*Ts](self, *others: *Ts) -> AsyncIterator[tuple[T, *Ts]]:
-        """Return a sub-series of the values zipped with repeated objects"""
-        async for value in self:
-            yield (value, *others)
-
     @overload
     def merge(self) -> Series[T]: ...
     @overload
