@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-__all__ = ["TwitchClient"]
+__all__ = ["Client"]
 
 from collections import deque
 from collections.abc import AsyncIterator, Coroutine, Iterable, Iterator
@@ -12,7 +12,7 @@ from ircv3.dialects.twitch import (Ping, RoomState, ServerJoin, ServerPart,
                                    ServerPrivateMessage)
 from websockets import ConnectionClosed, Data, WebSocketClientProtocol
 
-from .abc import TwitchCallbackBroadcaster, TwitchCallbackProtocol
+from .abc import EventBroadcaster, EventProtocol
 from .series import series
 
 CRLF: Final[Literal["\r\n"]] = "\r\n"
@@ -39,7 +39,7 @@ def parse_commands(data: Data) -> Iterator[IRCv3ServerCommandProtocol]:
             yield ServerPart.cast(command)
 
 
-class TwitchClient(TwitchCallbackBroadcaster):
+class Client(EventBroadcaster):
 
     __slots__ = ("_client", "_user", "_token")
     _client: WebSocketClientProtocol
@@ -52,7 +52,7 @@ class TwitchClient(TwitchCallbackBroadcaster):
         *,
         user: str,
         token: str,
-        listeners: Iterable[TwitchCallbackProtocol] = (),
+        listeners: Iterable[EventProtocol] = (),
     ) -> None:
         super().__init__(listeners=listeners)
         self._client = client

@@ -3,8 +3,8 @@ from __future__ import annotations
 __all__ = [
     "ensure_series",
     "EventResult",
-    "TwitchCallbackProtocol",
-    "TwitchCallbackBroadcaster",
+    "EventProtocol",
+    "EventBroadcaster",
 ]
 
 from abc import ABCMeta, abstractmethod
@@ -45,7 +45,7 @@ def ensure_series(result: EventResult, /) -> Series[IRCv3ClientCommandProtocol]:
     return one_or_none(result)
 
 
-class TwitchCallbackProtocol(metaclass=ABCMeta):
+class EventProtocol(metaclass=ABCMeta):
 
     __slots__ = ()
 
@@ -85,19 +85,19 @@ class TwitchCallbackProtocol(metaclass=ABCMeta):
         raise NotImplementedError
 
 
-class TwitchCallbackBroadcaster(TwitchCallbackProtocol, metaclass=ABCMeta):
+class EventBroadcaster(EventProtocol, metaclass=ABCMeta):
 
     __slots__ = ("_listeners")
-    _listeners: set[TwitchCallbackProtocol]
+    _listeners: set[EventProtocol]
 
-    def __init__(self, *, listeners: Iterable[TwitchCallbackProtocol] = ()) -> None:
+    def __init__(self, *, listeners: Iterable[EventProtocol] = ()) -> None:
         self._listeners = set(listeners)
 
-    def listeners(self) -> Iterator[TwitchCallbackProtocol]:
+    def listeners(self) -> Iterator[EventProtocol]:
         """Return an iterator over the currently-enrolled listeners"""
         return iter(self._listeners)
 
-    def enroll_listener(self, listener: TwitchCallbackProtocol, /) -> Self:
+    def enroll_listener(self, listener: EventProtocol, /) -> Self:
         """Enroll a listener and return the broadcaster
 
         The listener object must be hashable.
@@ -105,7 +105,7 @@ class TwitchCallbackBroadcaster(TwitchCallbackProtocol, metaclass=ABCMeta):
         self._listeners.add(listener)
         return self
 
-    def unenroll_listener(self, listener: TwitchCallbackProtocol, /) -> Self:
+    def unenroll_listener(self, listener: EventProtocol, /) -> Self:
         """Unenroll a listener and return the broadcaster"""
         self._listeners.discard(listener)
         return self

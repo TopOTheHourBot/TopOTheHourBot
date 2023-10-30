@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-__all__ = ["TwitchRoom"]
+__all__ = ["Room"]
 
 from collections.abc import AsyncIterator, Coroutine, Iterable
 from typing import Any, override
@@ -9,23 +9,23 @@ from ircv3 import IRCv3ClientCommandProtocol
 from ircv3.dialects.twitch import (ClientJoin, RoomState, ServerJoin,
                                    ServerPart, ServerPrivateMessage)
 
-from .abc import TwitchCallbackBroadcaster, TwitchCallbackProtocol
-from .client import TwitchClient
+from .abc import EventBroadcaster, EventProtocol
+from .client import Client
 from .series import series
 
 
-class TwitchRoom(TwitchCallbackBroadcaster):
+class Room(EventBroadcaster):
 
     __slots__ = ("_client", "_room")
-    _client: TwitchClient
+    _client: Client
     _room: str
 
     def __init__(
         self,
-        client: TwitchClient,
+        client: Client,
         *,
         room: str,
-        listeners: Iterable[TwitchCallbackProtocol] = (),
+        listeners: Iterable[EventProtocol] = (),
     ) -> None:
         super().__init__(listeners=listeners)
         self._client = client
