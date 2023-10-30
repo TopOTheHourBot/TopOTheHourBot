@@ -12,7 +12,7 @@ from ircv3.dialects.twitch import (Ping, RoomState, ServerJoin, ServerPart,
                                    ServerPrivateMessage)
 from websockets import ConnectionClosed, Data, WebSocketClientProtocol
 
-from .abc import EventBroadcaster, EventProtocol
+from .abc import EventBroadcaster, EventListener
 from .series import series
 
 CRLF: Final[Literal["\r\n"]] = "\r\n"
@@ -52,7 +52,7 @@ class Client(EventBroadcaster):
         *,
         user: str,
         token: str,
-        listeners: Iterable[EventProtocol] = (),
+        listeners: Iterable[EventListener] = (),
     ) -> None:
         super().__init__(listeners=listeners)
         self._client = client

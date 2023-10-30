@@ -3,7 +3,7 @@ from __future__ import annotations
 __all__ = [
     "ensure_series",
     "EventResult",
-    "EventProtocol",
+    "EventListener",
     "EventBroadcaster",
 ]
 
@@ -45,7 +45,7 @@ def ensure_series(result: EventResult, /) -> Series[IRCv3ClientCommandProtocol]:
     return one_or_none(result)
 
 
-class EventProtocol(metaclass=ABCMeta):
+class EventListener(metaclass=ABCMeta):
 
     __slots__ = ()
 
@@ -85,19 +85,19 @@ class EventProtocol(metaclass=ABCMeta):
         raise NotImplementedError
 
 
-class EventBroadcaster(EventProtocol, metaclass=ABCMeta):
+class EventBroadcaster(EventListener, metaclass=ABCMeta):
 
     __slots__ = ("_listeners")
-    _listeners: set[EventProtocol]
+    _listeners: set[EventListener]
 
-    def __init__(self, *, listeners: Iterable[EventProtocol] = ()) -> None:
+    def __init__(self, *, listeners: Iterable[EventListener] = ()) -> None:
         self._listeners = set(listeners)
 
-    def listeners(self) -> Iterator[EventProtocol]:
+    def listeners(self) -> Iterator[EventListener]:
         """Return an iterator over the currently-enrolled listeners"""
         return iter(self._listeners)
 
-    def enroll_listener(self, listener: EventProtocol, /) -> Self:
+    def enroll_listener(self, listener: EventListener, /) -> Self:
         """Enroll a listener and return the broadcaster
 
         The listener object must be hashable.
@@ -105,7 +105,7 @@ class EventBroadcaster(EventProtocol, metaclass=ABCMeta):
         self._listeners.add(listener)
         return self
 
-    def unenroll_listener(self, listener: EventProtocol, /) -> Self:
+    def unenroll_listener(self, listener: EventListener, /) -> Self:
         """Unenroll a listener and return the broadcaster"""
         self._listeners.discard(listener)
         return self

@@ -9,7 +9,7 @@ from ircv3 import IRCv3ClientCommandProtocol
 from ircv3.dialects.twitch import (ClientJoin, RoomState, ServerJoin,
                                    ServerPart, ServerPrivateMessage)
 
-from .abc import EventBroadcaster, EventProtocol
+from .abc import EventBroadcaster, EventListener
 from .client import Client
 from .series import series
 
@@ -25,7 +25,7 @@ class Room(EventBroadcaster):
         client: Client,
         *,
         room: str,
-        listeners: Iterable[EventProtocol] = (),
+        listeners: Iterable[EventListener] = (),
     ) -> None:
         super().__init__(listeners=listeners)
         self._client = client
