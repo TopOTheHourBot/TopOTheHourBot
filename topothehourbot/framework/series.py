@@ -37,6 +37,9 @@ class Series[T](AsyncIterator[T]):
 
     @staticmethod
     def from_generator[**P, S](func: Callable[P, AsyncIterator[S]], /) -> Callable[P, Series[S]]:
+        """Convert a function's return type from an asynchronous iterator to a
+        ``Series``
+        """
 
         def wrapper(*args: P.args, **kwargs: P.kwargs) -> Series[S]:
             return Series(func(*args, **kwargs))
@@ -48,6 +51,9 @@ class Series[T](AsyncIterator[T]):
 
     @staticmethod
     def from_coroutine[**P, S](func: Callable[P, Coroutine[Any, Any, Optional[S]]], /) -> Callable[P, Series[S]]:
+        """Convert a function's return type from an optional-valued coroutine
+        to a zero-or-one length ``Series``
+        """
 
         @Series.from_generator
         async def wrapper(*args: P.args, **kwargs: P.kwargs) -> AsyncIterator[S]:
