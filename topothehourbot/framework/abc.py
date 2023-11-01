@@ -108,7 +108,7 @@ class EventBroadcaster(metaclass=ABCMeta):
             )
             async for command in (
                 listener.on_connect()
-                    .merge(*calls)
+                        .merge(*calls)
             ):
                 tasks.create_task(self.event_callback(command))
 
@@ -124,7 +124,7 @@ class EventBroadcaster(metaclass=ABCMeta):
             )
             async for feedback in (
                 listener.on_join(command)
-                    .merge(*calls)
+                        .merge(*calls)
             ):
                 tasks.create_task(self.event_callback(feedback))
 
@@ -140,7 +140,7 @@ class EventBroadcaster(metaclass=ABCMeta):
             )
             async for feedback in (
                 listener.on_part(command)
-                    .merge(*calls)
+                        .merge(*calls)
             ):
                 tasks.create_task(self.event_callback(feedback))
 
@@ -156,7 +156,7 @@ class EventBroadcaster(metaclass=ABCMeta):
             )
             async for feedback in (
                 listener.on_message(command)
-                    .merge(*calls)
+                        .merge(*calls)
             ):
                 tasks.create_task(self.event_callback(feedback))
 
@@ -172,7 +172,7 @@ class EventBroadcaster(metaclass=ABCMeta):
             )
             async for feedback in (
                 listener.on_room_state(command)
-                    .merge(*calls)
+                        .merge(*calls)
             ):
                 tasks.create_task(self.event_callback(feedback))
 
