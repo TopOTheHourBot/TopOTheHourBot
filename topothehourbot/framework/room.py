@@ -9,12 +9,12 @@ from ircv3 import IRCv3ClientCommandProtocol
 from ircv3.dialects.twitch import (ClientJoin, RoomState, ServerJoin,
                                    ServerPart, ServerPrivateMessage)
 
-from .abc import EventBroadcaster, EventListener
+from .abc import EventListener, EventRebroadcaster
 from .client import Client
-from .series import series
+from .series import Series
 
 
-class Room(EventBroadcaster):
+class Room(EventRebroadcaster):
 
     __slots__ = ("_client", "_room")
     _client: Client
@@ -44,31 +44,40 @@ class Room(EventBroadcaster):
         return self._client.event_callback(command)
 
     @override
-    @series
+    @Series.from_generator
     async def on_connect(self) -> AsyncIterator[IRCv3ClientCommandProtocol]:
         yield ClientJoin(self.room)
-        await super().on_connect()
+        async for feedback in super().on_connect():
+            yield feedback
 
     @override
-    async def on_join(self, join: ServerJoin) -> None:
-        if self.room != join.room:
+    @Series.from_generator
+    async def on_join(self, command: ServerJoin, /) -> AsyncIterator[IRCv3ClientCommandProtocol]:
+        if self.room != command.room:
             return
-        await super().on_join(join)
+        async for feedback in super().on_join(command):
+            yield feedback
 
     @override
-    async def on_part(self, part: ServerPart) -> None:
-        if self.room != part.room:
+    @Series.from_generator
+    async def on_part(self, command: ServerPart, /) -> AsyncIterator[IRCv3ClientCommandProtocol]:
+        if self.room != command.room:
             return
-        await super().on_part(part)
+        async for feedback in super().on_part(command):
+            yield feedback
 
     @override
-    async def on_message(self, message: ServerPrivateMessage) -> None:
-        if self.room != message.room:
+    @Series.from_generator
+    async def on_message(self, command: ServerPrivateMessage, /) -> AsyncIterator[IRCv3ClientCommandProtocol]:
+        if self.room != command.room:
             return
-        await super().on_message(message)
+        async for feedback in super().on_message(command):
+            yield feedback
 
     @override
-    async def on_room_state(self, room_state: RoomState) -> None:
-        if self.room != room_state.room:
+    @Series.from_generator
+    async def on_room_state(self, command: RoomState, /) -> AsyncIterator[IRCv3ClientCommandProtocol]:
+        if self.room != command.room:
             return
-        await super().on_room_state(room_state)
+        async for feedback in super().on_room_state(command):
+            yield feedback
