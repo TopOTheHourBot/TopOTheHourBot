@@ -1,91 +1,62 @@
 from __future__ import annotations
 
 __all__ = [
-    "ensure_series",
-    "EventResult",
     "EventListener",
     "EventBroadcaster",
+    "EventRebroadcaster",
 ]
 
 from abc import ABCMeta, abstractmethod
 from asyncio import TaskGroup
-from collections.abc import AsyncIterator, Coroutine, Iterable, Iterator
-from typing import Any, Optional, Self, override
+from collections.abc import Coroutine, Iterable, Iterator
+from typing import Any, Optional, Protocol, Self
 
 from ircv3 import IRCv3ClientCommandProtocol
 from ircv3.dialects.twitch import (RoomState, ServerJoin, ServerPart,
                                    ServerPrivateMessage)
 
-from .series import Series, series
-
-type EventResult = (
-    Coroutine[Any, Any, Optional[IRCv3ClientCommandProtocol]]
-    | Series[IRCv3ClientCommandProtocol]
-)
+from .series import Series
 
 
-def ensure_series(result: EventResult, /) -> Series[IRCv3ClientCommandProtocol]:
-    """Return ``result`` as a guaranteed ``Series`` object
-
-    Utility function for handling ``EventResult`` types in particular.
-    Instances of ``Coroutine[Any, Any, Optional[IRCv3ClientCommandProtocol]]``
-    are converted to a zero-or-one length ``Series``, where if the coroutine
-    returns ``None``, the series ends, otherwise the series yields.
-    """
-    if type(result) is Series:  # Series is final
-        return result
-
-    @series
-    async def one_or_none[T](coro: Coroutine[Any, Any, Optional[T]], /) -> AsyncIterator[T]:
-        value = await coro
-        if value is None:
-            return
-        yield value
-
-    return one_or_none(result)
-
-
-class EventListener(metaclass=ABCMeta):
-
-    __slots__ = ()
+class EventListener(Protocol):
 
     @abstractmethod
-    def on_connect(self) -> EventResult:
+    def on_connect(self) -> Series[IRCv3ClientCommandProtocol]:
         """Event handler called when the client first connects to the Twitch
         IRC server
         """
         raise NotImplementedError
 
     @abstractmethod
-    def on_join(self, join: ServerJoin) -> EventResult:
+    def on_join(self, command: ServerJoin, /) -> Series[IRCv3ClientCommandProtocol]:
         """Event handler called when the client receives a JOIN from the Twitch
         IRC server
         """
         raise NotImplementedError
 
     @abstractmethod
-    def on_part(self, part: ServerPart) -> EventResult:
+    def on_part(self, command: ServerPart, /) -> Series[IRCv3ClientCommandProtocol]:
         """Event handler called when the client receives a PART from the Twitch
         IRC server
         """
         raise NotImplementedError
 
     @abstractmethod
-    def on_message(self, message: ServerPrivateMessage) -> EventResult:
+    def on_message(self, command: ServerPrivateMessage, /) -> Series[IRCv3ClientCommandProtocol]:
         """Event handler called when the client receives a PRIVMSG from the
         Twitch IRC server
         """
         raise NotImplementedError
 
     @abstractmethod
-    def on_room_state(self, room_state: RoomState) -> EventResult:
+    def on_room_state(self, command: RoomState, /) -> Series[IRCv3ClientCommandProtocol]:
         """Event handler called when the client receives a ROOMSTATE from the
         Twitch IRC server
         """
         raise NotImplementedError
 
 
-class EventBroadcaster(EventListener, metaclass=ABCMeta):
+class EventBroadcaster(metaclass=ABCMeta):
 
     __slots__ = ("_listeners")
     _listeners: set[EventListener]
@@ -111,93 +82,113 @@ class EventBroadcaster(EventListener, metaclass=ABCMeta):
         return self
 
     @abstractmethod
-    async def event_callback(self, command: IRCv3ClientCommandProtocol) -> None:
-        """Return a callback function used when a listener's event handler
-        emits a client command in response
+    async def event_callback(self, command: IRCv3ClientCommandProtocol, /) -> None:
+        """Callback function used when a listener's event handler emits a
+        responding client command
         """
         raise NotImplementedError
 
-    @override
-    async def on_connect(self) -> None:
+    async def on_connect(self) -> Optional[IRCv3ClientCommandProtocol]:
         listeners = self.listeners()
         listener = next(listeners, None)
         if listener is None:
             return
         async with TaskGroup() as tasks:
             calls = (
-                ensure_series(listener.on_connect())
+                listener.on_connect()
                 for listener in listeners
             )
             async for command in (
-                ensure_series(listener.on_connect())
+                listener.on_connect()
                     .merge(*calls)
             ):
                 tasks.create_task(self.event_callback(command))
 
-    @override
-    async def on_join(self, join: ServerJoin) -> None:
+    async def on_join(self, command: ServerJoin, /) -> Optional[IRCv3ClientCommandProtocol]:
         listeners = self.listeners()
         listener = next(listeners, None)
         if listener is None:
             return
         async with TaskGroup() as tasks:
             calls = (
-                ensure_series(listener.on_join(join))
+                listener.on_join(command)
                 for listener in listeners
             )
-            async for command in (
-                ensure_series(listener.on_join(join))
+            async for feedback in (
+                listener.on_join(command)
                     .merge(*calls)
             ):
-                tasks.create_task(self.event_callback(command))
+                tasks.create_task(self.event_callback(feedback))
 
-    @override
-    async def on_part(self, part: ServerPart) -> None:
+    async def on_part(self, command: ServerPart, /) -> Optional[IRCv3ClientCommandProtocol]:
         listeners = self.listeners()
         listener = next(listeners, None)
         if listener is None:
             return
         async with TaskGroup() as tasks:
             calls = (
-                ensure_series(listener.on_part(part))
+                listener.on_part(command)
                 for listener in listeners
             )
-            async for command in (
-                ensure_series(listener.on_part(part))
+            async for feedback in (
+                listener.on_part(command)
                     .merge(*calls)
             ):
-                tasks.create_task(self.event_callback(command))
+                tasks.create_task(self.event_callback(feedback))
 
-    @override
-    async def on_message(self, message: ServerPrivateMessage) -> None:
+    async def on_message(self, command: ServerPrivateMessage, /) -> Optional[IRCv3ClientCommandProtocol]:
         listeners = self.listeners()
         listener = next(listeners, None)
         if listener is None:
             return
         async with TaskGroup() as tasks:
             calls = (
-                ensure_series(listener.on_message(message))
+                listener.on_message(command)
                 for listener in listeners
             )
-            async for command in (
-                ensure_series(listener.on_message(message))
+            async for feedback in (
+                listener.on_message(command)
                     .merge(*calls)
             ):
-                tasks.create_task(self.event_callback(command))
+                tasks.create_task(self.event_callback(feedback))
 
-    @override
-    async def on_room_state(self, room_state: RoomState) -> None:
+    async def on_room_state(self, command: RoomState, /) -> Optional[IRCv3ClientCommandProtocol]:
         listeners = self.listeners()
         listener = next(listeners, None)
         if listener is None:
             return
         async with TaskGroup() as tasks:
             calls = (
-                ensure_series(listener.on_room_state(room_state))
+                listener.on_room_state(command)
                 for listener in listeners
             )
-            async for command in (
-                ensure_series(listener.on_room_state(room_state))
+            async for feedback in (
+                listener.on_room_state(command)
                     .merge(*calls)
             ):
-                tasks.create_task(self.event_callback(command))
+                tasks.create_task(self.event_callback(feedback))
+
+
+class EventRebroadcaster(EventBroadcaster, metaclass=ABCMeta):
+
+    __slots__ = ()
+
+    @Series.from_coroutine
+    def on_connect(self) -> Coroutine[Any, Any, Optional[IRCv3ClientCommandProtocol]]:
+        return super().on_connect()
+
+    @Series.from_coroutine
+    def on_join(self, command: ServerJoin, /) -> Coroutine[Any, Any, Optional[IRCv3ClientCommandProtocol]]:
+        return super().on_join(command)
+
+    @Series.from_coroutine
+    def on_part(self, command: ServerPart, /) -> Coroutine[Any, Any, Optional[IRCv3ClientCommandProtocol]]:
+        return super().on_part(command)
+
+    @Series.from_coroutine
+    def on_message(self, command: ServerPrivateMessage, /) -> Coroutine[Any, Any, Optional[IRCv3ClientCommandProtocol]]:
+        return super().on_message(command)
+
+    @Series.from_coroutine
+    def on_room_state(self, command: RoomState, /) -> Coroutine[Any, Any, Optional[IRCv3ClientCommandProtocol]]:
+        return super().on_room_state(command)
