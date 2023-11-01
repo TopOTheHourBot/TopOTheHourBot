@@ -5,7 +5,7 @@ __all__ = ["Client"]
 import contextlib
 from asyncio import TaskGroup
 from collections.abc import AsyncIterator, Coroutine, Iterable, Iterator
-from typing import Any, Final, Literal, cast, final, override
+from typing import Any, Final, Literal, Optional, cast, final, override
 
 from ircv3 import IRCv3ClientCommandProtocol, IRCv3Command
 from ircv3.dialects.twitch import (Ping, RoomState, ServerJoin, ServerPart,
@@ -51,7 +51,7 @@ class Client(EventBroadcaster):
     def on_ping(self, ping: Ping) -> Coroutine[Any, Any, None]:
         return self.event_callback(ping.reply())
 
-    def _parse_commands(self, data: str) -> Iterator[Coroutine[Any, Any, None]]:
+    def _parse_commands(self, data: str) -> Iterator[Coroutine[Any, Any, Optional[IRCv3ClientCommandProtocol]]]:
         raw_commands = data.rstrip(CRLF).split(CRLF)
         for command in map(IRCv3Command.from_string, raw_commands):
             name = command.name
@@ -66,7 +66,7 @@ class Client(EventBroadcaster):
             elif name == "PART":
                 yield self.on_part(ServerPart.cast(command))
 
-    async def _parse_data(self) -> AsyncIterator[Coroutine[Any, Any, None]]:
+    async def _parse_data(self) -> AsyncIterator[Coroutine[Any, Any, Optional[IRCv3ClientCommandProtocol]]]:
         with contextlib.suppress(ConnectionClosed):
             while True:
                 data = cast(str, await self._client.recv())
