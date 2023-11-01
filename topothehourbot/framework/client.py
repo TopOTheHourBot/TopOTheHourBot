@@ -81,5 +81,6 @@ class Client(EventBroadcaster):
         except ConnectionClosed:
             return
         async with TaskGroup() as tasks:
+            tasks.create_task(self.on_connect())
             async for coro in self._parse_data():
                 tasks.create_task(coro)
