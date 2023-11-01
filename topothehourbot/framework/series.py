@@ -1,15 +1,12 @@
 from __future__ import annotations
 
-__all__ = [
-    "Series",
-    "series",
-]
+__all__ = ["Series"]
 
 import asyncio
 from asyncio import Task
 from asyncio import TimeoutError as AsyncTimeoutError
-from collections.abc import AsyncIterator, Callable
-from typing import Optional, TypeGuard, final, overload
+from collections.abc import AsyncIterator, Callable, Coroutine
+from typing import Any, Optional, TypeGuard, final, overload
 
 
 def identity[T](value: T, /) -> T:
@@ -20,20 +17,6 @@ def identity[T](value: T, /) -> T:
 def not_none[T](value: Optional[T], /) -> TypeGuard[T]:
     """Return true if ``value`` is not ``None``, otherwise false"""
     return value is not None
-
-
-def series[**P, T](func: Callable[P, AsyncIterator[T]], /) -> Callable[P, Series[T]]:
-    """Convert a function's return type from an ``AsyncIterator[T]`` to
-    ``Series[T]``
-    """
-
-    def series_wrapper(*args: P.args, **kwargs: P.kwargs) -> Series[T]:
-        return Series(func(*args, **kwargs))
-
-    series_wrapper.__name__ = func.__name__
-    series_wrapper.__doc__  = func.__doc__
-
-    return series_wrapper
 
 
 @final
@@ -52,7 +35,32 @@ class Series[T](AsyncIterator[T]):
         value = await anext(self._values)
         return value
 
-    @series
+    @staticmethod
+    def from_generator[**P, S](func: Callable[P, AsyncIterator[S]], /) -> Callable[P, Series[S]]:
+
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> Series[S]:
+            return Series(func(*args, **kwargs))
+
+        wrapper.__name__ = func.__name__
+        wrapper.__doc__  = func.__doc__
+
+        return wrapper
+
+    @staticmethod
+    def from_coroutine[**P, S](func: Callable[P, Coroutine[Any, Any, Optional[S]]], /) -> Callable[P, Series[S]]:
+
+        @Series.from_generator
+        async def wrapper(*args: P.args, **kwargs: P.kwargs) -> AsyncIterator[S]:
+            result = await func(*args, **kwargs)
+            if result is not None:
+                yield result
+
+        wrapper.__name__ = func.__name__
+        wrapper.__doc__  = func.__doc__
+
+        return wrapper
+
+    @from_generator
     async def stagger(self, delay: float, *, first: bool = False) -> AsyncIterator[T]:
         """Return a sub-series whose yields are staggered by at least ``delay``
         seconds
@@ -81,7 +89,7 @@ class Series[T](AsyncIterator[T]):
                 await asyncio.sleep(sleep_time)
             yield value
 
-    @series
+    @from_generator
     async def timeout(self, delay: float, *, first: bool = False) -> AsyncIterator[T]:
         """Return a sub-series whose value retrievals are time restricted by
         ``delay`` seconds
@@ -96,7 +104,7 @@ class Series[T](AsyncIterator[T]):
         except (StopAsyncIteration, AsyncTimeoutError):
             return
 
-    @series
+    @from_generator
     async def global_unique(self, key: Callable[[T], object] = identity) -> AsyncIterator[T]:
         """Return a sub-series of the values whose call to ``key`` is unique
         among all encountered values
@@ -108,7 +116,7 @@ class Series[T](AsyncIterator[T]):
                 seen.add(result)
                 yield value
 
-    @series
+    @from_generator
     async def local_unique(self, key: Callable[[T], object] = identity) -> AsyncIterator[T]:
         """Return a sub-series of the values whose call to ``key`` is unique
         as compared to the previously encountered value
@@ -120,7 +128,7 @@ class Series[T](AsyncIterator[T]):
                 seen = result
                 yield value
 
-    @series
+    @from_generator
     async def enumerate(self, start: int = 0) -> AsyncIterator[tuple[int, T]]:
         """Return a sub-series whose values are enumerated from ``start``"""
         index = start
@@ -128,7 +136,7 @@ class Series[T](AsyncIterator[T]):
             yield (index, value)
             index += 1
 
-    @series
+    @from_generator
     async def limit(self, bound: int) -> AsyncIterator[T]:
         """Return a sub-series limited to the first ``bound`` values
 
@@ -143,7 +151,7 @@ class Series[T](AsyncIterator[T]):
                 return
             count += 1
 
-    @series
+    @from_generator
     async def map[S](self, mapper: Callable[[T], S]) -> AsyncIterator[S]:
         """Return a sub-series of the results from passing each value to
         ``mapper``
@@ -163,7 +171,7 @@ class Series[T](AsyncIterator[T]):
     def zip[T1, T2, T3, T4](self, other1: Series[T1], other2: Series[T2], other3: Series[T3], other4: Series[T4], /) -> Series[tuple[T, T1, T2, T3, T4]]: ...
     @overload
     def zip(self, *others: Series) -> Series[tuple]: ...
-    @series
+    @from_generator
     async def zip(self, *others: Series) -> AsyncIterator[tuple]:
         """Return a sub-series zipped with other series
 
@@ -188,7 +196,7 @@ class Series[T](AsyncIterator[T]):
     def merge[T1, T2, T3, T4](self, other1: Series[T1], other2: Series[T2], other3: Series[T3], other4: Series[T4], /) -> Series[T | T1 | T2 | T3 | T4]: ...
     @overload
     def merge(self, *others: Series) -> Series: ...
-    @series
+    @from_generator
     async def merge(self, *others: Series) -> AsyncIterator:
         """Return a sub-series merged with other series
 
@@ -219,7 +227,7 @@ class Series[T](AsyncIterator[T]):
                     todo.add(task)
                     yield result
 
-    @series
+    @from_generator
     async def star_map[*Ts, S](self: Series[tuple[*Ts]], mapper: Callable[[*Ts], S]) -> AsyncIterator[S]:
         """Return a sub-series of the results from unpacking and passing each
         value to ``mapper``
@@ -231,7 +239,7 @@ class Series[T](AsyncIterator[T]):
     def filter[S](self, predicate: Callable[[T], TypeGuard[S]]) -> Series[S]: ...
     @overload
     def filter(self, predicate: Callable[[T], object]) -> Series[T]: ...
-    @series
+    @from_generator
     async def filter(self, predicate: Callable[[T], object]) -> AsyncIterator[T]:
         """Return a sub-series of the values whose call to ``predicate``
         evaluates true
