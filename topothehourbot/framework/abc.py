@@ -88,6 +88,14 @@ class EventBroadcaster(metaclass=ABCMeta):
         """
         raise NotImplementedError
 
+    # This class is geared towards acting as the client, and so each event
+    # handler is just a coroutine that returns None, which makes it easy to
+    # "fire and forget" them in something like a TaskGroup.
+
+    # The type-hinting is broad to allow sub-classes the ability to inherit the
+    # broadcasting functionality, while also yielding its own commands via the
+    # Series.from_coroutine() decorator.
+
     async def on_connect(self) -> Optional[IRCv3ClientCommandProtocol]:
         listeners = self.listeners()
         listener = next(listeners, None)
