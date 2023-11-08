@@ -80,7 +80,7 @@ class TopOTheHourBot(Bot):
                         "peepoPog Clap",
                         "chatPls",
                         "peepoCheer",
-                        "PeepoBlush",
+                        "peepoBlush",
                         "Jigglin",
                         "veryCat",
                     ),
@@ -110,7 +110,7 @@ class TopOTheHourBot(Bot):
         self.add_cog(BatchAverager(
             self,
             channel="hasanabi",
-            density=50,
+            density=40,
             pattern=re.compile(
                 r"""
                 (?:^|\s)            # should proceed the beginning or whitespace
@@ -124,7 +124,7 @@ class TopOTheHourBot(Bot):
                 """,
                 flags=re.ASCII | re.VERBOSE,
             ),
-            callbacks=(chat, post),
+            callbacks=(chat,),
         ))
 
     @command(aliases=["p"])
