@@ -1,27 +1,30 @@
 import logging
 import random
 import re
-import time
 import uuid
-from typing import Optional
+from typing import Final, Optional
 from uuid import UUID
 
-from aiohttp import ClientSession, TCPConnector
 from twitchio import Message
 from twitchio.ext.commands import Bot, Context, command
+from twitchio.ext.commands.errors import CommandNotFound
 
-from .keys import (HASANHUB_CLIENT_SECRET, TWITCH_ACCESS_TOKEN,
-                   TWITCH_CLIENT_SECRET)
+from .keys import TWITCH_ACCESS_TOKEN, TWITCH_CLIENT_SECRET
 from .splits.batch_averager import BatchAverager, BatchAveragerResult
 
 __all__ = ["TopOTheHourBot"]
 
-STREAM_UUID: UUID = uuid.uuid4()
+SESSION_ID: Final[UUID] = uuid.uuid4()
 
 
 class TopOTheHourBot(Bot):
 
-    GLOBAL_MODERATORS: set[str] = {"lyystra", "astryyl", "bytesized_", "emjaye"}
+    GLOBAL_MODERATORS: set[str] = {
+        "lyystra",
+        "astryyl",
+        "bytesized_",
+        "emjaye",
+    }
 
     __slots__ = ()
 
@@ -69,7 +72,7 @@ class TopOTheHourBot(Bot):
                         "Concerned Clap",
                         "Dead",
                         "HuhChamp TeaTime",
-                        "HUHHH",
+                        "HUHH",
                     ),
                 )
             else:
@@ -90,22 +93,6 @@ class TopOTheHourBot(Bot):
                 f"DANKIES 🔔 {count} chatters rated this ad segue an average "
                 f"of {score:.2f}/10 - {splash} {emote}",
             )
-
-        async def post(result: BatchAveragerResult) -> None:
-            score = result.partial.complete()
-            epoch = time.time()
-
-            async with ClientSession(connector=TCPConnector(ssl=False)) as session:
-                async with session.post(
-                    "https://hasanhub.com/api/add-top-of-the-hour-rating",
-                    json={
-                        "rating": round(score, ndigits=2),
-                        "streamUuid": str(STREAM_UUID),
-                        "timestamp": round(epoch, ndigits=None),
-                        "secret": str(HASANHUB_CLIENT_SECRET),
-                    },
-                ) as response:
-                    response.raise_for_status()
 
         self.add_cog(BatchAverager(
             self,
@@ -141,10 +128,12 @@ class TopOTheHourBot(Bot):
         await ctx.send(f"{' '.join(names)} the bot's source code can be found on its Twitch profile Okayge")
 
     async def event_command_error(self, ctx: Context, error: Exception) -> None:
+        if isinstance(error, CommandNotFound):
+            return
         await ctx.send(f"{ctx.author.mention} {error}")
 
     async def event_ready(self) -> None:
-        logging.info(f"Stream UUID is {STREAM_UUID}")
+        logging.info(f"Session ID is {SESSION_ID}")
 
     async def event_message(self, message: Message) -> None:
         if message.echo:
