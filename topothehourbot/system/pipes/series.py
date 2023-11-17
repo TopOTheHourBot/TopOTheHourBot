@@ -5,8 +5,9 @@ __all__ = ["Series"]
 import asyncio
 from asyncio import Task
 from asyncio import TimeoutError as AsyncTimeoutError
-from collections.abc import AsyncIterator, Callable, Coroutine
-from typing import Any, Optional, TypeGuard, final, overload
+from collections.abc import AsyncIterator, Callable
+from dataclasses import dataclass
+from typing import Optional, TypeGuard, final, overload
 
 
 def identity[T](value: T, /) -> T:
@@ -17,6 +18,17 @@ def identity[T](value: T, /) -> T:
 def not_none[T](value: Optional[T], /) -> TypeGuard[T]:
     """Return true if ``value`` is not ``None``, otherwise false"""
     return value is not None
+
+
+@final
+@dataclass(slots=True)
+class Reduction[T]:
+
+    value: T
+    initial: bool = False
+
+    def __bool__(self) -> bool:
+        return not self.initial
 
 
 @final
@@ -49,59 +61,8 @@ class Series[T](AsyncIterator[T]):
 
         return wrapper
 
-    @staticmethod
-    def from_coroutine[**P, S](func: Callable[P, Coroutine[Any, Any, Optional[S]]], /) -> Callable[P, Series[S]]:
-        """Convert a function's return type from an optional-valued coroutine
-        to a zero-or-one length ``Series``
-        """
-
-        @Series.from_generator
-        async def wrapper(*args: P.args, **kwargs: P.kwargs) -> AsyncIterator[S]:
-            result = await func(*args, **kwargs)
-            if result is not None:
-                yield result
-
-        wrapper.__name__ = func.__name__
-        wrapper.__doc__  = func.__doc__
-
-        return wrapper
-
     @from_generator
-    async def stagger(self, delay: float, *, first: bool = False) -> AsyncIterator[T]:
-        """Return a sub-series whose yields are staggered by at least ``delay``
-        seconds
-
-        Staggers before the first retrieval if ``first`` is true.
-        """
-        delay = max(0, delay)
-        loop  = asyncio.get_running_loop()
-
-        if first:
-            await asyncio.sleep(delay)
-
-        try:
-            value = await anext(self)
-        except StopAsyncIteration:
-            return
-        else:
-            yield_time = loop.time()
-            yield value
-
-        async for value in self:
-            current_time = loop.time()
-            sleep_time = max(0, delay - (current_time - yield_time))
-            yield_time = current_time + sleep_time
-            if sleep_time:
-                await asyncio.sleep(sleep_time)
-            yield value
-
-    @from_generator
-    async def timeout(self, delay: float, *, first: bool = False) -> AsyncIterator[T]:
-        """Return a sub-series whose value retrievals are time restricted by
-        ``delay`` seconds
-
-        Timeout is applied to the first retrieval if ``first`` is true.
-        """
+    async def _timeout_finite(self, delay: float, *, first: bool = False) -> AsyncIterator[T]:
         try:
             if not first:
                 yield await anext(self)
@@ -109,6 +70,19 @@ class Series[T](AsyncIterator[T]):
                 yield await asyncio.wait_for(anext(self), delay)
         except (StopAsyncIteration, AsyncTimeoutError):
             return
+
+    def timeout(self, delay: Optional[float], *, first: bool = False) -> Series[T]:
+        """Return a sub-series whose value retrievals are time restricted by
+        ``delay`` seconds
+
+        If ``delay`` is ``None``, do not apply a timeout.
+
+        If ``first`` is true, applies the timeout while awaiting the first
+        value. False by default.
+        """
+        if delay is None:  # Reduces layers of composition
+            return self
+        return self._timeout_finite(delay, first=first)
 
     @from_generator
     async def global_unique(self, key: Callable[[T], object] = identity) -> AsyncIterator[T]:
@@ -150,12 +124,10 @@ class Series[T](AsyncIterator[T]):
         """
         if bound <= 0:
             return
-        count = 1
-        async for value in self:
+        async for count, value in self.enumerate(1):
             yield value
             if count == bound:
                 return
-            count += 1
 
     @from_generator
     async def map[S](self, mapper: Callable[[T], S]) -> AsyncIterator[S]:
@@ -208,14 +180,14 @@ class Series[T](AsyncIterator[T]):
 
         Iteration stops when the longest series has been exhausted.
         """
-        its = {
-            str(name): it
-            for name, it in enumerate((self, *others))
-        }
+        map = dict[str, Series]()
+        map["Series.merge-0"] = self
+        for n, series in enumerate(others, start=1):
+            map[f"Series.merge-{n}"] = series
 
         todo = set[Task]()
-        for name, it in its.items():
-            task = asyncio.create_task(anext(it), name=name)
+        for name, series in map.items():
+            task = asyncio.create_task(anext(series), name=name)
             todo.add(task)
 
         while todo:
@@ -225,11 +197,15 @@ class Series[T](AsyncIterator[T]):
                 try:
                     result = task.result()
                 except StopAsyncIteration:
-                    del its[name]
+                    # Series has been exhausted: no need to keep a reference at
+                    # this point
+                    del map[name]
                     continue
                 else:
-                    it = its[name]
-                    task = asyncio.create_task(anext(it), name=name)
+                    # Series has yielded: await its next value and return the
+                    # current one
+                    series = map[name]
+                    task = asyncio.create_task(anext(series), name=name)
                     todo.add(task)
                     yield result
 
@@ -277,17 +253,24 @@ class Series[T](AsyncIterator[T]):
     async def collect(self) -> list[T]:
         """Return the values accumulated as a ``list``"""
         result = []
-        async for value in self:
-            result.append(value)
+        async for value in self:  # This could be a call to reduce() if
+            result.append(value)  # list.append() returned self 😔
         return result
 
-    async def reduce[S](self, initial: S, reducer: Callable[[S, T], S]) -> S:
+    async def reduce[S](self, initial: S, reducer: Callable[[S, T], S]) -> Reduction[S]:
         """Return the values accumulated as one via left-fold"""
         result = initial
+        try:
+            value = await anext(self)
+        except StopAsyncIteration:
+            return Reduction(result, initial=True)
+        else:
+            result = reducer(result, value)
         async for value in self:
             result = reducer(result, value)
-        return result
+        return Reduction(result)
 
     async def count(self) -> int:
         """Return the number of values"""
-        return await self.reduce(0, lambda count, _: count + 1)
+        reduction = await self.reduce(0, lambda count, _: count + 1)
+        return reduction.value
