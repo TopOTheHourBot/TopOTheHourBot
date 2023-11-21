@@ -67,7 +67,7 @@ class TopOTheHourBot(Bot):
                     (
                         "unPOGGERS",
                         "Awkward BobaTime",
-                        "hasCringe",
+                        "Okayyy ...",
                         "PoroSad",
                         "Concerned Clap",
                         "Dead",
