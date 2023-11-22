@@ -132,12 +132,11 @@ class Client(Diverter[IRCv3ServerCommandProtocol], metaclass=ABCMeta):
                 - (curr_message_time - last_message_time),
                 0,
             )
-            self._last_message_time = curr_message_time + delay
             if delay > 0:
                 if not important:
                     return
-                else:
-                    await asyncio.sleep(delay)
+                self._last_message_time = curr_message_time + delay
+                await asyncio.sleep(delay)
         data = str(command)
         with contextlib.suppress(ConnectionClosed):
             await self._connection.send(data)
