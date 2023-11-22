@@ -11,6 +11,8 @@ from decimal import Decimal
 from re import Pattern
 from typing import Any, Final, Literal, Optional, final, override
 
+import aiosqlite as sqlite
+from aiosqlite import Connection as SQLiteConnection
 from ircv3 import IRCv3ServerCommandProtocol
 from ircv3.dialects import twitch
 from ircv3.dialects.twitch import ClientPrivateMessage
@@ -37,14 +39,28 @@ class TopOTheHourBot(Client):
 
 
 @final
-class HasanAbiLocalizer(Localizer):
+class HasanAbiLocalizer(Localizer[TopOTheHourBot]):
 
-    __slots__ = ()
+    __slots__ = ("_database")
     room: Final[Literal["#hasanabi"]] = "#hasanabi"
+    _database: SQLiteConnection
+
+    @property
+    def database(self) -> SQLiteConnection:
+        return self._database
+
+    @override
+    async def prelude(self) -> None:
+        await super().prelude()
+        self._database = await sqlite.connect("./hasanabi.db", autocommit=True)
 
     @override
     def interludes(self) -> Iterator[Coroutine[Any, Any, None]]:
         yield RatingAverager(self).run()
+
+    @override
+    async def postlude(self) -> None:
+        await self._database.close()
 
 
 @final
@@ -102,10 +118,11 @@ class RatingAverager(Summarizer[HasanAbiLocalizer, PartialAverage, PartialAverag
         return summation + summand
 
     @override
-    async def finalizer(self, summation: PartialAverage) -> None:
-        if summation.count < 40:
-            return
+    def predicator(self, summation: PartialAverage) -> bool:
+        return summation.count >= 40
 
+    @override
+    async def finalizer(self, summation: PartialAverage) -> None:
         rating = summation.evaluate()
 
         if rating <= 5:
