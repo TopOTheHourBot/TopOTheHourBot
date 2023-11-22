@@ -2,6 +2,8 @@ from __future__ import annotations
 
 __all__ = ["Client"]
 
+import asyncio
+import contextlib
 from abc import ABCMeta, abstractmethod
 from asyncio import TaskGroup
 from collections.abc import AsyncIterator, Coroutine, Iterable, Iterator
@@ -10,6 +12,7 @@ from typing import Any, Final, Literal, final
 import ircv3
 from ircv3 import (IRCv3ClientCommandProtocol, IRCv3Command,
                    IRCv3ServerCommandProtocol, Ping)
+from ircv3.dialects import twitch
 from ircv3.dialects.twitch import (RoomState, ServerJoin, ServerPart,
                                    ServerPrivateMessage)
 from websockets import ConnectionClosed, WebSocketClientProtocol
@@ -58,11 +61,14 @@ class Client(Diverter[IRCv3ServerCommandProtocol], metaclass=ABCMeta):
     See ``Diverter``, ``Pipe``, and ``Series`` for more details.
     """
 
-    __slots__ = ("_connection")
+    __slots__ = ("_connection", "_last_message_time")
     _connection: WebSocketClientProtocol
+    _last_message_time: float
+    message_cooldown: Final[float] = 1.5
 
     def __init__(self, connection: WebSocketClientProtocol) -> None:
         self._connection = connection
+        self._last_message_time = 0
 
     @final
     def _parse_commands(self, data: str) -> Iterator[IRCv3ServerCommandProtocol]:
@@ -111,17 +117,30 @@ class Client(Diverter[IRCv3ServerCommandProtocol], metaclass=ABCMeta):
         return self._connection.latency
 
     @final
-    async def send(self, command: IRCv3ClientCommandProtocol | str) -> None:
+    async def send(self, command: IRCv3ClientCommandProtocol, *, important: bool = False) -> None:
         """Send a command to the IRC server
 
-        Drops the command if the connection has been, or is closed while
-        sending.
+        Awaits or refuses to send ``ClientPrivateMessage``s if dispatched
+        during the cooldown period while ``important`` is true or false,
+        respectively.
         """
+        if twitch.is_client_private_message(command):
+            curr_message_time = asyncio.get_running_loop().time()
+            last_message_time = self._last_message_time or curr_message_time
+            delay = max(
+                self.message_cooldown
+                - (curr_message_time - last_message_time),
+                0,
+            )
+            self._last_message_time = curr_message_time + delay
+            if delay > 0:
+                if not important:
+                    return
+                else:
+                    await asyncio.sleep(delay)
         data = str(command)
-        try:
+        with contextlib.suppress(ConnectionClosed):
             await self._connection.send(data)
-        except ConnectionClosed:
-            return  # Drop it, let recv() raise the error
 
     @final
     def close(self) -> Coroutine[Any, Any, None]:
@@ -135,9 +154,13 @@ class Client(Diverter[IRCv3ServerCommandProtocol], metaclass=ABCMeta):
 
     async def prelude(self) -> None:
         """Coroutine executed before the main distribution loop"""
-        await self.send("CAP REQ :twitch.tv/commands twitch.tv/membership twitch.tv/tags")
-        await self.send(f"PASS oauth:{self.oauth_token}")
-        await self.send(f"NICK {self.source_name}")
+        connection = self._connection
+        try:
+            await connection.send("CAP REQ :twitch.tv/commands twitch.tv/membership twitch.tv/tags")
+            await connection.send(f"PASS oauth:{self.oauth_token}")
+            await connection.send(f"NICK {self.source_name}")
+        except ConnectionClosed:
+            return
 
     @abstractmethod
     def paraludes(self) -> Iterable[Coroutine[Any, Any, Any]]:
