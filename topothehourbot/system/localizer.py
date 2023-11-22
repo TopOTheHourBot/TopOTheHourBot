@@ -18,12 +18,12 @@ from .pipes import Diverter
 # a PEP 695 alias. Fix is coming soon, see:
 # https://github.com/microsoft/pyright/issues/6169
 
-class Localizer(Diverter[LocalServerCommand], metaclass=ABCMeta):  # type: ignore
+class Localizer[ClientT: Client](Diverter[LocalServerCommand], metaclass=ABCMeta):  # type: ignore
 
     __slots__ = ("_client")
-    _client: Client
+    _client: ClientT
 
-    def __init__(self, client: Client) -> None:
+    def __init__(self, client: ClientT) -> None:
         self._client = client
 
     @property
@@ -41,8 +41,7 @@ class Localizer(Diverter[LocalServerCommand], metaclass=ABCMeta):  # type: ignor
     def latency(self) -> float:
         return self._client.latency
 
-    @final
-    def send(self, command: IRCv3ClientCommandProtocol | str) -> Coroutine[Any, Any, None]:
+    def send(self, command: IRCv3ClientCommandProtocol | str, /) -> Coroutine[Any, Any, None]:
         return self._client.send(command)
 
     @final
