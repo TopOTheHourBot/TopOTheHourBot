@@ -34,7 +34,7 @@ class TopOTheHourBot(Client):
         return oauth_token
 
     @override
-    def interludes(self) -> Iterator[Coroutine[Any, Any, None]]:
+    def paraludes(self) -> Iterator[Coroutine[Any, Any, None]]:
         yield HasanAbiLocalizer(self).run()
 
 
@@ -55,7 +55,7 @@ class HasanAbiLocalizer(Localizer[TopOTheHourBot]):
         self._database = await sqlite.connect("./hasanabi.db", autocommit=True)
 
     @override
-    def interludes(self) -> Iterator[Coroutine[Any, Any, None]]:
+    def paraludes(self) -> Iterator[Coroutine[Any, Any, None]]:
         yield RatingAverager(self).run()
 
     @override

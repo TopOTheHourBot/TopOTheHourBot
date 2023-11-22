@@ -140,7 +140,7 @@ class Client(Diverter[IRCv3ServerCommandProtocol], metaclass=ABCMeta):
         await self.send(f"NICK {self.source_name}")
 
     @abstractmethod
-    def interludes(self) -> Iterable[Coroutine[Any, Any, Any]]:
+    def paraludes(self) -> Iterable[Coroutine[Any, Any, Any]]:
         """Coroutines executed in parallel with the main distribution loop
 
         Note that coroutines returned by this method are expected to end when
@@ -183,7 +183,7 @@ class Client(Diverter[IRCv3ServerCommandProtocol], metaclass=ABCMeta):
         """
         await self.prelude()
         async with TaskGroup() as tasks:
-            for todo in self.interludes():
+            for todo in self.paraludes():
                 tasks.create_task(todo)
             try:
                 async for command in self:

@@ -56,7 +56,7 @@ class Localizer[ClientT: Client](Diverter[LocalServerCommand], metaclass=ABCMeta
         await self.send(ClientJoin(self.room))
 
     @abstractmethod
-    def interludes(self) -> Iterable[Coroutine[Any, Any, Any]]:
+    def paraludes(self) -> Iterable[Coroutine[Any, Any, Any]]:
         raise NotImplementedError
 
     async def postlude(self) -> None:
@@ -66,7 +66,7 @@ class Localizer[ClientT: Client](Diverter[LocalServerCommand], metaclass=ABCMeta
     async def run(self) -> None:
         await self.prelude()
         async with TaskGroup() as tasks:
-            for todo in self.interludes():
+            for todo in self.paraludes():
                 tasks.create_task(todo)
             with self._client.attachment() as pipe:
                 async for command in (
