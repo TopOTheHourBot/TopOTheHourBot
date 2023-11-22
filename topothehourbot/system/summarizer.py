@@ -18,7 +18,7 @@ class Summarizer[ClientT: Client | Localizer, SummationT, SummandT](metaclass=AB
 
     Upon ``run()``ning, perpetually executes the map-reduce routine over
     batches of successful command mappings. Batches begin upon the first
-    successful mapping, and ends when no further mappings can be performed
+    successful mapping, and end when no further mappings can be performed
     within ``timeout``. At which point, ``finalize()`` is asynchronously
     dispatched with the reduction value, and the map-reduce routine prepares to
     restart for the next batch.
@@ -37,27 +37,54 @@ class Summarizer[ClientT: Client | Localizer, SummationT, SummandT](metaclass=AB
     @property
     @abstractmethod
     def initial(self) -> SummationT:
+        """The initial reduction value
+
+        Typically a kind of nil value with respect to the data type.
+        """
         raise NotImplementedError
 
     @property
     @abstractmethod
     def timeout(self) -> Optional[float]:
+        """The mapping timeout, in seconds
+
+        A batch ends when no mappings can be performed within this duration,
+        beginning from the latest successful mapping.
+        """
         raise NotImplementedError
 
     @abstractmethod
     def mapper(self, command: IRCv3ServerCommandProtocol, /) -> Optional[SummandT]:
+        """Return ``command`` as a summand, or ``None`` if no such conversion
+        is possible
+        """
         raise NotImplementedError
 
     @abstractmethod
     def reducer(self, summation: SummationT, summand: SummandT, /) -> SummationT:
+        """Return ``summation`` and ``summand`` reduced to a new summation"""
         raise NotImplementedError
+
+    def predicator(self, summation: SummationT, /) -> object:
+        """Return true if ``summation`` should be finalized, otherwise false
+
+        Unconditionally returns true in the base implementation.
+        """
+        return True
 
     @abstractmethod
     async def finalizer(self, summation: SummationT, /) -> None:
+        """Finalize the routine
+
+        Often reports ``summation`` to the client or a storage system.
+        """
         raise NotImplementedError
 
     @final
     async def run(self) -> None:
+        """Perpetually read and perform the map-reduce routine with attachment
+        to the client
+        """
         async with TaskGroup() as tasks:
             with self.client.attachment() as pipe:
                 while (
@@ -67,4 +94,5 @@ class Summarizer[ClientT: Client | Localizer, SummationT, SummandT](metaclass=AB
                         .timeout(self.timeout)
                         .reduce(self.initial, self.reducer)
                 ):
-                    tasks.create_task(self.finalizer(reduction.value))
+                    if self.predicator(summation := reduction.value):
+                        tasks.create_task(self.finalizer(summation))
