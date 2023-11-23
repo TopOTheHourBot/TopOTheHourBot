@@ -9,10 +9,10 @@ from typing import Optional, final
 from ircv3 import IRCv3ServerCommandProtocol
 
 from .client import Client
-from .localizer import Localizer
+from .local_client import LocalClient
 
 
-class Summarizer[ClientT: Client | Localizer, SummationT, SummandT](metaclass=ABCMeta):
+class Summarizer[ClientT: Client | LocalClient, SummationT, SummandT](metaclass=ABCMeta):
     """A base attachment class for designing map-reduce routines across server
     commands
 

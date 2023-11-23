@@ -100,15 +100,21 @@ class Client(Diverter[IRCv3ServerCommandProtocol], metaclass=ABCMeta):
 
     @property
     @abstractmethod
+    def oauth_token(self) -> str:
+        """The client OAuth token"""
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
     def source_name(self) -> str:
         """The client source name"""
         raise NotImplementedError
 
     @property
-    @abstractmethod
-    def oauth_token(self) -> str:
-        """The client OAuth token"""
-        raise NotImplementedError
+    @final
+    def room(self) -> str:
+        """The client's room"""
+        return "#" + self.source_name
 
     @property
     @final

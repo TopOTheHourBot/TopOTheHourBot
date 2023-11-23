@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-__all__ = ["Localizer"]
+__all__ = ["LocalClient"]
 
 from abc import ABCMeta, abstractmethod
 from asyncio import TaskGroup
 from collections.abc import Coroutine, Iterable
-from typing import Any, final, overload
+from typing import Any, Protocol, final, overload
 
 from ircv3.dialects import twitch
 from ircv3.dialects.twitch import LocalServerCommand, ServerPrivateMessage
@@ -13,32 +13,39 @@ from ircv3.dialects.twitch import LocalServerCommand, ServerPrivateMessage
 from .client import Client
 from .pipes import Diverter
 
-# Pyright will complain about this definition because LocalServerCommand is a
-# a PEP 695 alias. Fix is coming soon, see:
-# https://github.com/microsoft/pyright/issues/6169
 
-class Localizer[ClientT: Client](Diverter[LocalServerCommand], metaclass=ABCMeta):  # type: ignore
+@final
+class GlobalClientInterface(Protocol):  # For typing purposes only
+    @property
+    def source_name(self) -> str: ...
+    @property
+    def room(self) -> str: ...
+    @property
+    def latency(self) -> float: ...
+
+
+class LocalClient[GlobalClientT: Client](Diverter[LocalServerCommand], metaclass=ABCMeta):  # type: ignore
 
     __slots__ = ("_client")
-    _client: ClientT
+    _client: GlobalClientT
 
-    def __init__(self, client: ClientT) -> None:
+    def __init__(self, client: GlobalClientT) -> None:
         self._client = client
 
     @property
     @abstractmethod
-    def room(self) -> str:
+    def source_name(self) -> str:
         raise NotImplementedError
 
     @property
     @final
-    def source_name(self) -> str:
-        return self._client.source_name
+    def room(self) -> str:
+        return "#" + self.source_name
 
     @property
     @final
-    def latency(self) -> float:
-        return self._client.latency
+    def global_client(self) -> GlobalClientInterface:
+        return self._client
 
     def join(self) -> Coroutine[Any, Any, None]:
         """JOIN the localizer room"""
@@ -100,10 +107,11 @@ class Localizer[ClientT: Client](Diverter[LocalServerCommand], metaclass=ABCMeta
             for todo in self.paraludes():
                 tasks.create_task(todo)
             with self._client.attachment() as pipe:
+                room = self.room
                 async for command in (
                     aiter(pipe)
                         .filter(twitch.is_local_server_command)
-                        .filter(lambda command: command.room == self.room)
+                        .filter(lambda command: command.room == room)
                 ):
                     for pipe in self.pipes():
                         pipe.send(command)

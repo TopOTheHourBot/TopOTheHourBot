@@ -1,3 +1,3 @@
 from .client import *
-from .localizer import *
+from .local_client import *
 from .summarizer import *
