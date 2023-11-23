@@ -16,7 +16,7 @@ from aiosqlite import Connection as SQLiteConnection
 from ircv3 import IRCv3ServerCommandProtocol
 from ircv3.dialects import twitch
 
-from .system import Client, Localizer, Summarizer
+from .system import Client, LocalClient, Summarizer
 
 
 @final
@@ -34,32 +34,18 @@ class TopOTheHourBot(Client):
 
     @override
     def paraludes(self) -> Iterator[Coroutine[Any, Any, None]]:
-        yield HasanAbiLocalizer(self).run()
+        yield HasanAbi(self).run()
 
 
 @final
-class HasanAbiLocalizer(Localizer[TopOTheHourBot]):
+class HasanAbi(LocalClient[TopOTheHourBot]):
 
-    __slots__ = ("_database")
-    room: Final[Literal["#hasanabi"]] = "#hasanabi"
-    _database: SQLiteConnection
-
-    @property
-    def database(self) -> SQLiteConnection:
-        return self._database
-
-    @override
-    async def prelude(self) -> None:
-        await super().prelude()
-        self._database = await sqlite.connect("./hasanabi.db", autocommit=True)
+    __slots__ = ()
+    source_name: Final[Literal["hasanabi"]] = "hasanabi"
 
     @override
     def paraludes(self) -> Iterator[Coroutine[Any, Any, None]]:
         yield RatingAverager(self).run()
-
-    @override
-    async def postlude(self) -> None:
-        await self._database.close()
 
 
 @final
@@ -83,7 +69,7 @@ class PartialAverage:
         return self.value / self.count
 
 
-class RatingAverager(Summarizer[HasanAbiLocalizer, PartialAverage, PartialAverage]):
+class RatingAverager(Summarizer[HasanAbi, PartialAverage, PartialAverage]):
 
     __slots__ = ()
     initial: Final[PartialAverage] = PartialAverage(0, 0)
@@ -162,4 +148,5 @@ class RatingAverager(Summarizer[HasanAbiLocalizer, PartialAverage, PartialAverag
         await self.client.message(
             f"DANKIES 🔔 {summation.count} chatters rated this ad segue an "
             f"average of {average:.2f}/10 - {splash} {emote}",
+            important=True,
         )
