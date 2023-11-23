@@ -3,7 +3,6 @@ from __future__ import annotations
 __all__ = ["Client"]
 
 import asyncio
-import contextlib
 from abc import ABCMeta, abstractmethod
 from asyncio import TaskGroup
 from collections.abc import AsyncIterator, Coroutine, Iterable, Iterator
@@ -12,9 +11,9 @@ from typing import Any, Final, Literal, final
 import ircv3
 from ircv3 import (IRCv3ClientCommandProtocol, IRCv3Command,
                    IRCv3ServerCommandProtocol, Ping)
-from ircv3.dialects import twitch
-from ircv3.dialects.twitch import (RoomState, ServerJoin, ServerPart,
-                                   ServerPrivateMessage)
+from ircv3.dialects.twitch import (ClientJoin, ClientPart,
+                                   ClientPrivateMessage, RoomState, ServerJoin,
+                                   ServerPart, ServerPrivateMessage)
 from websockets import ConnectionClosed, WebSocketClientProtocol
 
 from .pipes import Diverter
@@ -61,14 +60,19 @@ class Client(Diverter[IRCv3ServerCommandProtocol], metaclass=ABCMeta):
     See ``Diverter``, ``Pipe``, and ``Series`` for more details.
     """
 
-    __slots__ = ("_connection", "_last_message_time")
+    __slots__ = ("_connection", "_last_message_time", "_last_join_time")
+
     _connection: WebSocketClientProtocol
     _last_message_time: float
+    _last_join_time: float
+
     message_cooldown: Final[float] = 1.5
+    join_cooldown: Final[float] = 1.5
 
     def __init__(self, connection: WebSocketClientProtocol) -> None:
         self._connection = connection
         self._last_message_time = 0
+        self._last_join_time = 0
 
     @final
     def _parse_commands(self, data: str) -> Iterator[IRCv3ServerCommandProtocol]:
@@ -117,33 +121,71 @@ class Client(Diverter[IRCv3ServerCommandProtocol], metaclass=ABCMeta):
         return self._connection.latency
 
     @final
-    async def send(self, command: IRCv3ClientCommandProtocol, *, important: bool = False) -> None:
+    async def send(self, command: IRCv3ClientCommandProtocol | str, /) -> None:
         """Send a command to the IRC server
 
-        Awaits or refuses to send ``ClientPrivateMessage``s if dispatched
-        during the cooldown period while ``important`` is true or false,
-        respectively.
+        Drops the command if the connection is closed during execution.
         """
-        if twitch.is_client_private_message(command):
-            curr_message_time = asyncio.get_running_loop().time()
-            last_message_time = self._last_message_time or curr_message_time
-            delay = max(
-                self.message_cooldown
-                - (curr_message_time - last_message_time),
-                0,
-            )
-            if important:
-                if delay > 0:
-                    self._last_message_time = curr_message_time + delay
-                    await asyncio.sleep(delay)
-            else:
-                if delay > 0:
-                    return
-                else:
-                    self._last_message_time = curr_message_time
         data = str(command)
-        with contextlib.suppress(ConnectionClosed):
+        try:
             await self._connection.send(data)
+        except ConnectionClosed:
+            return
+
+    async def join(self, *rooms: str) -> None:
+        """Send a JOIN command to the IRC server"""
+        curr_join_time = asyncio.get_running_loop().time()
+        last_join_time = self._last_join_time
+        if last_join_time:
+            delay = max(self.join_cooldown - (curr_join_time - last_join_time), 0)
+        else:
+            delay = 0
+        self._last_join_time = curr_join_time + delay
+        if delay:
+            await asyncio.sleep(delay)
+        await self.send(ClientJoin(*rooms))
+
+    async def part(self, *rooms: str) -> None:
+        """Send a PART command to the IRC server"""
+        await self.send(ClientPart(*rooms))
+
+    async def message(
+        self,
+        target: ServerPrivateMessage | str,
+        comment: str,
+        /,
+        *,
+        important: bool = False,
+    ) -> None:
+        """Send a PRIVMSG command to the IRC server
+
+        Composes a ``ClientPrivateMessage`` in reply to ``target`` if a
+        ``ServerPrivateMessage``, or to the channel named by ``target`` if a
+        ``str``.
+
+        PRIVMSGs have a global 1.5-second cooldown. ``important`` can be set to
+        true to wait for the cooldown, or false to prevent waiting when a
+        dispatch occurs during a cooldown period.
+        """
+        curr_message_time = asyncio.get_running_loop().time()
+        last_message_time = self._last_message_time
+        if last_message_time:
+            delay = max(self.message_cooldown - (curr_message_time - last_message_time), 0)
+        else:
+            delay = 0
+        if important:
+            self._last_message_time = curr_message_time + delay
+            if delay:
+                await asyncio.sleep(delay)
+        else:
+            if delay:
+                return
+            self._last_message_time = curr_message_time
+        if isinstance(target, str):
+            command = ClientPrivateMessage(target, comment)
+        else:
+            command = target.reply(comment)
+        await self.send(command)
 
     @final
     def close(self) -> Coroutine[Any, Any, None]:
@@ -157,13 +199,9 @@ class Client(Diverter[IRCv3ServerCommandProtocol], metaclass=ABCMeta):
 
     async def prelude(self) -> None:
         """Coroutine executed before the main distribution loop"""
-        connection = self._connection
-        try:
-            await connection.send("CAP REQ :twitch.tv/commands twitch.tv/membership twitch.tv/tags")
-            await connection.send(f"PASS oauth:{self.oauth_token}")
-            await connection.send(f"NICK {self.source_name}")
-        except ConnectionClosed:
-            return
+        await self.send("CAP REQ :twitch.tv/commands twitch.tv/membership twitch.tv/tags")
+        await self.send(f"PASS oauth:{self.oauth_token}")
+        await self.send(f"NICK {self.source_name}")
 
     @abstractmethod
     def paraludes(self) -> Iterable[Coroutine[Any, Any, Any]]:
