@@ -15,7 +15,6 @@ import aiosqlite as sqlite
 from aiosqlite import Connection as SQLiteConnection
 from ircv3 import IRCv3ServerCommandProtocol
 from ircv3.dialects import twitch
-from ircv3.dialects.twitch import ClientPrivateMessage
 
 from .system import Client, Localizer, Summarizer
 
@@ -123,9 +122,9 @@ class RatingAverager(Summarizer[HasanAbiLocalizer, PartialAverage, PartialAverag
 
     @override
     async def finalizer(self, summation: PartialAverage) -> None:
-        rating = summation.evaluate()
+        average = summation.evaluate()
 
-        if rating <= 5:
+        if average <= 5:
             emote = random.choice(
                 (
                     "unPOGGERS",
@@ -138,7 +137,7 @@ class RatingAverager(Summarizer[HasanAbiLocalizer, PartialAverage, PartialAverag
                     "HUHH",
                 ),
             )
-            if rating <= 2.5:
+            if average <= 2.5:
                 splash = "awful one, hassy"
             else:
                 splash = "uhm.. good attempt, hassy"
@@ -155,15 +154,12 @@ class RatingAverager(Summarizer[HasanAbiLocalizer, PartialAverage, PartialAverag
                     "veryCat",
                 ),
             )
-            if rating <= 7.5:
+            if average <= 7.5:
                 splash = "not bad, hassy"
             else:
                 splash = "incredible, hassy!"
 
-        command = ClientPrivateMessage(
-            self.client.room,
+        await self.client.message(
             f"DANKIES 🔔 {summation.count} chatters rated this ad segue an "
-            f"average of {rating:.2f}/10 - {splash} {emote}",
+            f"average of {average:.2f}/10 - {splash} {emote}",
         )
-
-        await self.client.send(command)
