@@ -5,11 +5,10 @@ __all__ = ["Localizer"]
 from abc import ABCMeta, abstractmethod
 from asyncio import TaskGroup
 from collections.abc import Coroutine, Iterable
-from typing import Any, final
+from typing import Any, final, overload
 
-from ircv3 import IRCv3ClientCommandProtocol
 from ircv3.dialects import twitch
-from ircv3.dialects.twitch import ClientJoin, LocalServerCommand
+from ircv3.dialects.twitch import LocalServerCommand, ServerPrivateMessage
 
 from .client import Client
 from .pipes import Diverter
@@ -41,8 +40,40 @@ class Localizer[ClientT: Client](Diverter[LocalServerCommand], metaclass=ABCMeta
     def latency(self) -> float:
         return self._client.latency
 
-    def send(self, command: IRCv3ClientCommandProtocol | str, /) -> Coroutine[Any, Any, None]:
-        return self._client.send(command)
+    def join(self) -> Coroutine[Any, Any, None]:
+        """JOIN the localizer room"""
+        return self._client.join(self.room)
+
+    def part(self) -> Coroutine[Any, Any, None]:
+        """PART the localizer room"""
+        return self._client.part(self.room)
+
+    @overload
+    async def message(self, to: ServerPrivateMessage, comment: str, /, *, important: bool = False) -> None: ...
+    @overload
+    async def message(self, comment: str, /, *, important: bool = False) -> None: ...
+
+    def message(self, *args, important=False):
+        """Send a PRIVMSG in reply to another message, or to the localizer room
+
+        Composite of ``Client.message()``, see its docstring for more details.
+        """
+        n = len(args)
+        if n == 2:
+            message, comment = args
+            return self._client.message(
+                message,
+                comment,
+                important=important,
+            )
+        if n == 1:
+            comment, = args
+            return self._client.message(
+                self.room,
+                comment,
+                important=important,
+            )
+        raise TypeError(f"expected 1 or 2 positional arguments, got {n}")
 
     @final
     def close(self) -> Coroutine[Any, Any, None]:
@@ -52,15 +83,15 @@ class Localizer[ClientT: Client](Diverter[LocalServerCommand], metaclass=ABCMeta
     def until_closure(self) -> Coroutine[Any, Any, None]:
         return self._client.until_closure()
 
-    async def prelude(self) -> None:
-        await self.send(ClientJoin(self.room))
+    def prelude(self) -> Coroutine[Any, Any, None]:
+        return self.join()
 
     @abstractmethod
     def paraludes(self) -> Iterable[Coroutine[Any, Any, Any]]:
         raise NotImplementedError
 
-    async def postlude(self) -> None:
-        return
+    def postlude(self) -> Coroutine[Any, Any, None]:
+        return self.part()
 
     @final
     async def run(self) -> None:
