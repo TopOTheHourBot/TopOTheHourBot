@@ -1,3 +1,3 @@
 from .client import *
-from .local_client import *
+from .sub_client import *
 from .summarizer import *

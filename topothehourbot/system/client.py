@@ -152,7 +152,6 @@ class Client(
         self,
         target: ServerPrivateMessage | str,
         comment: str,
-        /,
         *,
         important: bool = False,
     ) -> None:
@@ -208,7 +207,7 @@ class Client(
         """Wait until the IRC connection has been closed"""
         return self._connection.wait_closed()
 
-    async def prelude(self) -> None:
+    async def prelude(self) -> Any:
         """Coroutine executed before the main distribution loop
 
         Authenticates and requests capabilities from the IRC server by default.
@@ -246,7 +245,7 @@ class Client(
         """
         return ()
 
-    async def postlude(self) -> None:
+    async def postlude(self) -> Any:
         """Coroutine executed after the main distribution loop
 
         Takes no action by default.
