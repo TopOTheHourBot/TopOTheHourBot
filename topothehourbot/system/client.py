@@ -13,7 +13,8 @@ from ircv3 import (IRCv3ClientCommandProtocol, IRCv3Command,
                    IRCv3ServerCommandProtocol, Ping)
 from ircv3.dialects.twitch import (ClientJoin, ClientPart,
                                    ClientPrivateMessage, RoomState, ServerJoin,
-                                   ServerPart, ServerPrivateMessage)
+                                   ServerPart, ServerPrivateMessage,
+                                   SupportsClientProperties)
 from websockets import ConnectionClosed, WebSocketClientProtocol
 
 from .pipes import Diverter
@@ -21,7 +22,11 @@ from .pipes import Diverter
 CRLF: Final[Literal["\r\n"]] = "\r\n"
 
 
-class Client(Diverter[IRCv3ServerCommandProtocol], metaclass=ABCMeta):
+class Client(
+    Diverter[IRCv3ServerCommandProtocol],
+    SupportsClientProperties,
+    metaclass=ABCMeta,
+):
     """A wrapper type around a ``websockets.WebSocketClientProtocol`` instance
     that provides a Twitch IRC abstraction layer, and a publisher-subscriber
     model for use by coroutines.
@@ -60,19 +65,19 @@ class Client(Diverter[IRCv3ServerCommandProtocol], metaclass=ABCMeta):
     See ``Diverter``, ``Pipe``, and ``Series`` for more details.
     """
 
-    __slots__ = ("_connection", "_last_message_time", "_last_join_time")
+    __slots__ = ("_connection", "_last_message_epoch", "_last_join_epoch")
 
     _connection: WebSocketClientProtocol
-    _last_message_time: float
-    _last_join_time: float
+    _last_message_epoch: float
+    _last_join_epoch: float
 
     message_cooldown: Final[float] = 1.5
     join_cooldown: Final[float] = 1.5
 
     def __init__(self, connection: WebSocketClientProtocol) -> None:
         self._connection = connection
-        self._last_message_time = 0
-        self._last_join_time = 0
+        self._last_message_epoch = 0
+        self._last_join_epoch = 0
 
     @final
     def _parse_commands(self, data: str) -> Iterator[IRCv3ServerCommandProtocol]:
@@ -101,20 +106,8 @@ class Client(Diverter[IRCv3ServerCommandProtocol], metaclass=ABCMeta):
     @property
     @abstractmethod
     def oauth_token(self) -> str:
-        """The client OAuth token"""
+        """The client's OAuth token"""
         raise NotImplementedError
-
-    @property
-    @abstractmethod
-    def source_name(self) -> str:
-        """The client source name"""
-        raise NotImplementedError
-
-    @property
-    @final
-    def room(self) -> str:
-        """The client's room"""
-        return "#" + self.source_name
 
     @property
     @final
@@ -140,13 +133,13 @@ class Client(Diverter[IRCv3ServerCommandProtocol], metaclass=ABCMeta):
 
     async def join(self, *rooms: str) -> None:
         """Send a JOIN command to the IRC server"""
-        curr_join_time = asyncio.get_running_loop().time()
-        last_join_time = self._last_join_time
-        if last_join_time:
-            delay = max(self.join_cooldown - (curr_join_time - last_join_time), 0)
+        curr_join_epoch = asyncio.get_running_loop().time()
+        last_join_epoch = self._last_join_epoch
+        if last_join_epoch:
+            delay = max(self.join_cooldown - (curr_join_epoch - last_join_epoch), 0)
         else:
             delay = 0
-        self._last_join_time = curr_join_time + delay
+        self._last_join_epoch = curr_join_epoch + delay
         if delay:
             await asyncio.sleep(delay)
         await self.send(ClientJoin(*rooms))
@@ -173,20 +166,20 @@ class Client(Diverter[IRCv3ServerCommandProtocol], metaclass=ABCMeta):
         true to wait for the cooldown, or false to prevent waiting when a
         dispatch occurs during a cooldown period.
         """
-        curr_message_time = asyncio.get_running_loop().time()
-        last_message_time = self._last_message_time
-        if last_message_time:
-            delay = max(self.message_cooldown - (curr_message_time - last_message_time), 0)
+        curr_message_epoch = asyncio.get_running_loop().time()
+        last_message_epoch = self._last_message_epoch
+        if last_message_epoch:
+            delay = max(self.message_cooldown - (curr_message_epoch - last_message_epoch), 0)
         else:
             delay = 0
         if important:
-            self._last_message_time = curr_message_time + delay
+            self._last_message_epoch = curr_message_epoch + delay
             if delay:
                 await asyncio.sleep(delay)
         else:
             if delay:
                 return
-            self._last_message_time = curr_message_time
+            self._last_message_epoch = curr_message_epoch
         if isinstance(target, str):
             command = ClientPrivateMessage(target, comment)
         else:
@@ -207,7 +200,7 @@ class Client(Diverter[IRCv3ServerCommandProtocol], metaclass=ABCMeta):
         """Coroutine executed before the main distribution loop"""
         await self.send("CAP REQ :twitch.tv/commands twitch.tv/membership twitch.tv/tags")
         await self.send(f"PASS oauth:{self.oauth_token}")
-        await self.send(f"NICK {self.source_name}")
+        await self.send(f"NICK {self.name}")
 
     @abstractmethod
     def paraludes(self) -> Iterable[Coroutine[Any, Any, Any]]:
