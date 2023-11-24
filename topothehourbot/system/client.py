@@ -172,6 +172,17 @@ class Client(
             delay = max(self.message_cooldown - (curr_message_epoch - last_message_epoch), 0)
         else:
             delay = 0
+
+        # Note that the moment at which we set _last_message_epoch is crucial
+        # to timing everything correctly, here.
+        #
+        # If important=True, we must set _last_message_epoch *before* sleeping
+        # so that subsequent sends during the cooldown period read back the
+        # epoch for the delay calculation above.
+        #
+        # If important=False, we must set _last_message_epoch, but only if
+        # we're allowing the send to happen (i.e., only if there is no delay).
+
         if important:
             self._last_message_epoch = curr_message_epoch + delay
             if delay:
@@ -184,6 +195,7 @@ class Client(
             command = ClientPrivateMessage(target, comment)
         else:
             command = target.reply(comment)
+
         await self.send(command)
 
     @final
