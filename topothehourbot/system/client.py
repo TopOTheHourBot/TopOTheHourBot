@@ -205,16 +205,18 @@ class Client(
 
     @final
     def until_closure(self) -> Coroutine[Any, Any, None]:
-        """Wait until the connection has been closed"""
+        """Wait until the IRC connection has been closed"""
         return self._connection.wait_closed()
 
     async def prelude(self) -> None:
-        """Coroutine executed before the main distribution loop"""
+        """Coroutine executed before the main distribution loop
+
+        Authenticates and requests capabilities from the IRC server by default.
+        """
         await self.send("CAP REQ :twitch.tv/commands twitch.tv/membership twitch.tv/tags")
         await self.send(f"PASS oauth:{self.oauth_token}")
         await self.send(f"NICK {self.name}")
 
-    @abstractmethod
     def paraludes(self) -> Iterable[Coroutine[Any, Any, Any]]:
         """Coroutines executed in parallel with the main distribution loop
 
@@ -242,10 +244,13 @@ class Client(
             await task
         ```
         """
-        raise NotImplementedError
+        return ()
 
     async def postlude(self) -> None:
-        """Coroutine executed after the main distribution loop"""
+        """Coroutine executed after the main distribution loop
+
+        Takes no action by default.
+        """
         return
 
     @final
@@ -258,17 +263,17 @@ class Client(
         """
         await self.prelude()
         async with TaskGroup() as tasks:
-            for todo in self.paraludes():
-                tasks.create_task(todo)
+            for coro in self.paraludes():
+                tasks.create_task(coro)
             try:
                 async for command in self:
                     if ircv3.is_ping(command):
-                        todo = self.send(command.reply())
+                        coro = self.send(command.reply())
                     else:
                         for pipe in self.pipes():
                             pipe.send(command)
                         continue
-                    tasks.create_task(todo)
+                    tasks.create_task(coro)
             except ConnectionClosed:
                 pass
             finally:
