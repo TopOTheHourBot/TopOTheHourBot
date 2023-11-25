@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-__all__ = ["SubClient"]
+__all__ = [
+    "SourceClient",
+    "SubClient",
+]
 
 from abc import ABCMeta, abstractmethod
 from asyncio import TaskGroup
@@ -13,18 +16,20 @@ from ircv3.dialects.twitch import ServerPrivateMessage
 from .client import Client
 from .pipes import Diverter
 
+type SourceClient = Client | SubClient
 
-class SubClient[ClientT: Client, ValueT](Diverter[ValueT], metaclass=ABCMeta):
+
+class SubClient[SourceClientT: SourceClient, ValueT](Diverter[ValueT], metaclass=ABCMeta):
 
     __slots__ = ("_source_client")
-    _source_client: ClientT
+    _source_client: SourceClientT
 
-    def __init__(self, source_client: ClientT) -> None:
+    def __init__(self, source_client: SourceClientT) -> None:
         self._source_client = source_client
 
     @property
     @final
-    def source_client(self) -> ClientT:
+    def source_client(self) -> SourceClientT:
         """The source client"""
         return self._source_client
 
