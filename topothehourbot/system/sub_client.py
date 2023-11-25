@@ -8,8 +8,7 @@ from collections.abc import Coroutine, Iterable
 from typing import Any, Optional, final
 
 from ircv3 import IRCv3ServerCommandProtocol
-from ircv3.dialects.twitch import (ServerPrivateMessage,
-                                   SupportsClientProperties)
+from ircv3.dialects.twitch import ServerPrivateMessage
 
 from .client import Client
 from .pipes import Diverter
@@ -17,25 +16,25 @@ from .pipes import Diverter
 
 class SubClient[ClientT: Client, ValueT](Diverter[ValueT], metaclass=ABCMeta):
 
-    __slots__ = ("_client")
-    _client: ClientT
+    __slots__ = ("_source_client")
+    _source_client: ClientT
 
-    def __init__(self, client: ClientT) -> None:
-        self._client = client
+    def __init__(self, source_client: ClientT) -> None:
+        self._source_client = source_client
 
     @property
     @final
-    def client(self) -> SupportsClientProperties:
-        """The superior client"""
-        return self._client
+    def source_client(self) -> ClientT:
+        """The source client"""
+        return self._source_client
 
     def join(self, *rooms: str) -> Coroutine[Any, Any, None]:
         """Send a JOIN command to the IRC server"""
-        return self._client.join(*rooms)
+        return self._source_client.join(*rooms)
 
     def part(self, *rooms: str) -> Coroutine[Any, Any, None]:
         """Send a PART command to the IRC server"""
-        return self._client.part(*rooms)
+        return self._source_client.part(*rooms)
 
     def message(
         self,
@@ -45,20 +44,23 @@ class SubClient[ClientT: Client, ValueT](Diverter[ValueT], metaclass=ABCMeta):
         important: bool = False,
     ) -> Coroutine[Any, Any, None]:
         """Send a PRIVMSG command to the IRC server"""
-        return self._client.message(target, comment, important=important)
+        return self._source_client.message(target, comment, important=important)
 
     @final
     def close(self) -> Coroutine[Any, Any, None]:
         """Close the connection to the IRC server"""
-        return self._client.close()
+        return self._source_client.close()
 
     @final
     def until_closure(self) -> Coroutine[Any, Any, None]:
         """Wait until the IRC connection has been closed"""
-        return self._client.until_closure()
+        return self._source_client.until_closure()
 
     @abstractmethod
     def mapper(self, command: IRCv3ServerCommandProtocol, /) -> Optional[ValueT]:
+        """Return the ``command`` as a new value, or ``None`` if no such
+        conversion is possible
+        """
         raise NotImplementedError
 
     async def prelude(self) -> Any:
@@ -88,7 +90,7 @@ class SubClient[ClientT: Client, ValueT](Diverter[ValueT], metaclass=ABCMeta):
         async with TaskGroup() as tasks:
             for coro in self.paraludes():
                 tasks.create_task(coro)
-            with self._client.attachment() as pipe:
+            with self._source_client.attachment() as pipe:
                 async for command in (
                     aiter(pipe)
                         .map(self.mapper)
