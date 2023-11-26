@@ -2,50 +2,89 @@ from __future__ import annotations
 
 __all__ = ["TopOTheHourBot"]
 
-import os
 import random
 import re
 from collections.abc import Coroutine, Iterator
 from dataclasses import dataclass
 from decimal import Decimal
 from re import Pattern
-from typing import Any, Final, Literal, Optional, final, override
+from typing import Any, Final, Literal, Optional, final, overload, override
 
-import aiosqlite as sqlite
-from aiosqlite import Connection as SQLiteConnection
 from ircv3 import IRCv3ServerCommandProtocol
 from ircv3.dialects import twitch
+from ircv3.dialects.twitch import (LocalServerCommand, ServerPrivateMessage,
+                                   SupportsClientProperties)
 
-from .system import Client, LocalClient, Summarizer
+from .system import Client, SubClient, Summarizer
 
 
 @final
 class TopOTheHourBot(Client):
 
     __slots__ = ()
-    source_name: Final[Literal["topothehourbot"]] = "topothehourbot"
-
-    @property
-    @override
-    def oauth_token(self) -> str:
-        oauth_token = os.getenv("TWITCH_OAUTH_TOKEN")
-        assert oauth_token is not None
-        return oauth_token
+    name: Final[Literal["topothehourbot"]] = "topothehourbot"
 
     @override
     def paraludes(self) -> Iterator[Coroutine[Any, Any, None]]:
-        yield HasanAbi(self).run()
+        yield HasanAbiRoomer(self).run()
 
 
 @final
-class HasanAbi(LocalClient[TopOTheHourBot]):
+class HasanAbiRoomer(
+    SubClient[TopOTheHourBot, LocalServerCommand],  # type: ignore
+    SupportsClientProperties,
+):
 
     __slots__ = ()
-    source_name: Final[Literal["hasanabi"]] = "hasanabi"
+    name: Final[Literal["hasanabi"]] = "hasanabi"
+
+    @override
+    def mapper(self, command: IRCv3ServerCommandProtocol) -> Optional[LocalServerCommand]:
+        if (
+            not twitch.is_local_server_command(command)
+            or self.room != command.room
+        ):
+            return
+        else:
+            return command
+
+    @override
+    def prelude(self) -> Coroutine[Any, Any, None]:
+        return self.source_client.join(self.room)
 
     @override
     def paraludes(self) -> Iterator[Coroutine[Any, Any, None]]:
         yield RatingAverager(self).run()
+
+    @override
+    def postlude(self) -> Coroutine[Any, Any, None]:
+        return self.source_client.part(self.room)
+
+    @overload
+    async def message(self, message: ServerPrivateMessage, comment: str, /, *, important: bool = False) -> None: ...
+    @overload
+    async def message(self, comment: str, /, *, important: bool = False) -> None: ...
+
+    async def message(self, *args: ServerPrivateMessage | str, important: bool = False) -> None:
+        n = len(args)
+        if n == 2:
+            message, comment = args
+            assert isinstance(message, ServerPrivateMessage)
+            assert isinstance(comment, str)
+            return await self.source_client.message(
+                message,
+                comment,
+                important=important,
+            )
+        if n == 1:
+            comment, = args
+            assert isinstance(comment, str)
+            return await self.source_client.message(
+                self.room,
+                comment,
+                important=important,
+            )
+        raise TypeError(f"expected 1 or 2 positional arguments, got {n}")
 
 
 @final
@@ -69,7 +108,7 @@ class PartialAverage:
         return self.value / self.count
 
 
-class RatingAverager(Summarizer[HasanAbi, PartialAverage, PartialAverage]):
+class RatingAverager(Summarizer[HasanAbiRoomer, PartialAverage, PartialAverage]):
 
     __slots__ = ()
     initial: Final[PartialAverage] = PartialAverage(0, 0)
@@ -88,11 +127,21 @@ class RatingAverager(Summarizer[HasanAbi, PartialAverage, PartialAverage]):
         flags=re.ASCII | re.VERBOSE,
     )
 
+    @property
+    def client(self) -> TopOTheHourBot:
+        """Same as ``self.source_client.source_client``"""
+        return self.source_client.source_client
+
+    @property
+    def roomer(self) -> HasanAbiRoomer:
+        """Same as ``self.source_client``"""
+        return self.source_client
+
     @override
-    def mapper(self, command: IRCv3ServerCommandProtocol) -> Optional[PartialAverage]:
+    def mapper(self, command: LocalServerCommand) -> Optional[PartialAverage]:
         if (
             not twitch.is_server_private_message(command)
-            or self.client.source_name == command.sender.source_name
+            or command.sender.name == self.client.name
         ):
             return
         if (match := self.rating_pattern.search(command.comment)):
@@ -145,7 +194,7 @@ class RatingAverager(Summarizer[HasanAbi, PartialAverage, PartialAverage]):
             else:
                 splash = "incredible, hassy!"
 
-        await self.client.message(
+        await self.roomer.message(
             f"DANKIES 🔔 {summation.count} chatters rated this ad segue an "
             f"average of {average:.2f}/10 - {splash} {emote}",
             important=True,

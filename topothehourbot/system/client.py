@@ -155,17 +155,11 @@ class Client(
         """Send a PART command to the IRC server"""
         await self.send(ClientPart(*rooms))
 
-    async def message(
-        self,
-        target: ServerPrivateMessage | str,
-        comment: str,
-        *,
-        important: bool = False,
-    ) -> None:
+    async def message(self, target: ServerPrivateMessage | str, comment: str, /, *, important: bool = False) -> None:
         """Send a PRIVMSG command to the IRC server
 
         Composes a ``ClientPrivateMessage`` in reply to ``target`` if a
-        ``ServerPrivateMessage``, or to the channel named by ``target`` if a
+        ``ServerPrivateMessage``, or to the room named by ``target`` if a
         ``str``.
 
         PRIVMSGs have a global 1.5-second cooldown. ``important`` can be set to
