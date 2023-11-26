@@ -34,11 +34,17 @@ class Summarizer[
     awaited for upon connection closure.
     """
 
-    __slots__ = ("source_client")
-    source_client: SourceClientT
+    __slots__ = ("_source_client")
+    _source_client: SourceClientT
 
-    def __init__(self, source_client: SourceClientT) -> None:
-        self.source_client = source_client
+    def __init__(self, _source_client: SourceClientT) -> None:
+        self._source_client = _source_client
+
+    @property
+    @final
+    def source_client(self) -> SourceClientT:
+        """The source client"""
+        return self._source_client
 
     @property
     @abstractmethod
@@ -92,7 +98,7 @@ class Summarizer[
         to the client
         """
         async with TaskGroup() as tasks:
-            with self.source_client.attachment() as pipe:
+            with self._source_client.attachment() as pipe:
                 while (
                     reduction := await aiter(pipe)
                         .map(self.mapper)
