@@ -41,11 +41,9 @@ class HasanAbiRoomer(
     @override
     def mapper(self, command: IRCv3ServerCommandProtocol) -> Optional[LocalServerCommand]:
         if (
-            not twitch.is_local_server_command(command)
-            or self.room != command.room
+            twitch.is_local_server_command(command)
+            and (self.room == command.room)
         ):
-            return
-        else:
             return command
 
     @override
@@ -140,11 +138,10 @@ class RatingAverager(Summarizer[HasanAbiRoomer, PartialAverage, PartialAverage])
     @override
     def mapper(self, command: LocalServerCommand) -> Optional[PartialAverage]:
         if (
-            not twitch.is_server_private_message(command)
-            or command.sender.name == self.client.name
+            twitch.is_server_private_message(command)
+            and (self.client.name != command.sender.name)  # Echo
+            and (match := self.rating_pattern.search(command.comment))
         ):
-            return
-        if (match := self.rating_pattern.search(command.comment)):
             return PartialAverage(match.group(1))
 
     @override
