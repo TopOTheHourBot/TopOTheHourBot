@@ -30,7 +30,7 @@ class SubClient[SourceClientT: SourceClient, ValueT](Diverter[ValueT], metaclass
         return self._source_client
 
     @abstractmethod
-    def mapper(self, command: IRCv3ServerCommandProtocol, /) -> Optional[ValueT]:
+    def mapper(self, command: IRCv3ServerCommandProtocol | Any, /) -> Optional[ValueT]:
         """Return the ``command`` as a new value, or ``None`` if no such
         conversion is possible
         """
