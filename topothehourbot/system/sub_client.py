@@ -5,10 +5,11 @@ __all__ = ["SubClient"]
 from abc import ABCMeta, abstractmethod
 from asyncio import TaskGroup
 from collections.abc import Coroutine, Iterable
-from typing import Any, Optional, final
+from typing import Any, Optional, final, override
 
 from ircv3 import IRCv3ServerCommandProtocol
-from ircv3.dialects.twitch import ServerPrivateMessage
+from ircv3.dialects.twitch import (ServerPrivateMessage,
+                                   SupportsClientProperties)
 
 from .client import Client
 from .pipes import Diverter
@@ -16,7 +17,11 @@ from .pipes import Diverter
 type SourceClient = Client | SubClient
 
 
-class SubClient[SourceClientT: SourceClient, ValueT](Diverter[ValueT], metaclass=ABCMeta):
+class SubClient[SourceClientT: SourceClient, ValueT](
+    Diverter[ValueT],
+    SupportsClientProperties,
+    metaclass=ABCMeta,
+):
 
     __slots__ = ("_source_client")
     _source_client: SourceClientT
@@ -29,6 +34,13 @@ class SubClient[SourceClientT: SourceClient, ValueT](Diverter[ValueT], metaclass
     def source_client(self) -> SourceClientT:
         """The source client"""
         return self._source_client
+
+    @property
+    @final
+    @override
+    def name(self) -> str:
+        """The client's source IRC name"""
+        return self._source_client.name
 
     def join(self, *rooms: str) -> Coroutine[Any, Any, None]:
         """Send a JOIN command to the IRC server"""
