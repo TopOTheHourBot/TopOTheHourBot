@@ -62,7 +62,13 @@ class Series[T](AsyncIterator[T]):
         return wrapper
 
     @from_generator
-    async def _timeout_finite(self, delay: float, *, first: bool = False) -> AsyncIterator[T]:
+    async def finite_timeout(self, delay: float, *, first: bool = False) -> AsyncIterator[T]:
+        """Return a sub-series whose value retrievals are time restricted by
+        ``delay`` seconds
+
+        If ``first`` is true, applies the timeout while awaiting the first
+        value. False by default.
+        """
         try:
             if not first:
                 yield await anext(self)
@@ -72,8 +78,8 @@ class Series[T](AsyncIterator[T]):
             return
 
     def timeout(self, delay: Optional[float], *, first: bool = False) -> Series[T]:
-        """Return a sub-series whose value retrievals are time restricted by
-        ``delay`` seconds
+        """Return a sub-series whose value retrievals are optionally time
+        restricted by ``delay`` seconds
 
         If ``delay`` is ``None``, do not apply a timeout.
 
@@ -82,7 +88,7 @@ class Series[T](AsyncIterator[T]):
         """
         if delay is None:  # Reduces layers of composition
             return self
-        return self._timeout_finite(delay, first=first)
+        return self.finite_timeout(delay, first=first)
 
     @from_generator
     async def global_unique(self, key: Callable[[T], object] = identity) -> AsyncIterator[T]:
