@@ -3,7 +3,8 @@ from __future__ import annotations
 __all__ = ["Client"]
 
 import asyncio
-from abc import ABCMeta, abstractmethod
+import os
+from abc import ABCMeta
 from asyncio import TaskGroup
 from collections.abc import AsyncIterator, Coroutine, Iterable, Iterator
 from typing import Any, Final, Literal, final
@@ -104,10 +105,16 @@ class Client(
                 yield command
 
     @property
-    @abstractmethod
     def oauth_token(self) -> str:
-        """The client's OAuth token"""
-        raise NotImplementedError
+        """The client's OAuth token
+
+        Searches the system environment variables for a key named
+        ``TWITCH_OAUTH_TOKEN`` by default, raising ``AssertionError`` if the
+        key does not exist.
+        """
+        oauth_token = os.getenv("TWITCH_OAUTH_TOKEN")
+        assert oauth_token is not None
+        return oauth_token
 
     @property
     @final
