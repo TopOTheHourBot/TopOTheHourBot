@@ -37,8 +37,8 @@ class Summarizer[
     __slots__ = ("_source_client")
     _source_client: SourceClientT
 
-    def __init__(self, _source_client: SourceClientT) -> None:
-        self._source_client = _source_client
+    def __init__(self, source_client: SourceClientT) -> None:
+        self._source_client = source_client
 
     @property
     @final
