@@ -4,15 +4,21 @@ __all__ = ["Summarizer"]
 
 from abc import ABCMeta, abstractmethod
 from asyncio import TaskGroup
-from typing import Optional, final
+from typing import Any, Optional, final
 
 from ircv3 import IRCv3ServerCommandProtocol
 
 from .client import Client
 from .sub_client import SubClient
 
+type SourceClient = Client | SubClient
 
-class Summarizer[ClientT: Client | SubClient, SummationT, SummandT](metaclass=ABCMeta):
+
+class Summarizer[
+    SourceClientT: SourceClient,
+    SummationT,
+    SummandT,
+](metaclass=ABCMeta):
     """A base attachment class for designing map-reduce routines across server
     commands
 
@@ -28,11 +34,11 @@ class Summarizer[ClientT: Client | SubClient, SummationT, SummandT](metaclass=AB
     awaited for upon connection closure.
     """
 
-    __slots__ = ("client")
-    client: ClientT
+    __slots__ = ("source_client")
+    source_client: SourceClientT
 
-    def __init__(self, client: ClientT) -> None:
-        self.client = client
+    def __init__(self, source_client: SourceClientT) -> None:
+        self.source_client = source_client
 
     @property
     @abstractmethod
@@ -54,7 +60,7 @@ class Summarizer[ClientT: Client | SubClient, SummationT, SummandT](metaclass=AB
         raise NotImplementedError
 
     @abstractmethod
-    def mapper(self, command: IRCv3ServerCommandProtocol, /) -> Optional[SummandT]:
+    def mapper(self, value: IRCv3ServerCommandProtocol | Any, /) -> Optional[SummandT]:
         """Return ``command`` as a summand, or ``None`` if no such conversion
         is possible
         """
@@ -86,7 +92,7 @@ class Summarizer[ClientT: Client | SubClient, SummationT, SummandT](metaclass=AB
         to the client
         """
         async with TaskGroup() as tasks:
-            with self.client.attachment() as pipe:
+            with self.source_client.attachment() as pipe:
                 while (
                     reduction := await aiter(pipe)
                         .map(self.mapper)
