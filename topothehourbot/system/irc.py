@@ -1,15 +1,19 @@
 from __future__ import annotations
 
-__all__ = ["Client"]
+__all__ = [
+    "IRCv3Connection",
+    "connect",
+]
 
 import asyncio
-import os
 from abc import ABCMeta
 from asyncio import TaskGroup
-from collections.abc import AsyncIterator, Coroutine, Iterable, Iterator
-from typing import Any, Final, Literal, final
+from collections.abc import AsyncIterator, Coroutine, Iterator
+from contextlib import AbstractContextManager
+from typing import Any, Final, Literal, Optional, final
 
 import ircv3
+import websockets
 from ircv3 import (IRCv3ClientCommandProtocol, IRCv3Command,
                    IRCv3ServerCommandProtocol, Ping)
 from ircv3.dialects.twitch import (ClientJoin, ClientPart,
@@ -18,16 +22,13 @@ from ircv3.dialects.twitch import (ClientJoin, ClientPart,
                                    SupportsClientProperties)
 from websockets import ConnectionClosed, WebSocketClientProtocol
 
-from .pipes import Diverter
+from .pipes import Diverter, Pipe
 
+URI: Final[str] = "ws://irc-ws.chat.twitch.tv:80"
 CRLF: Final[Literal["\r\n"]] = "\r\n"
 
 
-class Client(
-    Diverter[IRCv3ServerCommandProtocol],
-    SupportsClientProperties,
-    metaclass=ABCMeta,
-):
+class IRCv3Connection(SupportsClientProperties, metaclass=ABCMeta):
     """A wrapper type around a ``websockets.WebSocketClientProtocol`` instance
     that provides a Twitch IRC abstraction layer, and a publisher-subscriber
     model for use by coroutines.
@@ -63,12 +64,18 @@ class Client(
                 await client.send(reply)
     ```
 
-    See ``Diverter``, ``Pipe``, and ``Series`` for more details.
+    See ``Assembly``, ``Pipe``, and ``Series`` for more details.
     """
 
-    __slots__ = ("_connection", "_last_message_epoch", "_last_join_epoch")
+    __slots__ = (
+        "_connection",
+        "_diverter",
+        "_last_message_epoch",
+        "_last_join_epoch",
+    )
 
     _connection: WebSocketClientProtocol
+    _diverter: Diverter[IRCv3ServerCommandProtocol]
     _last_message_epoch: float
     _last_join_epoch: float
 
@@ -77,6 +84,7 @@ class Client(
 
     def __init__(self, connection: WebSocketClientProtocol) -> None:
         self._connection = connection
+        self._diverter = Diverter()
         self._last_message_epoch = 0
         self._last_join_epoch = 0
 
@@ -103,18 +111,6 @@ class Client(
             assert isinstance(data, str)
             for command in self._parse_commands(data):
                 yield command
-
-    @property
-    def oauth_token(self) -> str:
-        """The client's OAuth token
-
-        Searches the system environment variables for a key named
-        ``TWITCH_OAUTH_TOKEN`` by default, raising ``AssertionError`` if the
-        key does not exist.
-        """
-        oauth_token = os.getenv("TWITCH_OAUTH_TOKEN")
-        assert oauth_token is not None
-        return oauth_token
 
     @property
     @final
@@ -155,7 +151,7 @@ class Client(
         """Send a PART command to the IRC server"""
         await self.send(ClientPart(*rooms))
 
-    async def message(self, target: ServerPrivateMessage | str, comment: str, /, *, important: bool = False) -> None:
+    async def message(self, comment: str, target: ServerPrivateMessage | str, *, important: bool = False) -> None:
         """Send a PRIVMSG command to the IRC server
 
         Composes a ``ClientPrivateMessage`` in reply to ``target`` if a
@@ -208,75 +204,37 @@ class Client(
         """Wait until the IRC connection has been closed"""
         return self._connection.wait_closed()
 
-    async def prelude(self) -> Any:
-        """Coroutine executed before the main distribution loop
+    def attachment(
+        self,
+        pipe: Optional[Pipe[IRCv3ServerCommandProtocol]] = None,
+    ) -> AbstractContextManager[Pipe[IRCv3ServerCommandProtocol]]:
+        return self._diverter.attachment(pipe)
 
-        Authenticates and requests capabilities from the IRC server by default.
-        """
-        await self.send("CAP REQ :twitch.tv/commands twitch.tv/membership twitch.tv/tags")
-        await self.send(f"PASS oauth:{self.oauth_token}")
-        await self.send(f"NICK {self.name}")
-
-    def paraludes(self) -> Iterable[Coroutine[Any, Any, Any]]:
-        """Coroutines executed in parallel with the main distribution loop
-
-        Note that coroutines returned by this method are expected to end when
-        the client connection closes. For coroutines that simply attach
-        themselves and read from the emitted pipe, such as this one:
-
-        ```
-        async def foo(client: Client) -> None:
-            with client.attachment() as pipe:
-                async for command in pipe:
-                    print(command)
-        ```
-
-        Closure is already accounted for by the attachment - the ``Pipe``
-        object will end iteration when the connection closes.
-
-        For detached coroutines, you can block until closure by using the
-        ``until_closure()`` method:
-
-        ```
-        async def bar(client: Client) -> None:
-            task = asyncio.create_task(foo(client))
-            await client.until_closure()
-            await task
-        ```
-        """
-        return ()
-
-    async def postlude(self) -> Any:
-        """Coroutine executed after the main distribution loop
-
-        Takes no action by default.
-        """
-        return
-
-    @final
-    async def run(self) -> None:
-        """Perpetually read and fan server messages out to attachments until
-        the connection closes.
-
-        All pipes attached at the moment of closure will be closed. ``Ping``
-        commands are withheld from distribution.
-        """
-        await self.prelude()
+    async def distribute(self) -> None:
+        diverter = self._diverter
         async with TaskGroup() as tasks:
-            for coro in self.paraludes():
-                tasks.create_task(coro)
             try:
                 async for command in self:
                     if ircv3.is_ping(command):
                         coro = self.send(command.reply())
                     else:
-                        for pipe in self.pipes():
-                            pipe.send(command)
+                        diverter.send(command)
                         continue
                     tasks.create_task(coro)
             except ConnectionClosed:
                 pass
             finally:
-                for pipe in self.pipes():
-                    pipe.close()
-        await self.postlude()
+                diverter.close()
+
+
+async def connect[IRCv3ConnectionT: IRCv3Connection](
+    oauth_token: str,
+    *,
+    connection_factory: type[IRCv3ConnectionT],
+) -> AsyncIterator[IRCv3ConnectionT]:
+    async for websockets_connection in websockets.connect(URI):
+        connection = connection_factory(websockets_connection)
+        await connection.send("CAP REQ :twitch.tv/commands twitch.tv/membership twitch.tv/tags")
+        await connection.send(f"PASS oauth:{oauth_token}")
+        await connection.send(f"NICK {connection.name}")
+        yield connection
