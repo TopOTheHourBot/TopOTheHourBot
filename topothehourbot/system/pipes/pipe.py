@@ -78,7 +78,8 @@ class Pipe[T]:
     def close(self) -> None:
         """Close the pipe
 
-        Raises ``Closure`` into the active ``recv()`` call, if one exists.
+        Raises ``Closure`` into the active ``recv()`` call (if one exists) and
+        clears the pipe buffer.
         """
         try:
             self._closer.set_result(None)
@@ -86,6 +87,7 @@ class Pipe[T]:
             return
         if (receiver := self._receiver):
             receiver.set_exception(Closure)
+        self.clear()
 
     def clear(self) -> None:
         """Clear the pipe
