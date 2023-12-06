@@ -73,10 +73,7 @@ class Diverter[T](Assembly[T]):
         detached.
         """
         tokens = []
-        for token, pipe in (
-            self.pipes()
-                .items()
-        ):
+        for token, pipe in self.pipes().items():
             try:
                 pipe.send(value)
             except Closure:
@@ -86,18 +83,12 @@ class Diverter[T](Assembly[T]):
 
     def close(self) -> None:
         """Close and detach all attached pipes"""
-        for token, pipe in (
-            self.pipes()
-                .items()
-        ):
+        for pipe in self.pipes().values():
             pipe.close()
         for token in self.pipes():
             self.detach(token)
 
     def clear(self) -> None:
         """Clear all attached pipes"""
-        for pipe in (
-            self.pipes()
-                .values()
-        ):
+        for pipe in self.pipes().values():
             pipe.clear()
