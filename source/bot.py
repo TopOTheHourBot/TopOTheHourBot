@@ -73,19 +73,21 @@ class TopOTheHourBot(Bot):
                         "Dead",
                         "HuhChamp TeaTime",
                         "HUHH",
+                        "Nono 👎",
                     ),
                 )
             else:
                 emote = random.choice(
                     (
-                        "Gladge PETTHEHASAN",
-                        "peepoHappy",
-                        "peepoPog Clap",
-                        "chatPls",
+                        "OkayChamp PETTHEHASAN",
+                        "pepoDance",
+                        "peepoPog HYPERCLAP",
+                        "hasScoot",
                         "peepoCheer",
-                        "peepoBlush",
-                        "Jigglin",
+                        "peepoLegs peepoBlush BobaTime",
+                        "peepoExcite",
                         "veryCat",
+                        "Yesyes 👍",
                     ),
                )
 
