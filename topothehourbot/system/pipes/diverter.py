@@ -1,17 +1,20 @@
 from __future__ import annotations
 
-__all__ = ["Diverter"]
+__all__ = [
+    "Assembly",
+    "Diverter",
+]
 
 import uuid
-from collections.abc import Collection, Iterator
+from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from typing import Optional, final
 from uuid import UUID
 
-from .pipe import Pipe
+from .pipe import Closure, Pipe
 
 
-class Diverter[T]:
+class Assembly[T]:
 
     __slots__ = ("_pipes")
     _pipes: dict[UUID, Pipe[T]]
@@ -20,9 +23,9 @@ class Diverter[T]:
         self._pipes = {}
 
     @final
-    def pipes(self) -> Collection[Pipe[T]]:
+    def pipes(self) -> Mapping[UUID, Pipe[T]]:
         """Return a view of the currently-attached pipes"""
-        return self._pipes.values()
+        return self._pipes
 
     @final
     def attach(self, pipe: Pipe[T]) -> UUID:
@@ -57,3 +60,44 @@ class Diverter[T]:
             yield pipe
         finally:
             self.detach(token)
+
+
+class Diverter[T](Assembly[T]):
+
+    __slots__ = ()
+
+    def send(self, value: T, /) -> None:
+        """Send a value to all attached pipes
+
+        Pipes that are closed but still attached at the moment of sending are
+        detached.
+        """
+        tokens = []
+        for token, pipe in (
+            self.pipes()
+                .items()
+        ):
+            try:
+                pipe.send(value)
+            except Closure:
+                tokens.append(token)
+        for token in tokens:
+            self.detach(token)
+
+    def close(self) -> None:
+        """Close and detach all attached pipes"""
+        for token, pipe in (
+            self.pipes()
+                .items()
+        ):
+            pipe.close()
+        for token in self.pipes():
+            self.detach(token)
+
+    def clear(self) -> None:
+        """Clear all attached pipes"""
+        for pipe in (
+            self.pipes()
+                .values()
+        ):
+            pipe.clear()
