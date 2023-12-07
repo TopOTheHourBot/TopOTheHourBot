@@ -10,7 +10,7 @@ from abc import ABCMeta
 from asyncio import TaskGroup
 from collections.abc import AsyncIterator, Coroutine, Iterator
 from contextlib import AbstractContextManager
-from typing import Any, Final, Literal, Optional, final
+from typing import Any, Final, Optional, final
 
 import ircv3
 import websockets
@@ -24,8 +24,8 @@ from websockets import ConnectionClosed, WebSocketClientProtocol
 
 from .pipes import Diverter, Pipe
 
-URI: Final[str] = "ws://irc-ws.chat.twitch.tv:80"
-CRLF: Final[Literal["\r\n"]] = "\r\n"
+URI: Final = "ws://irc-ws.chat.twitch.tv:80"
+CRLF: Final = "\r\n"
 
 
 class IRCv3Connection(SupportsClientProperties, metaclass=ABCMeta):
@@ -123,18 +123,19 @@ class IRCv3Connection(SupportsClientProperties, metaclass=ABCMeta):
         return self._connection.latency
 
     @final
-    async def send(self, command: IRCv3ClientCommandProtocol | str, /) -> None:
+    async def send(self, command: IRCv3ClientCommandProtocol | str, /) -> Optional[ConnectionClosed]:
         """Send a command to the IRC server
 
-        Drops the command if the connection is closed during execution.
+        Drops the command and returns ``websockets.ConnectionClosed`` if the
+        underlying connection is closed during execution.
         """
         data = str(command)
         try:
             await self._connection.send(data)
-        except ConnectionClosed:
-            return
+        except ConnectionClosed as error:
+            return error
 
-    async def join(self, *rooms: str) -> None:
+    async def join(self, *rooms: str) -> Optional[ConnectionClosed]:
         """Send a JOIN command to the IRC server"""
         curr_join_epoch = asyncio.get_running_loop().time()
         last_join_epoch = self._last_join_epoch
@@ -145,13 +146,13 @@ class IRCv3Connection(SupportsClientProperties, metaclass=ABCMeta):
         self._last_join_epoch = curr_join_epoch + delay
         if delay:
             await asyncio.sleep(delay)
-        await self.send(ClientJoin(*rooms))
+        return await self.send(ClientJoin(*rooms))
 
-    async def part(self, *rooms: str) -> None:
+    async def part(self, *rooms: str) -> Optional[ConnectionClosed]:
         """Send a PART command to the IRC server"""
-        await self.send(ClientPart(*rooms))
+        return await self.send(ClientPart(*rooms))
 
-    async def message(self, comment: str, target: ServerPrivateMessage | str, *, important: bool = False) -> None:
+    async def message(self, comment: str, target: ServerPrivateMessage | str, *, important: bool = False) -> Optional[ConnectionClosed]:
         """Send a PRIVMSG command to the IRC server
 
         Composes a ``ClientPrivateMessage`` in reply to ``target`` if a
@@ -192,7 +193,7 @@ class IRCv3Connection(SupportsClientProperties, metaclass=ABCMeta):
         else:
             command = target.reply(comment)
 
-        await self.send(command)
+        return await self.send(command)
 
     @final
     def close(self) -> Coroutine[Any, Any, None]:
@@ -236,5 +237,6 @@ async def connect[IRCv3ConnectionT: IRCv3Connection](
         connection = connection_factory(websockets_connection)
         await connection.send("CAP REQ :twitch.tv/commands twitch.tv/membership twitch.tv/tags")
         await connection.send(f"PASS oauth:{oauth_token}")
-        await connection.send(f"NICK {connection.name}")
-        yield connection
+        err = await connection.send(f"NICK {connection.name}")
+        if not err:
+            yield connection
