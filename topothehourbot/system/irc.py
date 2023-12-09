@@ -259,18 +259,14 @@ class IRCv3Connection(SupportsClientProperties, metaclass=ABCMeta):
     async def distribute_forever(self) -> None:
         diverter = self._diverter
         async with TaskGroup() as tasks:
-            try:
-                async for command in self:
-                    if ircv3.is_ping(command):
-                        coro = self.send(command.reply())
-                    else:
-                        diverter.send(command)
-                        continue
-                    tasks.create_task(coro)
-            except ConnectionClosed:
-                pass
-            finally:
-                diverter.close()
+            async for command in self:
+                if ircv3.is_ping(command):
+                    coro = self.send(command.reply())
+                else:
+                    diverter.send(command)
+                    continue
+                tasks.create_task(coro)
+            diverter.close()
 
 
 async def connect[IRCv3ConnectionT: IRCv3Connection](
