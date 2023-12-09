@@ -7,7 +7,7 @@ from asyncio import Task
 from asyncio import TimeoutError as AsyncTimeoutError
 from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass
-from typing import Optional, TypeGuard, final, overload
+from typing import Optional, Self, TypeGuard, final, overload
 
 
 def identity[T](value: T, /) -> T:
@@ -23,6 +23,14 @@ def not_none[T](value: Optional[T], /) -> TypeGuard[T]:
 @final
 @dataclass(slots=True)
 class Reduction[T]:
+    """A box type returned by ``Series.reduce()``
+
+    Contains the reduction value and a flag indicating whether it is the same
+    as the initial value, under the attributes ``value`` and ``initial``,
+    respectively.
+
+    The truth value of a ``Reduction`` object is true if ``not initial``.
+    """
 
     value: T
     initial: bool = False
@@ -42,6 +50,9 @@ class Series[T](AsyncIterator[T]):
 
     def __init__(self, values: AsyncIterator[T], /) -> None:
         self._values = values
+
+    def __aiter__(self) -> Self:
+        return self
 
     async def __anext__(self) -> T:
         value = await anext(self._values)
@@ -187,9 +198,9 @@ class Series[T](AsyncIterator[T]):
         Iteration stops when the longest series has been exhausted.
         """
         map = dict[str, Series]()
-        map["Series.merge-0"] = self
-        for n, series in enumerate(others, start=1):
-            map[f"Series.merge-{n}"] = series
+        map["0"] = self
+        for n, series in enumerate(others, 1):
+            map[f"{n}"] = series
 
         todo = set[Task]()
         for name, series in map.items():
