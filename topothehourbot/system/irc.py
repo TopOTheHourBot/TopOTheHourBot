@@ -10,7 +10,7 @@ from abc import ABCMeta
 from asyncio import TaskGroup
 from collections.abc import AsyncIterator, Coroutine, Iterator
 from contextlib import AbstractContextManager
-from typing import Any, Final, Optional, final
+from typing import Any, Final, Optional, Self, final
 
 import ircv3
 import websockets
@@ -24,8 +24,58 @@ from websockets import ConnectionClosed, WebSocketClientProtocol
 
 from .pipes import Diverter, Pipe
 
-URI: Final = "ws://irc-ws.chat.twitch.tv:80"
-CRLF: Final = "\r\n"
+
+class IRCv3ServerCommandParser(Iterator[IRCv3ServerCommandProtocol]):
+
+    NIL: Final = object()
+    END: Final = object()
+
+    __slots__ = ("_data", "_head")
+    _data: str
+    _head: int
+
+    def __init__(self, data: str, *, head: int = 0) -> None:
+        self._data = data
+        self._head = head
+
+    def __iter__(self) -> Self:
+        return self
+
+    def __next__(self) -> IRCv3ServerCommandProtocol:
+        while True:
+            result = self.move_head()
+            if result is self.NIL:
+                continue
+            if result is self.END:
+                break
+            assert isinstance(result, IRCv3ServerCommandProtocol)
+            return result
+        raise StopIteration
+
+    def move_head(self) -> IRCv3ServerCommandProtocol | object:
+        head = self._head
+        if head == -1:
+            return self.END
+        data = self._data
+        next = data.find("\r\n", head)
+        if next == -1:
+            self._head = next
+            return self.END
+        else:
+            self._head = next + 2
+            command = IRCv3Command.from_string(data[head:next])
+            name = command.name
+            if name == "PRIVMSG":
+                return ServerPrivateMessage.cast(command)
+            elif name == "ROOMSTATE":
+                return RoomState.cast(command)
+            elif name == "PING":
+                return Ping.cast(command)
+            elif name == "JOIN":
+                return ServerJoin.cast(command)
+            elif name == "PART":
+                return ServerPart.cast(command)
+            return self.NIL
 
 
 class IRCv3Connection(SupportsClientProperties, metaclass=ABCMeta):
@@ -89,28 +139,14 @@ class IRCv3Connection(SupportsClientProperties, metaclass=ABCMeta):
         self._last_join_epoch = 0
 
     @final
-    def _parse_commands(self, data: str) -> Iterator[IRCv3ServerCommandProtocol]:
-        raw_commands = data.removesuffix(CRLF).split(CRLF)
-        for command in map(IRCv3Command.from_string, raw_commands):
-            name = command.name
-            if name == "PRIVMSG":
-                yield ServerPrivateMessage.cast(command)
-            elif name == "ROOMSTATE":
-                yield RoomState.cast(command)
-            elif name == "PING":
-                yield Ping.cast(command)
-            elif name == "JOIN":
-                yield ServerJoin.cast(command)
-            elif name == "PART":
-                yield ServerPart.cast(command)
-
-    @final
     async def __aiter__(self) -> AsyncIterator[IRCv3ServerCommandProtocol]:
-        while True:
-            data = await self._connection.recv()
-            assert isinstance(data, str)
-            for command in self._parse_commands(data):
-                yield command
+        try:
+            while True:
+                commands = await self.recv()
+                for command in commands:
+                    yield command
+        except ConnectionClosed:
+            return
 
     @property
     @final
@@ -133,6 +169,16 @@ class IRCv3Connection(SupportsClientProperties, metaclass=ABCMeta):
             await self._connection.send(data)
         except ConnectionClosed as error:
             return error
+
+    async def recv(self) -> IRCv3ServerCommandParser:
+        """Receive a command batch from the IRC server
+
+        Raises ``websockets.ConnectionClosed`` if the underlying connection is
+        closed during execution.
+        """
+        data = await self._connection.recv()
+        assert isinstance(data, str)
+        return IRCv3ServerCommandParser(data)
 
     async def join(self, *rooms: str) -> Optional[ConnectionClosed]:
         """Send a JOIN command to the IRC server"""
@@ -232,7 +278,7 @@ async def connect[IRCv3ConnectionT: IRCv3Connection](
     *,
     connection_factory: type[IRCv3ConnectionT],
 ) -> AsyncIterator[IRCv3ConnectionT]:
-    async for websockets_connection in websockets.connect(URI):
+    async for websockets_connection in websockets.connect("ws://irc-ws.chat.twitch.tv:80"):
         connection = connection_factory(websockets_connection)
         await connection.send("CAP REQ :twitch.tv/commands twitch.tv/membership twitch.tv/tags")
         await connection.send(f"PASS oauth:{oauth_token}")
