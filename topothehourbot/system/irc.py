@@ -122,7 +122,6 @@ class IRCv3Connection(SupportsClientProperties, metaclass=ABCMeta):
         """
         return self._connection.latency
 
-    @final
     async def send(self, command: IRCv3ClientCommandProtocol | str, /) -> Optional[ConnectionClosed]:
         """Send a command to the IRC server
 
@@ -211,7 +210,7 @@ class IRCv3Connection(SupportsClientProperties, metaclass=ABCMeta):
     ) -> AbstractContextManager[Pipe[IRCv3ServerCommandProtocol]]:
         return self._diverter.attachment(pipe)
 
-    async def distribute(self) -> None:
+    async def distribute_forever(self) -> None:
         diverter = self._diverter
         async with TaskGroup() as tasks:
             try:
@@ -237,6 +236,6 @@ async def connect[IRCv3ConnectionT: IRCv3Connection](
         connection = connection_factory(websockets_connection)
         await connection.send("CAP REQ :twitch.tv/commands twitch.tv/membership twitch.tv/tags")
         await connection.send(f"PASS oauth:{oauth_token}")
-        err = await connection.send(f"NICK {connection.name}")
-        if not err:
+        error = await connection.send(f"NICK {connection.name}")
+        if not error:
             yield connection
