@@ -2,10 +2,13 @@ from __future__ import annotations
 
 __all__ = [
     "IRCv3Connection",
+    "IRCv3RoomedConnection",
     "connect",
 ]
 
 import asyncio
+import functools
+import operator
 import os
 from abc import ABCMeta
 from asyncio import TaskGroup
@@ -17,9 +20,11 @@ import ircv3
 import websockets
 from ircv3 import (IRCv3ClientCommandProtocol, IRCv3Command,
                    IRCv3ServerCommandProtocol, Ping)
+from ircv3.dialects import twitch
 from ircv3.dialects.twitch import (ClientJoin, ClientPart,
-                                   ClientPrivateMessage, RoomState, ServerJoin,
-                                   ServerPart, ServerPrivateMessage,
+                                   ClientPrivateMessage, LocalServerCommand,
+                                   RoomState, ServerJoin, ServerPart,
+                                   ServerPrivateMessage,
                                    SupportsClientProperties)
 from websockets import ConnectionClosed, WebSocketClientProtocol
 
@@ -43,17 +48,14 @@ class IRCv3ServerCommandParser(Iterator[IRCv3ServerCommandProtocol]):
         return self
 
     def __next__(self) -> IRCv3ServerCommandProtocol:
-        while True:
-            result = self.move_head()
+        while (result := self.move_head()) is not self.END:
             if result is self.NIL:
                 continue
-            if result is self.END:
-                break
             assert isinstance(result, IRCv3ServerCommandProtocol)
             return result
         raise StopIteration
 
-    def move_head(self) -> IRCv3ServerCommandProtocol | object:
+    def move_head(self) -> object:
         head = self._head
         if head == -1:
             return self.END
@@ -62,21 +64,20 @@ class IRCv3ServerCommandParser(Iterator[IRCv3ServerCommandProtocol]):
         if next == -1:
             self._head = next
             return self.END
-        else:
-            self._head = next + 2
-            command = IRCv3Command.from_string(data[head:next])
-            name = command.name
-            if name == "PRIVMSG":
-                return ServerPrivateMessage.cast(command)
-            elif name == "ROOMSTATE":
-                return RoomState.cast(command)
-            elif name == "PING":
-                return Ping.cast(command)
-            elif name == "JOIN":
-                return ServerJoin.cast(command)
-            elif name == "PART":
-                return ServerPart.cast(command)
-            return self.NIL
+        command = IRCv3Command.from_string(data[head:next])
+        name = command.name
+        self._head = next + 2
+        if name == "PRIVMSG":
+            return ServerPrivateMessage.cast(command)
+        elif name == "ROOMSTATE":
+            return RoomState.cast(command)
+        elif name == "PING":
+            return Ping.cast(command)
+        elif name == "JOIN":
+            return ServerJoin.cast(command)
+        elif name == "PART":
+            return ServerPart.cast(command)
+        return self.NIL
 
 
 class IRCv3Connection(SupportsClientProperties, metaclass=ABCMeta):
@@ -257,7 +258,7 @@ class IRCv3Connection(SupportsClientProperties, metaclass=ABCMeta):
     ) -> AbstractContextManager[Pipe[IRCv3ServerCommandProtocol]]:
         return self._diverter.attachment(pipe)
 
-    async def distribute_forever(self) -> None:
+    async def distribute(self) -> None:
         diverter = self._diverter
         async with TaskGroup() as tasks:
             async for command in self:
@@ -270,6 +271,46 @@ class IRCv3Connection(SupportsClientProperties, metaclass=ABCMeta):
             diverter.close()
 
 
+class IRCv3RoomedConnection(SupportsClientProperties, metaclass=ABCMeta):
+
+    __slots__ = ("_connection", "_diverter")
+    _connection: IRCv3Connection
+    _diverter: Diverter[LocalServerCommand]
+
+    def __init__(self, connection: IRCv3Connection) -> None:
+        self._connection = connection
+        self._diverter = Diverter()
+
+    async def message(
+        self,
+        comment: str,
+        target: ServerPrivateMessage | str = "",
+        *,
+        important: bool = False,
+    ) -> Optional[ConnectionClosed]:
+        return await self._connection.message(
+            comment=comment,
+            target=target or self.room,
+            important=important,
+        )
+
+    def attachment(
+        self,
+        pipe: Optional[Pipe[LocalServerCommand]] = None,
+    ) -> AbstractContextManager[Pipe[LocalServerCommand]]:
+        return self._diverter.attachment(pipe)
+
+    async def distribute(self) -> None:
+        diverter = self._diverter
+        with self._connection.attachment() as pipe:
+            async for command in (
+                aiter(pipe).filter(twitch.is_local_server_command)
+                           .filter(functools.partial(operator.eq, self.room))
+            ):
+                diverter.send(command)
+        diverter.close()
+
+
 async def connect[IRCv3ConnectionT: IRCv3Connection](
     connection_factory: type[IRCv3ConnectionT],
     *,
@@ -280,9 +321,7 @@ async def connect[IRCv3ConnectionT: IRCv3Connection](
         if oauth_token is None:
             raise ValueError("Twitch OAuth token not found in environment variables")
     assert isinstance(oauth_token, str)
-    async for websockets_connection in websockets.connect(
-        uri="ws://irc-ws.chat.twitch.tv:80",
-    ):
+    async for websockets_connection in websockets.connect("ws://irc-ws.chat.twitch.tv:80"):
         connection = connection_factory(websockets_connection)
         await connection.send("CAP REQ :twitch.tv/commands twitch.tv/membership twitch.tv/tags")
         await connection.send(f"PASS oauth:{oauth_token}")

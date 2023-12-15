@@ -6,7 +6,6 @@ import asyncio
 from asyncio import Task
 from asyncio import TimeoutError as AsyncTimeoutError
 from collections.abc import AsyncIterator, Callable
-from dataclasses import dataclass
 from typing import Optional, Self, TypeGuard, final, overload
 
 
@@ -18,25 +17,6 @@ def identity[T](value: T, /) -> T:
 def not_none[T](value: Optional[T], /) -> TypeGuard[T]:
     """Return true if ``value`` is not ``None``, otherwise false"""
     return value is not None
-
-
-@final
-@dataclass(slots=True)
-class Reduction[T]:
-    """A box type returned by ``Series.reduce()``
-
-    Contains the reduction value and a flag indicating whether it is the same
-    as the initial value, under the attributes ``value`` and ``initial``,
-    respectively.
-
-    The truth value of a ``Reduction`` object is true if ``not initial``.
-    """
-
-    value: T
-    initial: bool = False
-
-    def __bool__(self) -> bool:
-        return not self.initial
 
 
 @final
@@ -274,20 +254,13 @@ class Series[T](AsyncIterator[T]):
             result.append(value)  # list.append() returned self 😔
         return result
 
-    async def reduce[S](self, initial: S, reducer: Callable[[S, T], S]) -> Reduction[S]:
+    async def reduce[S](self, initial: S, reducer: Callable[[S, T], S]) -> S:
         """Return the values accumulated as one via left-fold"""
         result = initial
-        try:
-            value = await anext(self)
-        except StopAsyncIteration:
-            return Reduction(result, initial=True)
-        else:
-            result = reducer(result, value)
         async for value in self:
             result = reducer(result, value)
-        return Reduction(result)
+        return result
 
     async def count(self) -> int:
         """Return the number of values"""
-        reduction = await self.reduce(0, lambda count, _: count + 1)
-        return reduction.value
+        return await self.reduce(0, lambda count, _: count + 1)
