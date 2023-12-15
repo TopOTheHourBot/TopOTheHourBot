@@ -16,7 +16,7 @@ from asyncio import TaskGroup
 from collections.abc import AsyncIterator, Coroutine, Iterator
 from contextlib import AbstractContextManager
 from dataclasses import dataclass
-from typing import Any, Final, Optional, Self, final
+from typing import Any, Final, Optional, Self, final, override
 
 import ircv3
 import websockets
@@ -288,6 +288,11 @@ class IRCv3RoomedClient(SupportsClientProperties, metaclass=ABCMeta):
     def __init__(self, connection: IRCv3Client) -> None:
         self._connection = connection
         self._diverter = Diverter()
+
+    @property
+    @override
+    def name(self) -> str:
+        return self._connection.name
 
     @property
     @abstractmethod
