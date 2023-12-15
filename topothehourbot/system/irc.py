@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 __all__ = [
-    "IRCv3Connection",
-    "IRCv3RoomedConnection",
+    "IRCv3Client",
+    "IRCv3ReferenceClient",
+    "IRCv3RoomedClient",
     "connect",
 ]
 
@@ -10,10 +11,11 @@ import asyncio
 import functools
 import operator
 import os
-from abc import ABCMeta
+from abc import ABCMeta, abstractmethod
 from asyncio import TaskGroup
 from collections.abc import AsyncIterator, Coroutine, Iterator
 from contextlib import AbstractContextManager
+from dataclasses import dataclass
 from typing import Any, Final, Optional, Self, final
 
 import ircv3
@@ -80,7 +82,7 @@ class IRCv3ServerCommandParser(Iterator[IRCv3ServerCommandProtocol]):
         return self.NIL
 
 
-class IRCv3Connection(SupportsClientProperties, metaclass=ABCMeta):
+class IRCv3Client(SupportsClientProperties, metaclass=ABCMeta):
     """A wrapper type around a ``websockets.WebSocketClientProtocol`` instance
     that provides a Twitch IRC abstraction layer, and a publisher-subscriber
     model for use by coroutines.
@@ -271,15 +273,26 @@ class IRCv3Connection(SupportsClientProperties, metaclass=ABCMeta):
             diverter.close()
 
 
-class IRCv3RoomedConnection(SupportsClientProperties, metaclass=ABCMeta):
+@dataclass(slots=True)
+class IRCv3ReferenceClient(SupportsClientProperties):
+
+    name: str
+
+
+class IRCv3RoomedClient(SupportsClientProperties, metaclass=ABCMeta):
 
     __slots__ = ("_connection", "_diverter")
-    _connection: IRCv3Connection
+    _connection: IRCv3Client
     _diverter: Diverter[LocalServerCommand]
 
-    def __init__(self, connection: IRCv3Connection) -> None:
+    def __init__(self, connection: IRCv3Client) -> None:
         self._connection = connection
         self._diverter = Diverter()
+
+    @property
+    @abstractmethod
+    def rooming_client(self) -> IRCv3ReferenceClient:
+        raise NotImplementedError
 
     async def message(
         self,
@@ -290,7 +303,7 @@ class IRCv3RoomedConnection(SupportsClientProperties, metaclass=ABCMeta):
     ) -> Optional[ConnectionClosed]:
         return await self._connection.message(
             comment=comment,
-            target=target or self.room,
+            target=target or self.rooming_client.room,
             important=important,
         )
 
@@ -305,24 +318,24 @@ class IRCv3RoomedConnection(SupportsClientProperties, metaclass=ABCMeta):
         with self._connection.attachment() as pipe:
             async for command in (
                 aiter(pipe).filter(twitch.is_local_server_command)
-                           .filter(functools.partial(operator.eq, self.room))
+                           .filter(functools.partial(operator.eq, self.rooming_client.room))
             ):
                 diverter.send(command)
         diverter.close()
 
 
-async def connect[IRCv3ConnectionT: IRCv3Connection](
-    connection_factory: type[IRCv3ConnectionT],
+async def connect[IRCv3ClientT: IRCv3Client](
+    client_factory: type[IRCv3ClientT],
     *,
     oauth_token: Optional[str] = None,
-) -> AsyncIterator[IRCv3ConnectionT]:
+) -> AsyncIterator[IRCv3ClientT]:
     if oauth_token is None:
         oauth_token = os.getenv("TWITCH_OAUTH_TOKEN")
         if oauth_token is None:
             raise ValueError("Twitch OAuth token not found in environment variables")
     assert isinstance(oauth_token, str)
     async for websockets_connection in websockets.connect("ws://irc-ws.chat.twitch.tv:80"):
-        connection = connection_factory(websockets_connection)
+        connection = client_factory(websockets_connection)
         await connection.send("CAP REQ :twitch.tv/commands twitch.tv/membership twitch.tv/tags")
         await connection.send(f"PASS oauth:{oauth_token}")
         error = await connection.send(f"NICK {connection.name}")
