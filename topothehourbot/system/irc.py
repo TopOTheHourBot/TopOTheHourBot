@@ -296,7 +296,7 @@ class IRCv3RoomedClient(SupportsClientProperties, metaclass=ABCMeta):
 
     @property
     @abstractmethod
-    def rooming_client(self) -> IRCv3ReferenceClient:
+    def reference_client(self) -> IRCv3ReferenceClient:
         raise NotImplementedError
 
     async def message(
@@ -308,7 +308,7 @@ class IRCv3RoomedClient(SupportsClientProperties, metaclass=ABCMeta):
     ) -> Optional[ConnectionClosed]:
         return await self._connection.message(
             comment=comment,
-            target=target or self.rooming_client.room,
+            target=target or self.reference_client.room,
             important=important,
         )
 
@@ -323,7 +323,7 @@ class IRCv3RoomedClient(SupportsClientProperties, metaclass=ABCMeta):
         with self._connection.attachment() as pipe:
             async for command in (
                 aiter(pipe).filter(twitch.is_local_server_command)
-                           .filter(functools.partial(operator.eq, self.rooming_client.room))
+                           .filter(functools.partial(operator.eq, self.reference_client.room))
             ):
                 diverter.send(command)
         diverter.close()
