@@ -2,31 +2,24 @@ from __future__ import annotations
 
 __all__ = [
     "IRCv3Client",
-    "IRCv3ReferenceClient",
-    "IRCv3RoomedClient",
     "connect",
 ]
 
 import asyncio
-import functools
-import operator
 import os
-from abc import ABCMeta, abstractmethod
+from abc import ABCMeta
 from asyncio import TaskGroup
 from collections.abc import AsyncIterator, Coroutine, Iterator
 from contextlib import AbstractContextManager
-from dataclasses import dataclass
-from typing import Any, Final, Optional, Self, final, override
+from typing import Any, Final, Optional, Self, final
 
 import ircv3
 import websockets
 from ircv3 import (IRCv3ClientCommandProtocol, IRCv3Command,
                    IRCv3ServerCommandProtocol, Ping)
-from ircv3.dialects import twitch
 from ircv3.dialects.twitch import (ClientJoin, ClientPart,
-                                   ClientPrivateMessage, LocalServerCommand,
-                                   RoomState, ServerJoin, ServerPart,
-                                   ServerPrivateMessage,
+                                   ClientPrivateMessage, RoomState, ServerJoin,
+                                   ServerPart, ServerPrivateMessage,
                                    SupportsClientProperties)
 from websockets import ConnectionClosed, WebSocketClientProtocol
 
@@ -35,8 +28,8 @@ from .pipes import Diverter, Pipe
 
 class IRCv3ServerCommandParser(Iterator[IRCv3ServerCommandProtocol]):
 
-    NIL: Final = object()
-    END: Final = object()
+    NIL: Final[object] = object()
+    END: Final[object] = object()
 
     __slots__ = ("_data", "_head")
     _data: str
@@ -271,62 +264,6 @@ class IRCv3Client(SupportsClientProperties, metaclass=ABCMeta):
                     continue
                 tasks.create_task(coro)
             diverter.close()
-
-
-@dataclass(slots=True)
-class IRCv3ReferenceClient(SupportsClientProperties):
-
-    name: str
-
-
-class IRCv3RoomedClient(SupportsClientProperties, metaclass=ABCMeta):
-
-    __slots__ = ("_connection", "_diverter")
-    _connection: IRCv3Client
-    _diverter: Diverter[LocalServerCommand]
-
-    def __init__(self, connection: IRCv3Client) -> None:
-        self._connection = connection
-        self._diverter = Diverter()
-
-    @property
-    @override
-    def name(self) -> str:
-        return self._connection.name
-
-    @property
-    @abstractmethod
-    def reference_client(self) -> IRCv3ReferenceClient:
-        raise NotImplementedError
-
-    async def message(
-        self,
-        comment: str,
-        target: ServerPrivateMessage | str = "",
-        *,
-        important: bool = False,
-    ) -> Optional[ConnectionClosed]:
-        return await self._connection.message(
-            comment=comment,
-            target=target or self.reference_client.room,
-            important=important,
-        )
-
-    def attachment(
-        self,
-        pipe: Optional[Pipe[LocalServerCommand]] = None,
-    ) -> AbstractContextManager[Pipe[LocalServerCommand]]:
-        return self._diverter.attachment(pipe)
-
-    async def distribute(self) -> None:
-        diverter = self._diverter
-        with self._connection.attachment() as pipe:
-            async for command in (
-                aiter(pipe).filter(twitch.is_local_server_command)
-                           .filter(functools.partial(operator.eq, self.reference_client.room))
-            ):
-                diverter.send(command)
-        diverter.close()
 
 
 async def connect[IRCv3ClientT: IRCv3Client](
