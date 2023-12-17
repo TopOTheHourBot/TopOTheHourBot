@@ -11,7 +11,7 @@ from typing import Final, Literal, override
 from ircv3.dialects import twitch
 from ircv3.dialects.twitch import LocalServerCommand
 
-from .system import IRCv3Client, IRCv3ClientCompositor
+from .system import IRCv3Client, IRCv3CompositeClient
 from .system.pipes import Series
 from .utilities import DecimalCounter, IntegerCounter
 
@@ -21,14 +21,9 @@ class TopOTheHourBot(IRCv3Client):
     name: Final[Literal["topothehourbot"]] = "topothehourbot"
 
 
-class HasanAbiCompositor(IRCv3ClientCompositor[LocalServerCommand]):
+class HasanAbiConfig(IRCv3CompositeClient[LocalServerCommand]):
 
-    moderators: Final[set[str]] = {
-        "lyystra",
-        "astryyl",
-        "emjaye",
-        "bytesized_",
-    }
+    target: Final[Literal["#hasanabi"]] = "#hasanabi"
 
     @Series.compose
     async def handle_commands(self) -> AsyncIterator[Coroutine]:
@@ -37,14 +32,29 @@ class HasanAbiCompositor(IRCv3ClientCompositor[LocalServerCommand]):
                 aiter(pipe)
                     .filter(twitch.is_server_private_message)
                     .filter(lambda message: (
-                        message.sender.mod
-                        or message.sender.name == "hasanabi"
-                        or message.sender.name in self.moderators
+                        message.sender.name in {
+                            "lyystra",
+                            "astryyl",
+                            "emjaye",
+                            "bytesized_",
+                        }
+                        or message.sender.is_moderator
+                        or message.sender.is_owner
                     ))
             ):
                 match message.comment.split():
-                    case ["$copy", *args]:
-                        yield self.message(" ".join(args), target=message, important=True)
+                    case ["$ping", *_]:
+                        yield self.message(
+                            f"Most recent ping measured at {self.latency} seconds latent",
+                            target=message,
+                            important=True,
+                        )
+                    case ["$copy" | "$shadow", *args]:
+                        yield self.message(
+                            " ".join(args),
+                            target=message,
+                            important=True,
+                        )
 
     segue_rating_initial: Final[DecimalCounter] = DecimalCounter(0, 0)
     segue_rating_pattern: Final[Pattern[str]] = re.compile(
@@ -64,7 +74,7 @@ class HasanAbiCompositor(IRCv3ClientCompositor[LocalServerCommand]):
     @Series.compose
     async def handle_segue_ratings(self) -> AsyncIterator[Coroutine]:
         with self.attachment() as pipe:
-            async for comment in (
+            async for counter in (
                 Series.repeat_while(
                     lambda: (
                         aiter(pipe)
@@ -85,14 +95,11 @@ class HasanAbiCompositor(IRCv3ClientCompositor[LocalServerCommand]):
                     lambda counter: counter.count,
                 )
                 .filter(lambda counter: counter.count > 40)
-                .map(lambda counter: (
-                    f"DANKIES 🔔 {counter.count:d} chatters rated this ad segue an average"
-                    f" of {counter.value / counter.count:.2f}/10"
-                ))
             ):
                 yield self.message(
-                    comment,
-                    target="#hasanabi",
+                    f"DANKIES 🔔 {counter.count:d} chatters rated this ad segue an average"
+                    f" of {counter.value / counter.count:.2f}/10",
+                    target=self.target,
                     important=True,
                 )
 
@@ -109,7 +116,7 @@ class HasanAbiCompositor(IRCv3ClientCompositor[LocalServerCommand]):
     @Series.compose
     async def handle_roleplay_ratings(self) -> AsyncIterator[Coroutine]:
         with self.attachment() as pipe:
-            async for comment in (
+            async for counter in (
                 Series.repeat_while(
                     lambda: (
                         aiter(pipe)
@@ -130,14 +137,11 @@ class HasanAbiCompositor(IRCv3ClientCompositor[LocalServerCommand]):
                     lambda counter: counter.count,
                 )
                 .filter(lambda counter: counter.count > 25)
-                .map(lambda counter: (
-                    f"donScoot 🔔 hassy {"gained" if counter.value >= 0 else "lost"}"
-                    f" a net {counter.value:+d} points for this roleplay moment"
-                ))
             ):
                 yield self.message(
-                    comment,
-                    target="#hasanabi",
+                    f"donScoot 🔔 hassy {"gained" if counter.value >= 0 else "lost"}"
+                    f" a net {counter.value:+d} points for this roleplay moment",
+                    target=self.target,
                     important=True,
                 )
 
@@ -154,14 +158,14 @@ class HasanAbiCompositor(IRCv3ClientCompositor[LocalServerCommand]):
 
     @override
     async def distribute(self) -> None:
-        await self.join("#hasanabi")
+        await self.join(self.target)
         accumulator = asyncio.create_task(self.accumulate())
         with self._diverter.closure() as diverter:
             with self._client.attachment() as pipe:
                 async for command in (
                     aiter(pipe)
                         .filter(twitch.is_local_server_command)
-                        .filter(lambda command: command.room == "#hasanabi")
+                        .filter(lambda command: command.room == self.target)
                 ):
                     diverter.send(command)
         await accumulator

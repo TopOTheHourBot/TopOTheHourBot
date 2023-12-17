@@ -2,7 +2,7 @@ from __future__ import annotations
 
 __all__ = [
     "IRCv3Client",
-    "IRCv3ClientCompositor",
+    "IRCv3CompositeClient",
     "connect",
 ]
 
@@ -267,13 +267,13 @@ class IRCv3Client(SupportsClientProperties, metaclass=ABCMeta):
             diverter.close()
 
 
-class IRCv3ClientCompositor[T](SupportsClientProperties, metaclass=ABCMeta):
+class IRCv3CompositeClient[T](SupportsClientProperties, metaclass=ABCMeta):
 
     __slots__ = ("_client", "_diverter")
-    _client: IRCv3Client | IRCv3ClientCompositor[object]
+    _client: IRCv3Client | IRCv3CompositeClient[Any]
     _diverter: Diverter[T]
 
-    def __init__(self, client: IRCv3Client | IRCv3ClientCompositor[object]) -> None:
+    def __init__(self, client: IRCv3Client | IRCv3CompositeClient[Any]) -> None:
         self._client = client
         self._diverter = Diverter()
 
