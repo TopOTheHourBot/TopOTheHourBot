@@ -92,7 +92,7 @@ class HasanAbiExtension(IRCv3ClientExtension[LocalServerCommand]):
                             .map(lambda match: (
                                 DecimalCounter(match.group(1))
                             ))
-                            .timeout(8.5)
+                            .finite_timeout(8.5)
                             .reduce(self.segue_rating_initial, operator.add)
                     ),
                     lambda counter: counter.count,
@@ -134,7 +134,7 @@ class HasanAbiExtension(IRCv3ClientExtension[LocalServerCommand]):
                             .map(lambda match: (
                                 IntegerCounter(match.group(1))
                             ))
-                            .timeout(8.5)
+                            .finite_timeout(8.5)
                             .reduce(self.roleplay_rating_initial, operator.add)
                     ),
                     lambda counter: counter.count,
