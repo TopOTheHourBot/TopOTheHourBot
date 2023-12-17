@@ -83,9 +83,11 @@ class Diverter[T](Assembly[T]):
 
     def close(self) -> None:
         """Close and detach all attached pipes"""
-        for pipe in self.pipes().values():
+        tokens = []
+        for token, pipe in self.pipes().items():
             pipe.close()
-        for token in self.pipes():
+            tokens.append(token)
+        for token in tokens:
             self.detach(token)
 
     def clear(self) -> None:
