@@ -62,13 +62,16 @@ class Pipe[T]:
     async def recv(self) -> T:
         """Receive a value from the pipe
 
-        Raises ``Closure`` if the pipe has been closed, or ``RuntimeError``
-        if the pipe is receiving in another coroutine.
+        Raises ``Closure`` if the pipe has been, or is closed during execution.
+
+        Raises ``RuntimeError`` if the pipe is receiving in another coroutine
+        (debug only).
         """
         if self.is_closed():
             raise Closure
-        if self._receiver is not None:
-            raise RuntimeError("pipe is already receiving")
+        if __debug__:
+            if self._receiver is not None:
+                raise RuntimeError("pipe is already receiving")
         buffer = self._buffer
         while not buffer:
             receiver = asyncio.get_running_loop().create_future()
