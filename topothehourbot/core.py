@@ -48,7 +48,7 @@ class HasanAbiExtension(IRCv3ClientExtension[LocalServerCommand]):
                 match message.comment.split():
                     case ["$ping", *_]:
                         yield self.message(
-                            f"Most recent ping measured at {self.latency} seconds latent",
+                            f"{self.latency:.3f}ms",
                             target=message,
                             important=True,
                         )
@@ -143,7 +143,7 @@ class HasanAbiExtension(IRCv3ClientExtension[LocalServerCommand]):
             ):
                 yield self.message(
                     f"donScoot 🔔 hassy {"gained" if counter.value >= 0 else "lost"}"
-                    f" a net {counter.value:+d} points for this roleplay moment",
+                    f" {counter.value:+d} points for this roleplay moment",
                     target=self.target,
                     important=True,
                 )
