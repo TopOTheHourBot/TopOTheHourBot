@@ -149,12 +149,12 @@ class IRCv3Client(SupportsClientProperties, metaclass=ABCMeta):
     @property
     @final
     def latency(self) -> float:
-        """The connection latency, in seconds
+        """The connection latency in milliseconds
 
         Updated with each ping sent by the underlying connection. Set to ``0``
         before the first ping.
         """
-        return self._connection.latency
+        return self._connection.latency * 1000
 
     async def send(self, command: IRCv3ClientCommandProtocol | str, /) -> Optional[ConnectionClosed]:
         """Send a command to the IRC server
