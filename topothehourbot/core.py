@@ -6,12 +6,13 @@ import re
 from asyncio import TaskGroup
 from collections.abc import AsyncIterator, Coroutine
 from re import Pattern
-from typing import Final, Literal, override
+from typing import Final, Literal, Optional, override
 
 from ircv3.dialects import twitch
 from ircv3.dialects.twitch import LocalServerCommand
 
-from .system import IRCv3Client, IRCv3CompositeClient
+from . import system
+from .system import IRCv3Client, IRCv3ClientExtension
 from .system.pipes import Series
 from .utilities import DecimalCounter, IntegerCounter
 
@@ -21,9 +22,9 @@ class TopOTheHourBot(IRCv3Client):
     name: Final[Literal["topothehourbot"]] = "topothehourbot"
 
 
-class HasanAbiConfig(IRCv3CompositeClient[LocalServerCommand]):
+class HasanAbiExtension(IRCv3ClientExtension[LocalServerCommand]):
 
-    target: Final[Literal["#hasanabi"]] = "#hasanabi"
+    target: Final[Literal["#lyystra"]] = "#lyystra"
 
     @Series.compose
     async def handle_commands(self) -> AsyncIterator[Coroutine]:
@@ -169,3 +170,13 @@ class HasanAbiConfig(IRCv3CompositeClient[LocalServerCommand]):
                 ):
                     diverter.send(command)
         await accumulator
+
+
+async def main(*, oauth_token: Optional[str] = None) -> None:
+    async for client in system.connect(
+        TopOTheHourBot,
+        oauth_token=oauth_token,
+    ):
+        async with TaskGroup() as tasks:
+            tasks.create_task(HasanAbiExtension(client).distribute())
+            await client.distribute()
