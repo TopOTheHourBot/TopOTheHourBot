@@ -18,6 +18,8 @@ from .system import IRCv3Client, IRCv3ClientExtension
 from .system.pipes import Series
 from .utilities import DecimalCounter, IntegerCounter
 
+# TODO: Update documentation
+
 
 class TopOTheHourBot(IRCv3Client):
 
@@ -26,7 +28,7 @@ class TopOTheHourBot(IRCv3Client):
 
 class HasanAbiExtension(IRCv3ClientExtension[LocalServerCommand]):
 
-    target: Final[Literal["#lyystra"]] = "#lyystra"
+    target: Final[Literal["#hasanabi"]] = "#hasanabi"
 
     @Series.compose
     async def handle_commands(self) -> AsyncIterator[Coroutine]:

@@ -58,6 +58,9 @@ class Series[T](AsyncIterator[T]):
         /,
         predicate: Callable[[S], object] = lambda _: True,
     ) -> Series[S]:
+        """Compose a new ``Series`` that makes repeated calls to ``func`` while
+        its result evaluates true according to ``predicate``
+        """
 
         @Series.compose
         async def composite() -> AsyncIterator[S]:

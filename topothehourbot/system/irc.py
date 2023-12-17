@@ -26,6 +26,8 @@ from websockets import ConnectionClosed, WebSocketClientProtocol
 
 from .pipes import Diverter, Pipe
 
+# TODO: Update documentation
+
 
 class IRCv3ServerCommandParser(Iterator[IRCv3ServerCommandProtocol]):
 
@@ -255,16 +257,13 @@ class IRCv3Client(SupportsClientProperties, metaclass=ABCMeta):
         return self._diverter.attachment(pipe)
 
     async def distribute(self) -> None:
-        diverter = self._diverter
         async with TaskGroup() as tasks:
-            async for command in self:
-                if ircv3.is_ping(command):
-                    coro = self.send(command.reply())
-                else:
-                    diverter.send(command)
-                    continue
-                tasks.create_task(coro)
-            diverter.close()
+            with self._diverter.closure() as diverter:
+                async for command in self:
+                    if ircv3.is_ping(command):
+                        tasks.create_task(self.send(command.reply()))
+                    else:
+                        diverter.send(command)
 
 
 class IRCv3ClientExtension[T](SupportsClientProperties, metaclass=ABCMeta):

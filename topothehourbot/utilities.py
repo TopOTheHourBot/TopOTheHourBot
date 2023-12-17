@@ -10,6 +10,8 @@ __all__ = [
 from dataclasses import dataclass
 from decimal import Decimal
 
+# TODO: Update documentation
+
 
 @dataclass(slots=True)
 class Box[T]:
