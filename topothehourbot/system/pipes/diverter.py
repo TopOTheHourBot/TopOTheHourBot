@@ -8,7 +8,7 @@ __all__ = [
 import uuid
 from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
-from typing import Optional, final
+from typing import Optional, Self, final
 from uuid import UUID
 
 from .pipe import Closure, Pipe
@@ -92,3 +92,13 @@ class Diverter[T](Assembly[T]):
         """Clear all attached pipes"""
         for pipe in self.pipes().values():
             pipe.clear()
+
+    @contextmanager
+    def closure(self) -> Iterator[Self]:
+        """Return a context manager that ensures the diverter's closure upon
+        exit
+        """
+        try:
+            yield self
+        finally:
+            self.close()

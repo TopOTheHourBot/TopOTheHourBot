@@ -2,12 +2,13 @@ from __future__ import annotations
 
 __all__ = [
     "IRCv3Client",
+    "IRCv3ClientCompositor",
     "connect",
 ]
 
 import asyncio
 import os
-from abc import ABCMeta
+from abc import ABCMeta, abstractmethod
 from asyncio import TaskGroup
 from collections.abc import AsyncIterator, Coroutine, Iterator
 from contextlib import AbstractContextManager
@@ -266,6 +267,47 @@ class IRCv3Client(SupportsClientProperties, metaclass=ABCMeta):
             diverter.close()
 
 
+class IRCv3ClientCompositor[T](SupportsClientProperties, metaclass=ABCMeta):
+
+    __slots__ = ("_client", "_diverter")
+    _client: IRCv3Client | IRCv3ClientCompositor[object]
+    _diverter: Diverter[T]
+
+    def __init__(self, client: IRCv3Client | IRCv3ClientCompositor[object]) -> None:
+        self._client = client
+        self._diverter = Diverter()
+
+    @property
+    def name(self) -> str:
+        return self._client.name
+
+    @property
+    def latency(self) -> float:
+        return self._client.latency
+
+    async def join(self, *rooms: str) -> Optional[ConnectionClosed]:
+        return await self._client.join(*rooms)
+
+    async def part(self, *rooms: str) -> Optional[ConnectionClosed]:
+        return await self._client.part(*rooms)
+
+    async def message(self, comment: str, target: ServerPrivateMessage | str, *, important: bool = False) -> Optional[ConnectionClosed]:
+        return await self._client.message(comment, target, important=important)
+
+    async def close(self) -> None:
+        await self._client.close()
+
+    async def until_closure(self) -> None:
+        await self._client.until_closure()
+
+    def attachment(self, pipe: Optional[Pipe[T]] = None) -> AbstractContextManager[Pipe[T]]:
+        return self._diverter.attachment(pipe)
+
+    @abstractmethod
+    async def distribute(self) -> None:
+        raise NotImplementedError
+
+
 async def connect[IRCv3ClientT: IRCv3Client](
     client_factory: type[IRCv3ClientT],
     *,
@@ -276,10 +318,10 @@ async def connect[IRCv3ClientT: IRCv3Client](
         if oauth_token is None:
             raise ValueError("Twitch OAuth token not found in environment variables")
     assert isinstance(oauth_token, str)
-    async for websockets_connection in websockets.connect("ws://irc-ws.chat.twitch.tv:80"):
-        connection = client_factory(websockets_connection)
-        await connection.send("CAP REQ :twitch.tv/commands twitch.tv/membership twitch.tv/tags")
-        await connection.send(f"PASS oauth:{oauth_token}")
-        error = await connection.send(f"NICK {connection.name}")
+    async for connection in websockets.connect("ws://irc-ws.chat.twitch.tv:80"):
+        client = client_factory(connection)
+        await client.send("CAP REQ :twitch.tv/commands twitch.tv/membership twitch.tv/tags")
+        await client.send(f"PASS oauth:{oauth_token}")
+        error = await client.send(f"NICK {client.name}")
         if not error:
-            yield connection
+            yield client
