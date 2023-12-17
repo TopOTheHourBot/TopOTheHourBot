@@ -5,8 +5,8 @@ __all__ = ["Series"]
 import asyncio
 from asyncio import Task
 from asyncio import TimeoutError as AsyncTimeoutError
-from collections.abc import AsyncIterator, Callable
-from typing import Optional, Self, TypeGuard, final, overload
+from collections.abc import AsyncIterator, Callable, Coroutine
+from typing import Any, Optional, Self, TypeGuard, final, overload
 
 
 def identity[T](value: T, /) -> T:
@@ -39,20 +39,34 @@ class Series[T](AsyncIterator[T]):
         return value
 
     @staticmethod
-    def from_generator[**P, S](func: Callable[P, AsyncIterator[S]], /) -> Callable[P, Series[S]]:
+    def compose[**P, S](func: Callable[P, AsyncIterator[S]], /) -> Callable[P, Series[S]]:
         """Convert a function's return type from an asynchronous iterator to a
         ``Series``
         """
 
-        def wrapper(*args: P.args, **kwargs: P.kwargs) -> Series[S]:
+        def composite(*args: P.args, **kwargs: P.kwargs) -> Series[S]:
             return Series(func(*args, **kwargs))
 
-        wrapper.__name__ = func.__name__
-        wrapper.__doc__  = func.__doc__
+        composite.__name__ = func.__name__
+        composite.__doc__  = func.__doc__
 
-        return wrapper
+        return composite
 
-    @from_generator
+    @staticmethod
+    def repeat_while[S](
+        func: Callable[[], Coroutine[Any, Any, S]],
+        /,
+        predicate: Callable[[S], object] = lambda _: True,
+    ) -> Series[S]:
+
+        @Series.compose
+        async def composite() -> AsyncIterator[S]:
+            while predicate(result := await func()):
+                yield result
+
+        return composite()
+
+    @compose
     async def finite_timeout(self, delay: float, *, first: bool = False) -> AsyncIterator[T]:
         """Return a sub-series whose value retrievals are time restricted by
         ``delay`` seconds
@@ -81,7 +95,7 @@ class Series[T](AsyncIterator[T]):
             return self
         return self.finite_timeout(delay, first=first)
 
-    @from_generator
+    @compose
     async def global_unique(self, key: Callable[[T], object] = identity) -> AsyncIterator[T]:
         """Return a sub-series of the values whose call to ``key`` is unique
         among all encountered values
@@ -93,7 +107,7 @@ class Series[T](AsyncIterator[T]):
                 seen.add(result)
                 yield value
 
-    @from_generator
+    @compose
     async def local_unique(self, key: Callable[[T], object] = identity) -> AsyncIterator[T]:
         """Return a sub-series of the values whose call to ``key`` is unique
         as compared to the previously encountered value
@@ -105,7 +119,7 @@ class Series[T](AsyncIterator[T]):
                 seen = result
                 yield value
 
-    @from_generator
+    @compose
     async def enumerate(self, start: int = 0) -> AsyncIterator[tuple[int, T]]:
         """Return a sub-series whose values are enumerated from ``start``"""
         index = start
@@ -113,7 +127,7 @@ class Series[T](AsyncIterator[T]):
             yield (index, value)
             index += 1
 
-    @from_generator
+    @compose
     async def limit(self, bound: int) -> AsyncIterator[T]:
         """Return a sub-series limited to the first ``bound`` values
 
@@ -126,7 +140,7 @@ class Series[T](AsyncIterator[T]):
             if count == bound:
                 return
 
-    @from_generator
+    @compose
     async def map[S](self, mapper: Callable[[T], S]) -> AsyncIterator[S]:
         """Return a sub-series of the results from passing each value to
         ``mapper``
@@ -146,7 +160,7 @@ class Series[T](AsyncIterator[T]):
     def zip[T1, T2, T3, T4](self, other1: Series[T1], other2: Series[T2], other3: Series[T3], other4: Series[T4], /) -> Series[tuple[T, T1, T2, T3, T4]]: ...
     @overload
     def zip(self, *others: Series) -> Series[tuple]: ...
-    @from_generator
+    @compose
     async def zip(self, *others: Series) -> AsyncIterator[tuple]:
         """Return a sub-series zipped with other series
 
@@ -171,7 +185,7 @@ class Series[T](AsyncIterator[T]):
     def merge[T1, T2, T3, T4](self, other1: Series[T1], other2: Series[T2], other3: Series[T3], other4: Series[T4], /) -> Series[T | T1 | T2 | T3 | T4]: ...
     @overload
     def merge(self, *others: Series) -> Series: ...
-    @from_generator
+    @compose
     async def merge(self, *others: Series) -> AsyncIterator:
         """Return a sub-series merged with other series
 
@@ -206,7 +220,7 @@ class Series[T](AsyncIterator[T]):
                     todo.add(task)
                     yield result
 
-    @from_generator
+    @compose
     async def star_map[*Ts, S](self: Series[tuple[*Ts]], mapper: Callable[[*Ts], S]) -> AsyncIterator[S]:
         """Return a sub-series of the results from unpacking and passing each
         value to ``mapper``
@@ -218,7 +232,7 @@ class Series[T](AsyncIterator[T]):
     def filter[S](self, predicate: Callable[[T], TypeGuard[S]]) -> Series[S]: ...
     @overload
     def filter(self, predicate: Callable[[T], object]) -> Series[T]: ...
-    @from_generator
+    @compose
     async def filter(self, predicate: Callable[[T], object]) -> AsyncIterator[T]:
         """Return a sub-series of the values whose call to ``predicate``
         evaluates true

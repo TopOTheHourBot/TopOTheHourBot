@@ -33,7 +33,7 @@ class Pipe[T]:
         self._receiver = None
         self._closer = asyncio.get_running_loop().create_future()
 
-    @Series.from_generator
+    @Series.compose
     async def __aiter__(self) -> AsyncIterator[T]:
         try:
             while True:
