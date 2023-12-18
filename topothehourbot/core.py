@@ -50,7 +50,7 @@ class HasanAbiExtension(IRCv3ClientExtension[LocalServerCommand]):
                 match message.comment.split():
                     case ["$ping", *_]:
                         yield self.message(
-                            f"{self.latency:.3f}ms",
+                            f"{self.latency:.0f}ms",
                             target=message,
                             important=True,
                         )
