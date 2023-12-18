@@ -254,14 +254,23 @@ class IRCv3Client(SupportsClientProperties, metaclass=ABCMeta):
     ) -> AbstractContextManager[Pipe[IRCv3ServerCommandProtocol]]:
         return self._diverter.attachment(pipe)
 
-    async def distribute(self) -> None:
+    async def accumulate(self) -> None:
         async with TaskGroup() as tasks:
-            with self._diverter.closure() as diverter:
-                async for command in self:
-                    if ircv3.is_ping(command):
-                        tasks.create_task(self.send(command.reply()))
-                    else:
-                        diverter.send(command)
+            with self.attachment() as pipe:
+                async for coro in (
+                    aiter(pipe)
+                        .filter(ircv3.is_ping)
+                        .map(Ping.reply)
+                        .map(self.send)
+                ):
+                    tasks.create_task(coro)
+
+    async def distribute(self) -> None:
+        accumulator = asyncio.create_task(self.accumulate())
+        with self._diverter.closure() as diverter:
+            async for command in self:
+                diverter.send(command)
+        await accumulator
 
 
 class IRCv3ClientExtension[T](SupportsClientProperties, metaclass=ABCMeta):
