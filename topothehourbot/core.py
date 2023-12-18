@@ -4,6 +4,7 @@ __all__ = ["main"]
 
 import asyncio
 import operator
+import random
 import re
 from asyncio import TaskGroup
 from collections.abc import AsyncIterator, Coroutine
@@ -101,9 +102,36 @@ class HasanAbiExtension(IRCv3ClientExtension[LocalServerCommand]):
                 )
                 .filter(lambda counter: counter.count > 40)
             ):
+                rating = counter.value / counter.count
+                if rating <= 5:
+                    if rating <= 2.5:
+                        reactions = (
+                            "yikes, hassy .. unPOGGERS",
+                            "awful one, hassy :(",
+                            "that wasn't very, uhm .. good, hassy Concerned",
+                        )
+                    else:
+                        reactions = (
+                            "sorry, hassy .. :/",
+                            "uhm .. good try, hassy PoroSad",
+                            "not .. great, hassy .. Okayyy Clap",
+                        )
+                else:
+                    if rating <= 7.5:
+                        reactions = (
+                            "not bad, hassy ! :D",
+                            "nice, hassy ! peepoPog Clap",
+                            "good one, hassy ! hasScoot",
+                        )
+                    else:
+                        reactions = (
+                            "incredible, hassy !! pepoDance",
+                            "holy smokes, hassy !! :O",
+                            "wowieee, hassy !! peepoExcite",
+                        )
                 yield self.message(
                     f"DANKIES 🔔 {counter.count:d} chatters rated this ad segue an average"
-                    f" of {counter.value / counter.count:.2f}/10",
+                    f" of {rating:.2f}/10 - {random.choice(reactions)}",
                     target=self.target,
                     important=True,
                 )
@@ -143,9 +171,16 @@ class HasanAbiExtension(IRCv3ClientExtension[LocalServerCommand]):
                 )
                 .filter(lambda counter: counter.count > 20)
             ):
+                if counter.value:
+                    if counter.value > 0:
+                        reaction = "FeelsSnowyMan"
+                    else:
+                        reaction = "FeelsSnowMan"
+                else:
+                    reaction = "Awkward"
                 yield self.message(
                     f"donScoot 🔔 hassy {"gained" if counter.value >= 0 else "lost"}"
-                    f" {counter.value:+d} points for this roleplay moment",
+                    f" {counter.value:+d} points for this roleplay moment {reaction}",
                     target=self.target,
                     important=True,
                 )
