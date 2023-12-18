@@ -6,7 +6,7 @@ from topothehourbot import main
 
 logging.basicConfig(
     format="[%(asctime)s] [%(name)s] %(message)s",
-    level=logging.DEBUG,
+    level=logging.INFO,
     stream=sys.stdout,
 )
 

@@ -136,12 +136,12 @@ class HasanAbiExtension(IRCv3ClientExtension[LocalServerCommand]):
                             .map(lambda match: (
                                 IntegerCounter(match.group(1))
                             ))
-                            .finite_timeout(8.5)
+                            .finite_timeout(8)
                             .reduce(self.roleplay_rating_initial, operator.add)
                     ),
                     lambda counter: counter.count,
                 )
-                .filter(lambda counter: counter.count > 25)
+                .filter(lambda counter: counter.count > 20)
             ):
                 yield self.message(
                     f"donScoot 🔔 hassy {"gained" if counter.value >= 0 else "lost"}"
