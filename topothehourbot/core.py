@@ -171,16 +171,17 @@ class HasanAbiExtension(IRCv3ClientExtension[LocalServerCommand]):
                 )
                 .filter(lambda counter: counter.count > 20)
             ):
-                if counter.value:
-                    if counter.value > 0:
+                rating = counter.value
+                if rating:
+                    if rating > 0:
                         reaction = "FeelsSnowyMan"
                     else:
                         reaction = "FeelsSnowMan"
                 else:
                     reaction = "Awkward"
                 yield self.message(
-                    f"donScoot 🔔 hassy {"gained" if counter.value >= 0 else "lost"}"
-                    f" {counter.value:+d} points for this roleplay moment {reaction}",
+                    f"donScoot 🔔 hassy {"gained" if rating >= 0 else "lost"}"
+                    f" {rating:+d} points for this roleplay moment {reaction}",
                     target=self.target,
                     important=True,
                 )
