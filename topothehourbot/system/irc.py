@@ -26,8 +26,6 @@ from websockets import ConnectionClosed, WebSocketClientProtocol
 
 from .pipes import Diverter, Pipe
 
-# TODO: Update documentation
-
 
 class IRCv3ServerCommandParser(Iterator[IRCv3ServerCommandProtocol]):
 

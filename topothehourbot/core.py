@@ -19,8 +19,6 @@ from .system import IRCv3Client, IRCv3ClientExtension
 from .system.pipes import Series
 from .utilities import DecimalCounter, IntegerCounter
 
-# TODO: Update documentation
-
 
 class TopOTheHourBot(IRCv3Client):
 
