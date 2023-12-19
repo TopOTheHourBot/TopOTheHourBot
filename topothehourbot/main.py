@@ -21,6 +21,17 @@ async def main(
     *,
     pickle_directory: Path = DEFAULT_PICKLE_DIRECTORY,
 ) -> None:
+    """Run TopOTheHourBot forever
+
+    Requires a Twitch OAuth token. See the Twitch Developers documentation for
+    details on generating one: https://dev.twitch.tv/docs/irc/authenticate-bot/
+
+    Some client extensions make use of pickling to save and restore instance
+    data between sessions of execution. By default, pickles are stored in a
+    "pickles" folder located in this file's parent directory. This location may
+    be changed via ``pickle_directory``. The directory is always created if it
+    does not already exist.
+    """
     pickle_directory = pickle_directory.resolve()
     assert pickle_directory.is_dir()
     pickle_directory.mkdir(exist_ok=True)
