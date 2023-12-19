@@ -66,7 +66,7 @@ class HasanAbiExtension(IRCv3ClientExtension[LocalServerCommand]):
         protocol: Optional[int] = pickle.HIGHEST_PROTOCOL,
     ) -> Iterator[Self]:
         """Return a context manager that safely loads and dumps the extension's
-        instance data as a pickle file, yielding the extension
+        instance data as a pickle file, yielding the extension instance
 
         Uses the defaults defined by ``__init__()`` if the file pointed to by
         ``path`` is not found.
@@ -87,6 +87,11 @@ class HasanAbiExtension(IRCv3ClientExtension[LocalServerCommand]):
 
     @Series.compose
     async def handle_commands(self) -> AsyncIterator[Coroutine]:
+        """Handle traditional call-and-respond commands
+
+        Commands are set to only be usable by me (Lyystra/Astryyl), some
+        friends, and the mod team. This might be subject to change.
+        """
         with self.attachment() as pipe:
             async for message in (
                 aiter(pipe)
@@ -140,6 +145,12 @@ class HasanAbiExtension(IRCv3ClientExtension[LocalServerCommand]):
 
     @Series.compose
     async def handle_segue_ratings(self) -> AsyncIterator[Coroutine]:
+        """Handle ad segue ratings
+
+        Averages the numerator of values in the form "X/10", where "X" is a
+        number between 0 and 10 (inclusive), typically given by chat when Hasan
+        segues into running an advertisement on the broadcast.
+        """
         with self.attachment() as pipe:
             async for segue_rating, segue_rating_count in (
                 Series.repeat_while(
@@ -213,6 +224,12 @@ class HasanAbiExtension(IRCv3ClientExtension[LocalServerCommand]):
 
     @Series.compose
     async def handle_roleplay_ratings(self) -> AsyncIterator[Coroutine]:
+        """Handle roleplay ratings
+
+        Sums values in the form "+1" or "-1", typically given by chat to award
+        or penalise Hasan for staying in and out of character during roleplay
+        sessions.
+        """
         with self.attachment() as pipe:
             async for roleplay_rating_delta in (
                 Series.repeat_while(
@@ -262,6 +279,9 @@ class HasanAbiExtension(IRCv3ClientExtension[LocalServerCommand]):
                 )
 
     async def accumulate(self) -> None:
+        """Execute all message handlers asynchronously, dispatching coroutines
+        as they are yielded
+        """
         async with TaskGroup() as tasks:
             async for coro in (
                 self.handle_commands()
@@ -274,6 +294,9 @@ class HasanAbiExtension(IRCv3ClientExtension[LocalServerCommand]):
 
     @override
     async def distribute(self) -> None:
+        """Join the target room and eternally distribute its localised commands
+        to attachments
+        """
         await self.join(self.target)
         accumulator = asyncio.create_task(self.accumulate())
         with self._diverter.closure() as diverter:
