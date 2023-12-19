@@ -4,7 +4,7 @@ Typical execution and closure from command line:
 
 ```bash
 $ python3.12 -u -OO ./main.py > ./main.log 2>&1 &
-$ pkill -SIGINT [PID]
+$ kill -SIGINT [PID]
 ```
 
 Flag ``-u`` is required to force stdout and stderr to be unbuffered. Nothing
