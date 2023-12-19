@@ -53,6 +53,7 @@ class HasanAbiExtension(IRCv3ClientExtension[LocalServerCommand]):
         *,
         roleplay_rating_total: int = 0,
     ) -> None:
+        """Construct an extension instance"""
         super().__init__(client)
         self.roleplay_rating_total = roleplay_rating_total
 
