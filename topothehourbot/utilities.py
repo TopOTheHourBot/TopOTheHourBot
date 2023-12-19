@@ -13,18 +13,24 @@ from decimal import Decimal
 
 @dataclass(slots=True)
 class Box[T]:
+    """A wrapper around a single object, accessible through ``value``"""
 
     value: T
 
 
 @dataclass(slots=True)
 class Counter[T](Box[T]):
+    """A ``Box`` type that adds a ``count``"""
 
     count: int = 1
 
 
 @dataclass(init=False, slots=True)
 class IntegerCounter(Counter[int]):
+    """A ``Counter`` type whose ``value`` is an ``int``
+
+    Adds basic arithmetic operations.
+    """
 
     def __init__(self, value: int | str, count: int = 1) -> None:
         self.value = int(value)
@@ -51,6 +57,10 @@ class IntegerCounter(Counter[int]):
 
 @dataclass(init=False, slots=True)
 class DecimalCounter(Counter[Decimal]):
+    """A ``Counter`` type whose ``value`` is a ``Decimal``
+
+    Adds basic arithmetic operations.
+    """
 
     def __init__(self, value: Decimal | str | float | int, count: int = 1) -> None:
         self.value = Decimal(value)
