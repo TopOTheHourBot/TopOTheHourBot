@@ -90,9 +90,16 @@ class HasanAbiExtension(IRCv3ClientExtension[LocalServerCommand]):
                             target=message,
                             important=True,
                         )
-                    case ["$copy" | "$shadow", *args]:
+                    case ["$copy" | "$shadow", *words]:
                         yield self.message(
-                            " ".join(args),
+                            " ".join(words),
+                            target=message,
+                            important=True,
+                        )
+                    case ["$roleplay_rating_total", *_]:
+                        yield self.message(
+                            f"Hassy has accrued {self.roleplay_rating_total:,d} roleplay"
+                            " points since 12/17/2023",
                             target=message,
                             important=True,
                         )
