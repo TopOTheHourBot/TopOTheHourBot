@@ -1,20 +1,25 @@
 from __future__ import annotations
 
-__all__ = ["main"]
+__all__ = [
+    "TopOTheHourBot",
+    "HasanAbiExtension",
+]
 
 import asyncio
 import operator
+import pickle
 import random
 import re
 from asyncio import TaskGroup
-from collections.abc import AsyncIterator, Coroutine
+from collections.abc import AsyncIterator, Coroutine, Iterator
+from contextlib import contextmanager
+from pathlib import Path
 from re import Pattern
-from typing import Final, Literal, Optional, override
+from typing import Any, Final, Literal, Optional, Self, override
 
 from ircv3.dialects import twitch
 from ircv3.dialects.twitch import LocalServerCommand
 
-from . import system
 from .system import IRCv3Client, IRCv3ClientExtension
 from .system.pipes import Series
 from .utilities import DecimalCounter, IntegerCounter
@@ -28,6 +33,38 @@ class TopOTheHourBot(IRCv3Client):
 class HasanAbiExtension(IRCv3ClientExtension[LocalServerCommand]):
 
     target: Final[Literal["#hasanabi"]] = "#hasanabi"
+
+    def __init__(
+        self,
+        client: IRCv3Client | IRCv3ClientExtension[Any],
+        *,
+        roleplay_rating_total: int = 0,
+    ) -> None:
+        super().__init__(client)
+        self.roleplay_rating_total = roleplay_rating_total
+
+    @contextmanager
+    @classmethod
+    def from_pickle(
+        cls,
+        client: IRCv3Client | IRCv3ClientExtension[Any],
+        *,
+        path: Path,
+        protocol: Optional[int] = pickle.HIGHEST_PROTOCOL,
+    ) -> Iterator[Self]:
+        try:
+            with open(path, mode="rb") as file:
+                state = pickle.load(file)
+        except FileNotFoundError:
+            state = {}
+        assert isinstance(state, dict)
+        self = cls(client, **state)
+        try:
+            yield self
+        finally:
+            state = {"roleplay_rating_total": self.roleplay_rating_total}
+            with open(path, mode="wb") as file:
+                pickle.dump(state, file, protocol)
 
     @Series.compose
     async def handle_commands(self) -> AsyncIterator[Coroutine]:
@@ -78,7 +115,7 @@ class HasanAbiExtension(IRCv3ClientExtension[LocalServerCommand]):
     @Series.compose
     async def handle_segue_ratings(self) -> AsyncIterator[Coroutine]:
         with self.attachment() as pipe:
-            async for counter in (
+            async for segue_rating, segue_rating_count in (
                 Series.repeat_while(
                     lambda: (
                         aiter(pipe)
@@ -99,10 +136,13 @@ class HasanAbiExtension(IRCv3ClientExtension[LocalServerCommand]):
                     lambda counter: counter.count,
                 )
                 .filter(lambda counter: counter.count >= 40)
+                .map(lambda counter: (
+                    counter.value / counter.count,
+                    counter.count,
+                ))
             ):
-                rating = counter.value / counter.count
-                if rating <= 5:
-                    if rating <= 2.5:
+                if segue_rating <= 5:
+                    if segue_rating <= 2.5:
                         reactions = (
                             "yikes, hassy .. unPOGGERS",
                             "awful one, hassy :(",
@@ -115,7 +155,7 @@ class HasanAbiExtension(IRCv3ClientExtension[LocalServerCommand]):
                             "not .. great, hassy .. Okayyy Clap",
                         )
                 else:
-                    if rating <= 7.5:
+                    if segue_rating <= 7.5:
                         reactions = (
                             "not bad, hassy ! :D",
                             "nice, hassy ! peepoPog Clap",
@@ -128,12 +168,13 @@ class HasanAbiExtension(IRCv3ClientExtension[LocalServerCommand]):
                             "wowieee, hassy !! peepoExcite",
                         )
                 yield self.message(
-                    f"DANKIES 🔔 {counter.count:d} chatters rated this ad segue an average"
-                    f" of {rating:.2f}/10 - {random.choice(reactions)}",
+                    f"DANKIES 🔔 {segue_rating_count:d} chatters rated this ad segue an average of"
+                    f"{segue_rating:.2f}/10 - {random.choice(reactions)}",
                     target=self.target,
                     important=True,
                 )
 
+    roleplay_rating_total: int
     roleplay_rating_initial: Final[IntegerCounter] = IntegerCounter(0, 0)
     roleplay_rating_pattern: Final[Pattern[str]] = re.compile(
         r"""
@@ -147,7 +188,7 @@ class HasanAbiExtension(IRCv3ClientExtension[LocalServerCommand]):
     @Series.compose
     async def handle_roleplay_ratings(self) -> AsyncIterator[Coroutine]:
         with self.attachment() as pipe:
-            async for counter in (
+            async for roleplay_rating_delta in (
                 Series.repeat_while(
                     lambda: (
                         aiter(pipe)
@@ -168,26 +209,28 @@ class HasanAbiExtension(IRCv3ClientExtension[LocalServerCommand]):
                     lambda counter: counter.count,
                 )
                 .filter(lambda counter: counter.count >= 20)
+                .map(lambda counter: counter.value)
             ):
-                rating = counter.value
-                if rating:
-                    if rating > 0:
-                        reactions = (
-                            "FeelsSnowyMan",
-                            ":D",
-                            "Gladge",
-                        )
-                    else:
-                        reactions = (
-                            "FeelsSnowMan",
-                            ":(",
-                            "Sadge",
-                        )
+                roleplay_rating_total = self.roleplay_rating_total
+                self.roleplay_rating_total = roleplay_rating_total + roleplay_rating_delta
+                if roleplay_rating_total > 0:
+                    reactions = (
+                        "FeelsSnowyMan",
+                        ":D",
+                        "Gladge",
+                        "veryCat",
+                    )
                 else:
-                    reactions = ("Awkward ..",)
+                    reactions = (
+                        "FeelsSnowMan",
+                        ":(",
+                        "Sadge",
+                        "Awkward",
+                    )
                 yield self.message(
-                    f"donScoot 🔔 hassy {"gained" if rating >= 0 else "lost"} {rating:+d}"
-                    f" points for this roleplay moment {random.choice(reactions)}",
+                    f"donScoot 🔔 hassy {"gained" if roleplay_rating_delta >= 0 else "lost"}"
+                    f" {roleplay_rating_delta:+,d} points for this roleplay moment - hassy has"
+                    f" {roleplay_rating_total:,d} points in total {random.choice(reactions)}",
                     target=self.target,
                     important=True,
                 )
@@ -216,13 +259,3 @@ class HasanAbiExtension(IRCv3ClientExtension[LocalServerCommand]):
                 ):
                     diverter.send(command)
         await accumulator
-
-
-async def main(*, oauth_token: Optional[str] = None) -> None:
-    async for client in system.connect(
-        TopOTheHourBot,
-        oauth_token=oauth_token,
-    ):
-        async with TaskGroup() as tasks:
-            tasks.create_task(HasanAbiExtension(client).distribute())
-            await client.distribute()

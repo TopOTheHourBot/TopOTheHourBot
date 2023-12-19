@@ -7,7 +7,6 @@ __all__ = [
 ]
 
 import asyncio
-import os
 from abc import ABCMeta, abstractmethod
 from asyncio import TaskGroup
 from collections.abc import AsyncIterator, Coroutine, Iterator
@@ -317,13 +316,8 @@ class IRCv3ClientExtension[T](SupportsClientProperties, metaclass=ABCMeta):
 async def connect[IRCv3ClientT: IRCv3Client](
     client_factory: type[IRCv3ClientT],
     *,
-    oauth_token: Optional[str] = None,
+    oauth_token: str,
 ) -> AsyncIterator[IRCv3ClientT]:
-    if oauth_token is None:
-        oauth_token = os.getenv("TWITCH_OAUTH_TOKEN")
-        if oauth_token is None:
-            raise ValueError("Twitch OAuth token not found in environment variables")
-    assert isinstance(oauth_token, str)
     async for connection in websockets.connect("ws://irc-ws.chat.twitch.tv:80"):
         client = client_factory(connection)
         await client.send("CAP REQ :twitch.tv/commands twitch.tv/membership twitch.tv/tags")
