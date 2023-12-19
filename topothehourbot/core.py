@@ -43,8 +43,8 @@ class HasanAbiExtension(IRCv3ClientExtension[LocalServerCommand]):
         super().__init__(client)
         self.roleplay_rating_total = roleplay_rating_total
 
-    @contextmanager
     @classmethod
+    @contextmanager
     def from_pickle(
         cls,
         client: IRCv3Client | IRCv3ClientExtension[Any],
@@ -218,8 +218,8 @@ class HasanAbiExtension(IRCv3ClientExtension[LocalServerCommand]):
                 .filter(lambda counter: counter.count >= 20)
                 .map(lambda counter: counter.value)
             ):
-                roleplay_rating_total = self.roleplay_rating_total
-                self.roleplay_rating_total = roleplay_rating_total + roleplay_rating_delta
+                roleplay_rating_total = self.roleplay_rating_total + roleplay_rating_delta
+                self.roleplay_rating_total = roleplay_rating_total
                 if roleplay_rating_total > 0:
                     reactions = (
                         "FeelsSnowyMan",
