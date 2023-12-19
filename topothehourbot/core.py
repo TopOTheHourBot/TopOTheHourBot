@@ -176,7 +176,7 @@ class HasanAbiExtension(IRCv3ClientExtension[LocalServerCommand]):
                         )
                 yield self.message(
                     f"DANKIES 🔔 {segue_rating_count:d} chatters rated this ad segue an average of"
-                    f"{segue_rating:.2f}/10 - {random.choice(reactions)}",
+                    f" {segue_rating:.2f}/10 - {random.choice(reactions)}",
                     target=self.target,
                     important=True,
                 )
