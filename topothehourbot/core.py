@@ -26,11 +26,24 @@ from .utilities import DecimalCounter, IntegerCounter
 
 
 class TopOTheHourBot(IRCv3Client):
+    """The TopOTheHourBot client"""
 
     name: Final[Literal["topothehourbot"]] = "topothehourbot"
 
 
 class HasanAbiExtension(IRCv3ClientExtension[LocalServerCommand]):
+    """TopOTheHourBot's Hasan-specific operations
+
+    Does a few different things:
+    - Defines a small set of mod-only commands
+    - Averages batch ratings given by chat when Hasan performs an ad segue
+    - Sums batch +1 and -1 scores given by chat when Hasan distinctively stays
+      in and out of character during roleplay sessions
+
+    Contains only one instance variable, ``roleplay_rating_total``, that is the
+    summation of all roleplay scores across time. All other attributes are
+    statically-defined at the class level.
+    """
 
     target: Final[Literal["#hasanabi"]] = "#hasanabi"
 
@@ -52,6 +65,12 @@ class HasanAbiExtension(IRCv3ClientExtension[LocalServerCommand]):
         path: Path,
         protocol: Optional[int] = pickle.HIGHEST_PROTOCOL,
     ) -> Iterator[Self]:
+        """Return a context manager that safely loads and dumps the extension's
+        instance data as a pickle file, yielding the extension
+
+        Uses the defaults defined by ``__init__()`` if the file pointed to by
+        ``path`` is not found.
+        """
         try:
             with open(path, mode="rb") as file:
                 state = pickle.load(file)
