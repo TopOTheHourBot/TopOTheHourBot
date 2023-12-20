@@ -7,7 +7,7 @@ __all__ = [
 ]
 
 import asyncio
-from abc import ABCMeta, abstractmethod
+from abc import ABCMeta
 from asyncio import TaskGroup
 from collections.abc import AsyncIterator, Coroutine, Iterator
 from contextlib import AbstractContextManager
@@ -307,10 +307,6 @@ class IRCv3ClientExtension[T](SupportsClientProperties, metaclass=ABCMeta):
 
     def attachment(self, pipe: Optional[Pipe[T]] = None) -> AbstractContextManager[Pipe[T]]:
         return self._diverter.attachment(pipe)
-
-    @abstractmethod
-    async def distribute(self) -> None:
-        raise NotImplementedError
 
 
 async def connect[IRCv3ClientT: IRCv3Client](

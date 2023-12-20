@@ -296,7 +296,6 @@ class HasanAbiExtension(IRCv3ClientExtension[LocalServerCommand]):
             ):
                 tasks.create_task(coro)
 
-    @override
     async def distribute(self) -> None:
         """Join the target room and eternally distribute its localised commands
         to attachments
