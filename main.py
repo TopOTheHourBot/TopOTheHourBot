@@ -14,6 +14,10 @@ which is probably never wanted for deployment).
 
 Flag ``-OO`` is optional and removes all ``assert`` and ``__debug__``-dependent
 statements (which are used pretty frequently).
+
+I do *not* advise killing the bot's process through means other than
+``kill -SIGINT``, as this command will raise a ``KeyboardInterrupt`` into the
+program that allows for proper clean-up and state saves to occur.
 """
 
 import asyncio
