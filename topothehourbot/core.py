@@ -28,6 +28,7 @@ from .utilities import DecimalCounter, IntegerCounter
 class TopOTheHourBot(IRCv3Client):
     """The TopOTheHourBot client"""
 
+    __slots__ = ()
     name: Final[Literal["topothehourbot"]] = "topothehourbot"
 
 
@@ -45,6 +46,7 @@ class HasanAbiExtension(IRCv3ClientExtension[LocalServerCommand]):
     statically-defined at the class level.
     """
 
+    __slots__ = ("roleplay_rating_total")
     target: Final[Literal["#hasanabi"]] = "#hasanabi"
 
     def __init__(
