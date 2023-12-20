@@ -123,10 +123,11 @@ class HasanAbiExtension(IRCv3ClientExtension[LocalServerCommand]):
                             target=message,
                             important=True,
                         )
-                    case ["$roleplay_rating_total", *_]:
+                    case ["$roleplay_rating_total", *handles]:
                         yield self.message(
-                            f"Hassy has accrued {self.roleplay_rating_total:,d} roleplay"
-                            " points since 12/17/2023",
+                            f"{" ".join(map(lambda handle: "@" + handle.lstrip("@"), handles))}"
+                            f" hassy has accrued {self.roleplay_rating_total:,d} roleplay points"
+                            f" since December 17, 2023",
                             target=message,
                             important=True,
                         )
