@@ -11,7 +11,7 @@ from abc import ABCMeta
 from asyncio import TaskGroup
 from collections.abc import AsyncIterator, Coroutine, Iterator
 from contextlib import AbstractContextManager
-from typing import Any, Final, Optional, Self, final, overload
+from typing import Any, Final, Optional, Self, overload
 
 import ircv3
 import websockets
@@ -135,7 +135,6 @@ class IRCv3Client(SupportsClientProperties, metaclass=ABCMeta):
         self._last_message_epoch = 0
         self._last_join_epoch = 0
 
-    @final
     async def __aiter__(self) -> AsyncIterator[IRCv3ServerCommandProtocol]:
         try:
             while True:
@@ -146,7 +145,6 @@ class IRCv3Client(SupportsClientProperties, metaclass=ABCMeta):
             return
 
     @property
-    @final
     def latency(self) -> float:
         """The connection latency in milliseconds
 
@@ -217,17 +215,6 @@ class IRCv3Client(SupportsClientProperties, metaclass=ABCMeta):
             delay = max(self.message_cooldown - (curr_message_epoch - last_message_epoch), 0)
         else:
             delay = 0
-
-        # Note that the moment at which we set _last_message_epoch is crucial
-        # to timing everything correctly, here.
-        #
-        # If important=True, we must set _last_message_epoch *before* sleeping
-        # so that subsequent sends during the cooldown period read back the
-        # epoch for the delay calculation above.
-        #
-        # If important=False, we must set _last_message_epoch, but only if
-        # we're allowing the send to happen (i.e., only if there is no delay).
-
         if important:
             self._last_message_epoch = curr_message_epoch + delay
             if delay:
@@ -240,15 +227,12 @@ class IRCv3Client(SupportsClientProperties, metaclass=ABCMeta):
             command = ClientPrivateMessage(target, comment)
         else:
             command = target.reply(comment)
-
         return await self.send(command)
 
-    @final
     def close(self) -> Coroutine[Any, Any, None]:
         """Close the connection to the IRC server"""
         return self._connection.close()
 
-    @final
     def until_closure(self) -> Coroutine[Any, Any, None]:
         """Wait until the IRC connection has been closed"""
         return self._connection.wait_closed()
@@ -257,6 +241,10 @@ class IRCv3Client(SupportsClientProperties, metaclass=ABCMeta):
         self,
         pipe: Optional[Pipe[IRCv3ServerCommandProtocol]] = None,
     ) -> AbstractContextManager[Pipe[IRCv3ServerCommandProtocol]]:
+        """Return a context manager that safely attaches and detaches ``pipe``
+
+        Default-constructs a ``Pipe`` instance if ``pipe`` is ``None``.
+        """
         return self._diverter.attachment(pipe)
 
     async def accumulate(self) -> None:
