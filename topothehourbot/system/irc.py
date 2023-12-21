@@ -11,7 +11,7 @@ from abc import ABCMeta
 from asyncio import TaskGroup
 from collections.abc import AsyncIterator, Coroutine, Iterator
 from contextlib import AbstractContextManager
-from typing import Any, Final, Optional, Self, final
+from typing import Any, Final, Optional, Self, final, overload
 
 import ircv3
 import websockets
@@ -194,7 +194,13 @@ class IRCv3Client(SupportsClientProperties, metaclass=ABCMeta):
         """Send a PART command to the IRC server"""
         return await self.send(ClientPart(*rooms))
 
-    async def message(self, comment: str, target: ServerPrivateMessage | str, *, important: bool = False) -> Optional[ConnectionClosed]:
+    async def message(
+        self,
+        comment: str,
+        target: ServerPrivateMessage | str,
+        *,
+        important: bool = False,
+    ) -> Optional[ConnectionClosed]:
         """Send a PRIVMSG command to the IRC server
 
         Composes a ``ClientPrivateMessage`` in reply to ``target`` if a
@@ -272,52 +278,110 @@ class IRCv3Client(SupportsClientProperties, metaclass=ABCMeta):
         await accumulator
 
 
-class IRCv3ClientExtension[T](SupportsClientProperties, metaclass=ABCMeta):
+class IRCv3ClientExtension[AccumulateT, DistributeT](SupportsClientProperties):
+    """A wrapper type around an ``IRCv3Client`` or another
+    ``IRCv3ClientExtension`` instance with an independent diverter, allowing
+    objects of any type to be distributed
+
+    Note that this class does not have a distributor by default. How and when
+    distribution occurs is left up to the sub-class implementor.
+
+    This class contains no abstracts.
+    """
+
+    type WrappedClientT = IRCv3Client | IRCv3ClientExtension[Any, AccumulateT]
 
     __slots__ = ("_client", "_diverter")
-    _client: IRCv3Client | IRCv3ClientExtension[Any]
-    _diverter: Diverter[T]
+    _client: WrappedClientT
+    _diverter: Diverter[DistributeT]
 
-    def __init__(self, client: IRCv3Client | IRCv3ClientExtension[Any]) -> None:
+    @overload
+    def __init__(
+        self: IRCv3ClientExtension[IRCv3ServerCommandProtocol, DistributeT],
+        client: IRCv3Client,
+    ) -> None: ...
+    @overload
+    def __init__(
+        self: IRCv3ClientExtension[AccumulateT, DistributeT],
+        client: IRCv3ClientExtension[Any, AccumulateT],
+    ) -> None: ...
+
+    def __init__(self, client):
         self._client = client
         self._diverter = Diverter()
 
     @property
     def name(self) -> str:
+        """The client's source IRC name"""
         return self._client.name
 
     @property
     def latency(self) -> float:
+        """The connection latency in milliseconds
+
+        Updated with each ping sent by the underlying connection. Set to ``0``
+        before the first ping.
+        """
         return self._client.latency
 
-    async def join(self, *rooms: str) -> Optional[ConnectionClosed]:
-        return await self._client.join(*rooms)
+    def join(self, *rooms: str) -> Coroutine[Any, Any, Optional[ConnectionClosed]]:
+        """Send a JOIN command to the IRC server"""
+        return self._client.join(*rooms)
 
-    async def part(self, *rooms: str) -> Optional[ConnectionClosed]:
-        return await self._client.part(*rooms)
+    def part(self, *rooms: str) -> Coroutine[Any, Any, Optional[ConnectionClosed]]:
+        """Send a PART command to the IRC server"""
+        return self._client.part(*rooms)
 
-    async def message(self, comment: str, target: ServerPrivateMessage | str, *, important: bool = False) -> Optional[ConnectionClosed]:
-        return await self._client.message(comment, target, important=important)
+    def message(
+        self,
+        comment: str,
+        target: ServerPrivateMessage | str,
+        *,
+        important: bool = False,
+    ) -> Coroutine[Any, Any, Optional[ConnectionClosed]]:
+        """Send a PRIVMSG command to the IRC server
 
-    async def close(self) -> None:
-        await self._client.close()
+        Composes a ``ClientPrivateMessage`` in reply to ``target`` if a
+        ``ServerPrivateMessage``, or to the room named by ``target`` if a
+        ``str``.
 
-    async def until_closure(self) -> None:
-        await self._client.until_closure()
+        PRIVMSGs have a global 1.5-second cooldown. ``important`` can be set to
+        true to wait for the cooldown, or false to prevent waiting when a
+        dispatch occurs during a cooldown period.
+        """
+        return self._client.message(comment, target, important=important)
 
-    def attachment(self, pipe: Optional[Pipe[T]] = None) -> AbstractContextManager[Pipe[T]]:
+    def close(self) -> Coroutine[Any, Any, None]:
+        """Close the connection to the IRC server"""
+        return self._client.close()
+
+    def until_closure(self) -> Coroutine[Any, Any, None]:
+        """Wait until the IRC connection has been closed"""
+        return self._client.until_closure()
+
+    def attachment(
+        self,
+        pipe: Optional[Pipe[DistributeT]] = None,
+    ) -> AbstractContextManager[Pipe[DistributeT]]:
+        """Return a context manager that safely attaches and detaches ``pipe``
+
+        Default-constructs a ``Pipe`` instance if ``pipe`` is ``None``.
+        """
         return self._diverter.attachment(pipe)
 
 
 async def connect[IRCv3ClientT: IRCv3Client](
-    client_factory: type[IRCv3ClientT],
+    client: type[IRCv3ClientT],
     *,
     oauth_token: str,
 ) -> AsyncIterator[IRCv3ClientT]:
+    """Connect to the Twitch IRC server as ``client``, reconnecting on each
+    iteration
+    """
     async for connection in websockets.connect("ws://irc-ws.chat.twitch.tv:80"):
-        client = client_factory(connection)
-        await client.send("CAP REQ :twitch.tv/commands twitch.tv/membership twitch.tv/tags")
-        await client.send(f"PASS oauth:{oauth_token}")
-        error = await client.send(f"NICK {client.name}")
+        connected_client = client(connection)
+        await connected_client.send("CAP REQ :twitch.tv/commands twitch.tv/membership twitch.tv/tags")
+        await connected_client.send(f"PASS oauth:{oauth_token}")
+        error = await connected_client.send(f"NICK {connected_client.name}")
         if not error:
-            yield client
+            yield connected_client

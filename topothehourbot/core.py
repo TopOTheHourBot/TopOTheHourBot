@@ -15,8 +15,9 @@ from collections.abc import AsyncIterator, Coroutine, Iterator
 from contextlib import contextmanager
 from pathlib import Path
 from re import Pattern
-from typing import Any, Final, Literal, Optional, Self, override
+from typing import Any, Final, Literal, Optional, Self
 
+from ircv3 import IRCv3ServerCommandProtocol
 from ircv3.dialects import twitch
 from ircv3.dialects.twitch import LocalServerCommand
 
@@ -26,13 +27,13 @@ from .utilities import DecimalCounter, IntegerCounter
 
 
 class TopOTheHourBot(IRCv3Client):
-    """The TopOTheHourBot client"""
+    """TopOTheHourBot's client"""
 
     __slots__ = ()
     name: Final[Literal["topothehourbot"]] = "topothehourbot"
 
 
-class HasanAbiExtension(IRCv3ClientExtension[LocalServerCommand]):
+class HasanAbiExtension(IRCv3ClientExtension[IRCv3ServerCommandProtocol, LocalServerCommand]):
     """TopOTheHourBot's Hasan-specific operations
 
     Does a few different things:
@@ -46,16 +47,12 @@ class HasanAbiExtension(IRCv3ClientExtension[LocalServerCommand]):
     statically-defined at the class level.
     """
 
+    type WrappedClientT = IRCv3Client | IRCv3ClientExtension[Any, IRCv3ServerCommandProtocol]
+
     __slots__ = ("roleplay_rating_total")
     target: Final[Literal["#hasanabi"]] = "#hasanabi"
 
-    def __init__(
-        self,
-        client: IRCv3Client | IRCv3ClientExtension[Any],
-        *,
-        roleplay_rating_total: int = 0,
-    ) -> None:
-        """Construct an extension instance"""
+    def __init__(self, client: WrappedClientT, *, roleplay_rating_total: int = 0) -> None:
         super().__init__(client)
         self.roleplay_rating_total = roleplay_rating_total
 
@@ -63,7 +60,7 @@ class HasanAbiExtension(IRCv3ClientExtension[LocalServerCommand]):
     @contextmanager
     def from_pickle(
         cls,
-        client: IRCv3Client | IRCv3ClientExtension[Any],
+        client: WrappedClientT,
         *,
         path: Path,
         protocol: Optional[int] = pickle.HIGHEST_PROTOCOL,
