@@ -168,7 +168,7 @@ class HasanAbiExtension(IRCv3ClientExtension[LocalServerCommand]):
                             .finite_timeout(8.5)
                             .reduce(self.segue_rating_initial, operator.add)
                     ),
-                    predicate=lambda counter: counter.count,
+                    lambda counter: counter.count,
                 )
                 .filter(lambda counter: counter.count >= 40)
                 .map(lambda counter: (
@@ -247,7 +247,7 @@ class HasanAbiExtension(IRCv3ClientExtension[LocalServerCommand]):
                             .finite_timeout(8)
                             .reduce(self.roleplay_rating_initial, operator.add)
                     ),
-                    predicate=lambda counter: counter.count,
+                    lambda counter: counter.count,
                 )
                 .filter(lambda counter: counter.count >= 20)
                 .map(lambda counter: counter.value)
