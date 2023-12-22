@@ -11,7 +11,7 @@ from abc import ABCMeta
 from asyncio import TaskGroup
 from collections.abc import AsyncIterator, Coroutine, Iterator
 from contextlib import AbstractContextManager
-from typing import Any, Final, Optional, Self, overload
+from typing import Any, Final, Optional, Self
 
 import ircv3
 import websockets
@@ -229,10 +229,9 @@ class IRCv3Client(SupportsClientProperties, metaclass=ABCMeta):
         await accumulator
 
 
-class IRCv3ClientExtension[AccumulateT, DistributeT](SupportsClientProperties):
-    """A wrapper type around an ``IRCv3Client`` or another
-    ``IRCv3ClientExtension`` instance with an independent diverter, allowing
-    objects of any type to be distributed
+class IRCv3ClientExtension[DistributeT](SupportsClientProperties):
+    """A wrapper type around an ``IRCv3Client`` instance with an independent
+    diverter, allowing objects of any type to be distributed
 
     Note that this class does not have a distributor by default. How and when
     distribution occurs is left up to the sub-class implementor.
@@ -240,24 +239,11 @@ class IRCv3ClientExtension[AccumulateT, DistributeT](SupportsClientProperties):
     This class contains no abstracts.
     """
 
-    type WrappedClientT = IRCv3Client | IRCv3ClientExtension[Any, AccumulateT]
-
     __slots__ = ("_client", "_diverter")
-    _client: WrappedClientT
+    _client: IRCv3Client
     _diverter: Diverter[DistributeT]
 
-    @overload
-    def __init__(
-        self: IRCv3ClientExtension[IRCv3ServerCommandProtocol, DistributeT],
-        client: IRCv3Client,
-    ) -> None: ...
-    @overload
-    def __init__(
-        self: IRCv3ClientExtension[AccumulateT, DistributeT],
-        client: IRCv3ClientExtension[Any, AccumulateT],
-    ) -> None: ...
-
-    def __init__(self, client):
+    def __init__(self, client: IRCv3Client) -> None:
         self._client = client
         self._diverter = Diverter()
 

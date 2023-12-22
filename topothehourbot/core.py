@@ -15,10 +15,9 @@ from collections.abc import AsyncIterator, Coroutine, Iterator
 from contextlib import contextmanager
 from pathlib import Path
 from re import Pattern
-from typing import Any, Final, Literal, Optional, Self
+from typing import Final, Literal, Optional, Self
 
 from channels import stream
-from ircv3 import IRCv3ServerCommandProtocol
 from ircv3.dialects import twitch
 from ircv3.dialects.twitch import LocalServerCommand
 
@@ -33,7 +32,7 @@ class TopOTheHourBot(IRCv3Client):
     name: Final[Literal["topothehourbot"]] = "topothehourbot"
 
 
-class HasanAbiExtension(IRCv3ClientExtension[IRCv3ServerCommandProtocol, LocalServerCommand]):
+class HasanAbiExtension(IRCv3ClientExtension[LocalServerCommand]):
     """TopOTheHourBot's Hasan-specific operations
 
     Does a few different things:
@@ -47,12 +46,10 @@ class HasanAbiExtension(IRCv3ClientExtension[IRCv3ServerCommandProtocol, LocalSe
     statically-defined at the class level.
     """
 
-    type WrappedClientT = IRCv3Client | IRCv3ClientExtension[Any, IRCv3ServerCommandProtocol]
-
     __slots__ = ("roleplay_rating_total")
     target: Final[Literal["#hasanabi"]] = "#hasanabi"
 
-    def __init__(self, client: WrappedClientT, *, roleplay_rating_total: int = 0) -> None:
+    def __init__(self, client: IRCv3Client, *, roleplay_rating_total: int = 0) -> None:
         super().__init__(client)
         self.roleplay_rating_total = roleplay_rating_total
 
@@ -60,7 +57,7 @@ class HasanAbiExtension(IRCv3ClientExtension[IRCv3ServerCommandProtocol, LocalSe
     @contextmanager
     def from_pickle(
         cls,
-        client: WrappedClientT,
+        client: IRCv3Client,
         *,
         path: Path,
         protocol: Optional[int] = pickle.HIGHEST_PROTOCOL,
