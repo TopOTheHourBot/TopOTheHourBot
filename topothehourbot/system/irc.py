@@ -15,6 +15,7 @@ from typing import Any, Final, Optional, Self, overload
 
 import ircv3
 import websockets
+from channels import Channel, Diverter
 from ircv3 import (IRCv3ClientCommandProtocol, IRCv3Command,
                    IRCv3ServerCommandProtocol, Ping)
 from ircv3.dialects.twitch import (ClientJoin, ClientPart,
@@ -22,8 +23,6 @@ from ircv3.dialects.twitch import (ClientJoin, ClientPart,
                                    ServerPart, ServerPrivateMessage,
                                    SupportsClientProperties)
 from websockets import ConnectionClosed, WebSocketClientProtocol
-
-from .pipes import Diverter, Pipe
 
 
 class IRCv3ServerCommandParser(Iterator[IRCv3ServerCommandProtocol]):
@@ -76,43 +75,6 @@ class IRCv3ServerCommandParser(Iterator[IRCv3ServerCommandProtocol]):
 
 
 class IRCv3Client(SupportsClientProperties, metaclass=ABCMeta):
-    """A wrapper type around a ``websockets.WebSocketClientProtocol`` instance
-    that provides a Twitch IRC abstraction layer, and a publisher-subscriber
-    model for use by coroutines.
-
-    Note that this class does not provide the means to initiate the IRC
-    connection - it only serves to manage the distribution of labour by reading
-    from a pre-established connection and fanning messages out to attachments
-    via the ``run()`` method. A basic execution may look like this:
-
-    ```
-    async for connection in websockets.connect(...):
-        client = ClientSubClass(connection)
-        async with TaskGroup() as tasks:
-            tasks.create_task(foo(client))
-            tasks.create_task(bar(client))
-            await client.run()
-    ```
-
-    Coroutines then have the freedom to subscribe themselves to the client in
-    order to receive messages from the server. The recommended way of doing
-    so is via the ``attachment()`` method, which builds a ``Pipe`` that is
-    elegantly closed and detached when the connection ceases:
-
-    ```
-    async def foo(client: Client) -> None:
-        with client.attachment() as pipe:  # Detaches pipe on exit
-            async for reply in (  # Stops iteration on connection closure
-                aiter(pipe)
-                    .filter(twitch.is_server_private_message)
-                    .filter(lambda message: "hi" in message.comment)
-                    .map(lambda message: message.reply("hello!"))
-            ):
-                await client.send(reply)
-    ```
-
-    See ``Assembly``, ``Pipe``, and ``Series`` for more details.
-    """
 
     __slots__ = (
         "_connection",
@@ -239,19 +201,20 @@ class IRCv3Client(SupportsClientProperties, metaclass=ABCMeta):
 
     def attachment(
         self,
-        pipe: Optional[Pipe[IRCv3ServerCommandProtocol]] = None,
-    ) -> AbstractContextManager[Pipe[IRCv3ServerCommandProtocol]]:
-        """Return a context manager that safely attaches and detaches ``pipe``
+        channel: Optional[Channel[IRCv3ServerCommandProtocol]] = None,
+    ) -> AbstractContextManager[Channel[IRCv3ServerCommandProtocol]]:
+        """Return a context manager that safely attaches and detaches
+        ``channel``
 
-        Default-constructs a ``Pipe`` instance if ``pipe`` is ``None``.
+        Default-constructs a ``Channel`` instance if ``channel`` is ``None``.
         """
-        return self._diverter.attachment(pipe)
+        return self._diverter.attachment(channel)
 
     async def accumulate(self) -> None:
         async with TaskGroup() as tasks:
-            with self.attachment() as pipe:
+            with self.attachment() as channel:
                 async for coro in (
-                    aiter(pipe)
+                    aiter(channel)
                         .filter(ircv3.is_ping)
                         .map(Ping.reply)
                         .map(self.send)
@@ -349,13 +312,14 @@ class IRCv3ClientExtension[AccumulateT, DistributeT](SupportsClientProperties):
 
     def attachment(
         self,
-        pipe: Optional[Pipe[DistributeT]] = None,
-    ) -> AbstractContextManager[Pipe[DistributeT]]:
-        """Return a context manager that safely attaches and detaches ``pipe``
+        channel: Optional[Channel[DistributeT]] = None,
+    ) -> AbstractContextManager[Channel[DistributeT]]:
+        """Return a context manager that safely attaches and detaches
+        ``channel``
 
-        Default-constructs a ``Pipe`` instance if ``pipe`` is ``None``.
+        Default-constructs a ``Channel`` instance if ``channel`` is ``None``.
         """
-        return self._diverter.attachment(pipe)
+        return self._diverter.attachment(channel)
 
 
 async def connect[IRCv3ClientT: IRCv3Client](

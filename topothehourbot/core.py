@@ -17,12 +17,12 @@ from pathlib import Path
 from re import Pattern
 from typing import Any, Final, Literal, Optional, Self
 
+from channels import stream
 from ircv3 import IRCv3ServerCommandProtocol
 from ircv3.dialects import twitch
 from ircv3.dialects.twitch import LocalServerCommand
 
 from .system import IRCv3Client, IRCv3ClientExtension
-from .system.pipes import Series
 from .utilities import DecimalCounter, IntegerCounter
 
 
@@ -85,16 +85,16 @@ class HasanAbiExtension(IRCv3ClientExtension[IRCv3ServerCommandProtocol, LocalSe
             with open(path, mode="wb") as file:
                 pickle.dump(state, file, protocol)
 
-    @Series.compose
+    @stream.compose
     async def handle_commands(self) -> AsyncIterator[Coroutine]:
         """Handle traditional call-and-respond commands
 
         Commands are set to only be usable by me (Lyystra/Astryyl), some
         friends, and the mod team. This might be subject to change.
         """
-        with self.attachment() as pipe:
+        with self.attachment() as channel:
             async for message in (
-                aiter(pipe)
+                aiter(channel)
                     .filter(twitch.is_server_private_message)
                     .filter(lambda message: (
                         message.sender.name in {
@@ -144,7 +144,7 @@ class HasanAbiExtension(IRCv3ClientExtension[IRCv3ServerCommandProtocol, LocalSe
         flags=re.VERBOSE,
     )
 
-    @Series.compose
+    @stream.compose
     async def handle_segue_ratings(self) -> AsyncIterator[Coroutine]:
         """Handle ad segue ratings
 
@@ -152,11 +152,11 @@ class HasanAbiExtension(IRCv3ClientExtension[IRCv3ServerCommandProtocol, LocalSe
         number between 0 and 10 (inclusive), typically given by chat when Hasan
         segues into running an advertisement on the broadcast.
         """
-        with self.attachment() as pipe:
+        with self.attachment() as channel:
             async for segue_rating, segue_rating_count in (
-                Series.repeat_while(
+                stream.call_while(
                     lambda: (
-                        aiter(pipe)
+                        aiter(channel)
                             .filter(twitch.is_server_private_message)
                             .filter(lambda message: (
                                 message.sender.name != self.name
@@ -171,7 +171,7 @@ class HasanAbiExtension(IRCv3ClientExtension[IRCv3ServerCommandProtocol, LocalSe
                             .finite_timeout(8.5)
                             .reduce(self.segue_rating_initial, operator.add)
                     ),
-                    lambda counter: counter.count,
+                    predicate=lambda counter: counter.count,
                 )
                 .filter(lambda counter: counter.count >= 40)
                 .map(lambda counter: (
@@ -223,7 +223,7 @@ class HasanAbiExtension(IRCv3ClientExtension[IRCv3ServerCommandProtocol, LocalSe
         flags=re.VERBOSE,
     )
 
-    @Series.compose
+    @stream.compose
     async def handle_roleplay_ratings(self) -> AsyncIterator[Coroutine]:
         """Handle roleplay ratings
 
@@ -231,11 +231,11 @@ class HasanAbiExtension(IRCv3ClientExtension[IRCv3ServerCommandProtocol, LocalSe
         or penalise Hasan for staying in and out of character during roleplay
         sessions.
         """
-        with self.attachment() as pipe:
+        with self.attachment() as channel:
             async for roleplay_rating_delta in (
-                Series.repeat_while(
+                stream.call_while(
                     lambda: (
-                        aiter(pipe)
+                        aiter(channel)
                             .filter(twitch.is_server_private_message)
                             .filter(lambda message: (
                                 message.sender.name != self.name
@@ -250,7 +250,7 @@ class HasanAbiExtension(IRCv3ClientExtension[IRCv3ServerCommandProtocol, LocalSe
                             .finite_timeout(8)
                             .reduce(self.roleplay_rating_initial, operator.add)
                     ),
-                    lambda counter: counter.count,
+                    predicate=lambda counter: counter.count,
                 )
                 .filter(lambda counter: counter.count >= 20)
                 .map(lambda counter: counter.value)
@@ -300,9 +300,9 @@ class HasanAbiExtension(IRCv3ClientExtension[IRCv3ServerCommandProtocol, LocalSe
         await self.join(self.target)
         accumulator = asyncio.create_task(self.accumulate())
         with self._diverter.closure() as diverter:
-            with self._client.attachment() as pipe:
+            with self._client.attachment() as channel:
                 async for command in (
-                    aiter(pipe)
+                    aiter(channel)
                         .filter(twitch.is_local_server_command)
                         .filter(lambda command: command.room == self.target)
                 ):
