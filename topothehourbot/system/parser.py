@@ -3,7 +3,7 @@ from __future__ import annotations
 __all__ = ["IRCv3ServerCommandParser"]
 
 from collections.abc import Iterator
-from typing import Final, Self
+from typing import Final, Literal, Self
 
 from ircv3 import IRCv3Command, IRCv3ServerCommandProtocol, Ping
 from ircv3.dialects.twitch import (RoomState, ServerJoin, ServerPart,
@@ -11,6 +11,8 @@ from ircv3.dialects.twitch import (RoomState, ServerJoin, ServerPart,
 
 
 class IRCv3ServerCommandParser(Iterator[IRCv3ServerCommandProtocol]):
+
+    CRLF: Final[Literal["\r\n"]] = "\r\n"
 
     NIL: Final[object] = object()
     END: Final[object] = object()
@@ -39,13 +41,13 @@ class IRCv3ServerCommandParser(Iterator[IRCv3ServerCommandProtocol]):
         if head == -1:
             return self.END
         data = self._data
-        next = data.find("\r\n", head)
+        next = data.find(self.CRLF, head)
         if next == -1:
             self._head = next
             return self.END
         command = IRCv3Command.from_string(data[head:next])
         name = command.name
-        self._head = next + 2
+        self._head = next + len(self.CRLF)
         if name == "PRIVMSG":
             return ServerPrivateMessage.cast(command)
         elif name == "ROOMSTATE":
