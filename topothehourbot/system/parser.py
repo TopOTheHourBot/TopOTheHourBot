@@ -14,8 +14,8 @@ class IRCv3ServerCommandParser(Iterator[IRCv3ServerCommandProtocol]):
 
     CRLF: Final[Literal["\r\n"]] = "\r\n"
 
-    NIL: Final[object] = object()
-    END: Final[object] = object()
+    UNRECOGNIZED: Final[object] = object()
+    EXHAUSTED: Final[object] = object()
 
     __slots__ = ("_data", "_head")
     _data: str
@@ -29,8 +29,8 @@ class IRCv3ServerCommandParser(Iterator[IRCv3ServerCommandProtocol]):
         return self
 
     def __next__(self) -> IRCv3ServerCommandProtocol:
-        while (result := self.move_head()) is not self.END:
-            if result is self.NIL:
+        while (result := self.move_head()) is not self.EXHAUSTED:
+            if result is self.UNRECOGNIZED:
                 continue
             assert isinstance(result, IRCv3ServerCommandProtocol)
             return result
@@ -39,12 +39,12 @@ class IRCv3ServerCommandParser(Iterator[IRCv3ServerCommandProtocol]):
     def move_head(self) -> object:
         head = self._head
         if head == -1:
-            return self.END
+            return self.EXHAUSTED
         data = self._data
         next = data.find(self.CRLF, head)
         if next == -1:
             self._head = next
-            return self.END
+            return self.EXHAUSTED
         command = IRCv3Command.from_string(data[head:next])
         name = command.name
         self._head = next + len(self.CRLF)
@@ -58,4 +58,4 @@ class IRCv3ServerCommandParser(Iterator[IRCv3ServerCommandProtocol]):
             return ServerJoin.cast(command)
         elif name == "PART":
             return ServerPart.cast(command)
-        return self.NIL
+        return self.UNRECOGNIZED
