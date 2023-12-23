@@ -69,7 +69,7 @@ class HasanAbiExtension(IRCv3ClientExtension[LocalServerCommand]):
                             "bytesized_",
                         }
                         or message.sender.is_moderator
-                        or message.sender.is_owner
+                        or message.sender.is_broadcaster
                     ))
             ):
                 match message.comment.split():
