@@ -42,14 +42,14 @@ def main() -> None:
     )
 
     parser.add_argument(
-        "oauth-token",
+        "oauth_token",
         help="A Twitch IRC OAuth token. Storing the token in the system"
              " environment variables and invoking it by its name is advised."
              " See here for details on generating one:"
              " https://dev.twitch.tv/docs/irc/authenticate-bot/",
     )
     parser.add_argument(
-        "--pickle-directory",
+        "--pickle_directory",
         type=Path,
         default=topothehourbot.DEFAULT_PICKLE_DIRECTORY,
         help="A local directory to read and write pickled data between sessions"
