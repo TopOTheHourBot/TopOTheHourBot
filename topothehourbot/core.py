@@ -19,7 +19,7 @@ from ircv3.dialects import twitch
 from ircv3.dialects.twitch import LocalServerCommand
 
 from .system import IRCv3Client, IRCv3ClientExtension
-from .utilities import DecimalCounter, IntegerCounter
+from .utilities import IntegerCounter, RealCounter
 
 
 class TopOTheHourBot(IRCv3Client):
@@ -94,14 +94,14 @@ class HasanAbiExtension(IRCv3ClientExtension[LocalServerCommand]):
                             important=True,
                         )
 
-    segue_rating_initial: Final[DecimalCounter] = DecimalCounter(0, 0)
+    segue_rating_initial: Final[RealCounter] = RealCounter(0, 0)
     segue_rating_pattern: Final[Pattern[str]] = re.compile(
         r"""
         (?:^|\s)              # should proceed the beginning or whitespace
         (
-            (?:(?:\d|10)\.?)  # any integer within range 0 to 10
+            (?:\d+(?:.\d*)?)  # integer with optional decimal part
             |
-            (?:\d?\.\d+)      # any decimal within range 0 to 9
+            (?:.\d+)          # decimal part only
         )
         \s?/\s?10             # denominator of 10
         (?:$|[\s,.!?])        # should precede the end, whitespace, or some punctuation
@@ -131,7 +131,7 @@ class HasanAbiExtension(IRCv3ClientExtension[LocalServerCommand]):
                             ))
                             .not_none()
                             .map(lambda match: (
-                                DecimalCounter(match.group(1))
+                                RealCounter(match.group(1)).clamp(0, 10)
                             ))
                             .finite_timeout(8.5)
                             .reduce(self.segue_rating_initial, operator.add)
