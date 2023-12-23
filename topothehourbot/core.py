@@ -99,9 +99,12 @@ class HasanAbiExtension(IRCv3ClientExtension[LocalServerCommand]):
         r"""
         (?:^|\s)              # should proceed the beginning or whitespace
         (
+          [-+]?               # optional + or -
+          (?:
             (?:\d+(?:.\d*)?)  # integer with optional decimal part
             |
             (?:.\d+)          # decimal part only
+          )
         )
         \s?/\s?10             # denominator of 10
         (?:$|[\s,.!?])        # should precede the end, whitespace, or some punctuation
