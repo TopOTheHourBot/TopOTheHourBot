@@ -7,15 +7,12 @@ __all__ = [
 
 import asyncio
 import operator
-import pickle
 import random
 import re
 from asyncio import TaskGroup
-from collections.abc import AsyncIterator, Coroutine, Iterator
-from contextlib import contextmanager
-from pathlib import Path
+from collections.abc import AsyncIterator, Coroutine
 from re import Pattern
-from typing import Final, Literal, Optional, Self
+from typing import Final, Literal
 
 from channels import stream
 from ircv3.dialects import twitch
@@ -52,35 +49,6 @@ class HasanAbiExtension(IRCv3ClientExtension[LocalServerCommand]):
     def __init__(self, client: IRCv3Client, *, roleplay_rating_total: int = 0) -> None:
         super().__init__(client)
         self.roleplay_rating_total = roleplay_rating_total
-
-    @classmethod
-    @contextmanager
-    def from_pickle(
-        cls,
-        client: IRCv3Client,
-        *,
-        path: Path,
-        protocol: Optional[int] = pickle.HIGHEST_PROTOCOL,
-    ) -> Iterator[Self]:
-        """Return a context manager that safely loads and dumps the extension's
-        instance data as a pickle file, yielding the extension instance
-
-        Uses the defaults defined by ``__init__()`` if the file pointed to by
-        ``path`` is not found.
-        """
-        try:
-            with open(path, mode="rb") as file:
-                state = pickle.load(file)
-        except FileNotFoundError:
-            state = {}
-        assert isinstance(state, dict)
-        self = cls(client, **state)
-        try:
-            yield self
-        finally:
-            state = {"roleplay_rating_total": self.roleplay_rating_total}
-            with open(path, mode="wb") as file:
-                pickle.dump(state, file, protocol)
 
     @stream.compose
     async def handle_commands(self) -> AsyncIterator[Coroutine]:

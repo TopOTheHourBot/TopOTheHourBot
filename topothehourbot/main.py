@@ -5,15 +5,41 @@ __all__ = [
     "main",
 ]
 
+import pickle
 from asyncio import TaskGroup
-from contextlib import ExitStack
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Final
+from typing import Any, Final, Optional
 
 from . import system
 from .core import HasanAbiExtension, TopOTheHourBot
 
 DEFAULT_PICKLE_DIRECTORY: Final[Path] = Path(__file__).parent / "pickles"
+
+
+@dataclass(slots=True)
+class HasanAbiExtensionParameters:
+    """Persistent objects to save and load for ``HasanAbiExtension``"""
+
+    roleplay_rating_total: int = 0
+
+
+def load_object[DefaultT](path: Path, *, default: DefaultT = None) -> Any | DefaultT:
+    """Load a Python object from ``path``
+
+    Returns ``default`` if the file pointed to by ``path`` is not found.
+    """
+    try:
+        with open(path, mode="rb") as file:
+            return pickle.load(file)
+    except FileNotFoundError:
+        return default
+
+
+def save_object(path: Path, object: Any, *, protocol: Optional[int] = pickle.HIGHEST_PROTOCOL) -> None:
+    """Save a Python object to ``path``"""
+    with open(path, mode="wb") as file:
+        pickle.dump(object, file, protocol)
 
 
 async def main(
@@ -36,14 +62,20 @@ async def main(
     assert pickle_directory.is_dir()
     pickle_directory.mkdir(exist_ok=True)
     async for client in system.connect(TopOTheHourBot, oauth_token=oauth_token):
-        with ExitStack() as stack:
-            extension_contexts = [
-                HasanAbiExtension.from_pickle(
-                    client=client,
-                    path=pickle_directory / "HasanAbi.pickle",
-                ),
-            ]
+        parameters: HasanAbiExtensionParameters = load_object(
+            pickle_directory / "HasanAbi.pickle",
+            default=HasanAbiExtensionParameters(),
+        )
+        extension = HasanAbiExtension(
+            client=client,
+            roleplay_rating_total=parameters.roleplay_rating_total,
+        )
+        try:
             async with TaskGroup() as tasks:
-                for extension in map(stack.enter_context, extension_contexts):
-                    tasks.create_task(extension.distribute())
+                tasks.create_task(extension.distribute())
                 await client.distribute()
+        finally:
+            save_object(
+                pickle_directory / "HasanAbi.pickle",
+                HasanAbiExtensionParameters(extension.roleplay_rating_total),
+            )
