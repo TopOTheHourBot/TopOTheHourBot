@@ -16,7 +16,8 @@ from ircv3 import IRCv3ClientCommandProtocol, IRCv3ServerCommandProtocol, Ping
 from ircv3.dialects.twitch import (ClientJoin, ClientPart,
                                    ClientPrivateMessage, ServerPrivateMessage,
                                    SupportsClientProperties)
-from websockets import ConnectionClosed, WebSocketClientProtocol
+from websockets import (ConnectionClosed, ConnectionClosedOK,
+                        WebSocketClientProtocol)
 
 from .parser import IRCv3ServerCommandParser
 
@@ -50,7 +51,7 @@ class IRCv3Client(SupportsClientProperties, metaclass=ABCMeta):
                 commands = await self.recv()
                 for command in commands:
                     yield command
-        except ConnectionClosed:
+        except ConnectionClosedOK:
             return
 
     @property
