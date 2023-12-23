@@ -1,10 +1,8 @@
 # TopOTheHourBot
 
-TopOTheHourBot is a simple bot that only runs in HasanAbi's chat. It does one thing - that thing being to tally ad segue ratings for an average.
+TopOTheHourBot is a simple Twitch IRC bot that only runs in [HasanAbi](https://www.twitch.tv/hasanabi)'s chat. Its primary function is to average ratings given by chat when Hasan performs an "ad segue".
 
 ![](./assets/example.png)
-
-The bot reads each incoming chat message searching for "ratings": a fraction whose denominator is 10, written vaguely like "X/10", where "X" is a number between 0 and 10. If a high density of ratings can be found within a certain timespan, TopOTheHourBot will send a notification to the channel, telling the average rating.
 
 TopOTheHourBot is a partner to the [HasanHub](https://www.hasanhub.com/) project, currently being developed by [chrcit](https://github.com/chrcit). Average ratings are sent to a HasanHub database for upcoming features of the website.
 
@@ -12,76 +10,41 @@ TopOTheHourBot is a partner to the [HasanHub](https://www.hasanhub.com/) project
 
 ### Can I submit multiple ratings?
 
-You can, yes. In prior iterations of the bot, you were unable to do so unless you had multiple accounts, but, I ultimately decided that it'd be more fun if chatters could fight to skew the average in a certain direction.
+You can, yes. Prior iterations of the bot did not allow this, but, I ultimately decided that it'd be more fun if chatters could fight to skew the average.
 
 ### Can I submit a negative rating? A rating that's greater than 10? A decimal?
 
-Ratings whose numerator is outside of the range 0 to 10 (inclusive) are ignored. Decimal values within this range are completely valid, and counted towards the average as normal.
+The rating's numerator can be **any** number, even numbers less than 0 or greater than 10. Numbers outside of the 0-10 range are [clamped](https://en.wikipedia.org/wiki/Clamping_(graphics)), however.
 
-For any nerds reading this: TopOTheHourBot conducts its search using a [regular expression](https://en.wikipedia.org/wiki/Regular_expression) ([in Python flavor](https://docs.python.org/3/library/re.html)). The exact pattern is:
+The rating can be present anywhere within your chat message. If your message contains multiple ratings, only the left-most rating is taken into account.
 
-```python
-r"""
-(?:^|\s)            # should proceed the beginning or whitespace
-(
-  (?:(?:\d|10)\.?)  # any integer within range 0 to 10
-  |                 # or
-  (?:\d?\.\d+)      # any decimal within range 0 to 9
-)
-\s?/\s?10           # denominator of 10
-(?:$|[\s,.!?])      # should precede the end, whitespace, or some punctuation
-"""
-```
-
-[You can mess around with this pattern for yourself here](https://regex101.com/r/YyFggX/2).
-
-Example messages that would be contributing a rating towards the average:
-
-```
-10/10
-5 /10
-0./10
-3.14159265/ 10 some trailing text
-.456 / 10
-some text 5.5555/10 more text
-4/10 this is a lot of text 5/10
-```
-
-The *first* rating is always the one that's chosen by the bot (in cases where a message contains multiple).
+If you want to reference a rating but not have it contribute to the average, you can surround the rating with quotations.
 
 ### When does the bot run?
 
-Section under construction.
+It is almost always running, even while Hasan is offline. Sometimes it'll be offline if its access has expired, or if I need to take it down for maintenance.
 
-### How can I tell if the bot is running?
-
-The native Twitch chat has a viewer list that tracks all active moderators and VIPs - you can check if the bot is online by looking for its name beneath the VIPs section.
+You can check if the bot is online by looking for its name in the viewer list, beneath the VIPs section.
 
 ### How is the bot ran?
 
-Section under construction.
-
-### Why does the bot chat normally sometimes?
-
-The bot has some commands that are only usable by me, some friends, and the moderators. If you ever see the bot chatting normally, it is one of us puppeterring it.
-
-In the past, I've also made small changes to have it reply to some friends under particular conditions.
+The bot currently runs on a [DigitalOcean Droplet](https://www.digitalocean.com/products/droplets) (a virtual machine). It can be invoked from its command-line interface implemented by [main.py](./main.py) - see its module docstring for more details.
 
 ### Why did the bot not send out a message at [some moment in time]?
 
-Either the bot was offline, or the rating density wasn't high enough. TopOTheHourBot used to suffer from server drops, but, Hasan had recently (at the time of writing this) granted it VIP status, which prevents this issue.
+Either the bot was offline, or not enough chatters had contributed to the average. TopOTheHourBot used to suffer from server drops, but, Hasan had since granted it VIP status, which prevents this issue.
 
-If you didn't already know: when a Twitch chat is moving quickly, messages get served in batches (this is why it may appear to move and stop periodically). If you don't send a message while the chat is moving, your message is dropped by the Twitch servers to save on resources. This "drop" [is visualized by Chatterino](https://github.com/Chatterino/chatterino2/issues/1213), but not on the native Twitch web client. The native client "lies" to you by displaying your message on the screen when, in actuality, it may have never been sent.
+If you didn't already know: when a Twitch chat has a lot of users, messages get served in batches - this is why it may appear to move and stop periodically. If you don't send a message while the chat is moving, your message is "dropped" (i.e., discarded) by the Twitch servers to save on resources. Server drops [are visualized by Chatterino](https://github.com/Chatterino/chatterino2/issues/1213), but not the native Twitch web client. The native client "lies" to you by displaying your message on the screen when, in actuality, it may have never been sent.
 
 Again, however, this issue has been nullified by Hasan's decision to make TopOTheHourBot a VIP. Users with the "Broadcaster", "Moderator", or "VIP" designation are given message priority over a standard user.
 
 ### Why does the bot not have a bot badge like Fossabot?
 
-The bot badge is a [BetterTTV](https://betterttv.com/) designation that must be assigned by the broadcaster. I'm not going to bother Hasan about giving a bot, that only appears every hour, a crudely designed badge (and please do not do so on my behalf).
+The bot badge is a [BetterTTV](https://betterttv.com/) designation that must be assigned by the broadcaster. I do not think it's significant enough to warrant bothering Hasan about it, and please do not do so on my behalf.
 
 ### Are my messages kept somewhere?
 
-TopOTheHourBot runs entirely on ephemeral memory - nothing is kept between login sessions. Content such as your messages, your username, etc. are kept for nanoseconds at a time.
+TopOTheHourBot runs almost entirely on ephemeral memory. Content such as messages, usernames, etc. are kept for nanoseconds at a time. Currently, Hasan's total roleplay score is the only piece of data kept between login sessions.
 
 To HasanHub, TopOTheHourBot simply tells it each average rating, the time at which they were calculated, and [an ID](https://en.wikipedia.org/wiki/Universally_unique_identifier) that signifies what streaming session they're a part of.
 
@@ -97,7 +60,12 @@ And thus, I will not be linking any such website to avoid association - I'm addi
 
 ## Requirements
 
-Section under construction.
+TopOTheHourBot requires Python 3.12. This version of Python was primarily chosen for the numerous improvements it provides to the [`asyncio`](https://docs.python.org/3/whatsnew/3.12.html#asyncio) module, along with the myriad of [CPython optimizations](https://docs.python.org/3/whatsnew/3.11.html#faster-cpython) that came packaged in Python 3.11.
+
+The API that TopOTheHourBot uses was built almost entirely from the ground up. To get it running, you'll need to install three libraries - two of these built specifically for this project and are not available through PyPI:
+- [`ircv3`](https://github.com/TopOTheHourBot/ircv3)
+- [`channels`](https://github.com/TopOTheHourBot/channels)
+- [`websockets`](https://websockets.readthedocs.io/en/stable/)
 
 ## Contributing
 
