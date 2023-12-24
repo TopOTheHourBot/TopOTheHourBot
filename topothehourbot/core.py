@@ -85,6 +85,14 @@ class HasanAbiExtension(IRCv3ClientExtension[LocalServerCommand]):
                             target=message,
                             important=True,
                         )
+                    case ["$code", *handles]:
+                        yield self.message(
+                            f"{" ".join(map(lambda handle: "@" + handle.lstrip("@"), handles))}"
+                            f" you can find the bot's source code on GitHub"
+                            f" https://github.com/TopOTheHourBot/",
+                            target=message,
+                            important=True,
+                        )
                     case ["$roleplay_rating_total", *handles]:
                         yield self.message(
                             f"{" ".join(map(lambda handle: "@" + handle.lstrip("@"), handles))}"
@@ -97,17 +105,17 @@ class HasanAbiExtension(IRCv3ClientExtension[LocalServerCommand]):
     segue_rating_initial: Final[RealCounter] = RealCounter(0, 0)
     segue_rating_pattern: Final[Pattern[str]] = re.compile(
         r"""
-        (?:^|\s)              # should proceed the beginning or whitespace
+        (?:^|\s)              # Should proceed the beginning or whitespace
         (
-          [-+]?               # optional + or -
+          [-+]?               # Optional + or -
           (?:
-            (?:\d+(?:.\d*)?)  # integer with optional decimal part
+            (?:\d+(?:.\d*)?)  # Integer with optional decimal part
             |
-            (?:.\d+)          # decimal part only
+            (?:.\d+)          # Decimal part only
           )
         )
-        \s?/\s?10             # denominator of 10
-        (?:$|[\s,.!?])        # should precede the end, whitespace, or some punctuation
+        \s?/\s?10             # Denominator of 10
+        (?:$|[\s,.!?])        # Should precede the end, whitespace, or some punctuation
         """,
         flags=re.VERBOSE,
     )
@@ -174,7 +182,7 @@ class HasanAbiExtension(IRCv3ClientExtension[LocalServerCommand]):
                             "wowieee, hassy !! peepoExcite",
                         )
                 yield self.message(
-                    f"DANKIES 🔔 {segue_rating_count:d} chatters rated this ad segue an average of"
+                    f"DANKIES 🔔 {segue_rating_count:,d} chatters rated this ad segue an average of"
                     f" {segue_rating:.2f}/10 - {random.choice(reactions)}",
                     target=self.target,
                     important=True,
@@ -184,9 +192,9 @@ class HasanAbiExtension(IRCv3ClientExtension[LocalServerCommand]):
     roleplay_rating_initial: Final[IntegerCounter] = IntegerCounter(0, 0)
     roleplay_rating_pattern: Final[Pattern[str]] = re.compile(
         r"""
-        (?:^|\s)        # should proceed the beginning or whitespace
+        (?:^|\s)        # Should proceed the beginning or whitespace
         ([-+]1)         # -1 or +1
-        (?:$|[\s,.!?])  # should precede the end, whitespace, or some punctuation
+        (?:$|[\s,.!?])  # Should precede the end, whitespace, or some punctuation
         """,
         flags=re.VERBOSE,
     )
