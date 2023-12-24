@@ -1,10 +1,28 @@
 # TopOTheHourBot
 
-TopOTheHourBot is a simple Twitch IRC bot that only runs in [HasanAbi](https://www.twitch.tv/hasanabi)'s chat. Its primary function is to average ratings given by chat when Hasan performs an "ad segue".
+TopOTheHourBot is a simple Twitch IRC bot that only runs in [HasanAbi](https://www.twitch.tv/hasanabi)'s chat. Its primary function is to average ratings given by chatters when Hasan performs an ad segue.
 
-![](./assets/example.png)
+![](./assets/header.png)
 
-TopOTheHourBot is a partner to the [HasanHub](https://www.hasanhub.com/) project, currently being developed by [chrcit](https://github.com/chrcit). Average ratings are sent to a HasanHub database for upcoming features of the website.
+TopOTheHourBot is a partner to the [HasanHub](https://www.hasanhub.com/) project, currently being developed by [chrcit](https://github.com/chrcit). Average ratings are reported to a HasanHub database for upcoming features of the website.
+
+## Mechanics
+
+For TopOTheHourBot to report an average rating to the chat, two things must occur:
+
+1. There must be at least 40 messages that contain a rating.
+2. These messages must be sent within 8.5 seconds of each other.
+
+Note that the word, "messages", was carefully chosen here - the averager **does not care** if the same chatter has contributed more than once. This means that spamming your rating **does** influence the average, but is practically imperceptible when other chatters are doing the same with their own rating.
+
+Ratings are expected to take the form "X/10", where "X" is any number. Numbers outside of the 0-10 range are [clamped](https://en.wikipedia.org/wiki/Clamping_(graphics)). The rating can be present anywhere within the message, with only the left-most one taken into account if there are multiple. To reference a rating without contributing to the average, you can surround it with quotations.
+
+<p align="center">
+    <img src="./assets/mechanics_showcase.gif">
+</p>
+<p align="center"><i>TopOTheHourBot running in my chat with a minimum of 3 messages and an 8.5 second timeout.</i></p>
+
+In addition to averaging segue ratings, TopOTheHourBot has recently gained the ability to total Hasan's roleplay scores (+1s and -1s). It does this in a near-identical fashion to averaging segue ratings, but instead requires just 20 messages within 8 seconds of each other - the lower message threshold being due to the lower density of chatters that watch Hasan's gaming sessions.
 
 ## FAQ
 
@@ -44,7 +62,7 @@ The bot badge is a [BetterTTV](https://betterttv.com/) designation that must be 
 
 ### Are my messages kept somewhere?
 
-TopOTheHourBot runs almost entirely on ephemeral memory. Content such as messages, usernames, etc. are kept for nanoseconds at a time. Currently, Hasan's total roleplay score is the only piece of data kept between login sessions.
+TopOTheHourBot runs almost entirely on ephemeral memory. Content such as messages, usernames, etc. are kept for microseconds at a time. Currently, Hasan's total roleplay score is the only piece of data kept between login sessions.
 
 To HasanHub, TopOTheHourBot simply tells it each average rating, the time at which they were calculated, and [an ID](https://en.wikipedia.org/wiki/Universally_unique_identifier) that signifies what streaming session they're a part of.
 
@@ -60,9 +78,9 @@ And thus, I will not be linking any such website to avoid association - I'm addi
 
 ## Requirements
 
-TopOTheHourBot requires Python 3.12. This version of Python was primarily chosen for the numerous improvements it provides to the [`asyncio`](https://docs.python.org/3/whatsnew/3.12.html#asyncio) module, along with the myriad of [CPython optimizations](https://docs.python.org/3/whatsnew/3.11.html#faster-cpython) that came packaged in Python 3.11.
+TopOTheHourBot requires Python 3.12. This version of Python was primarily chosen for the improvements it provides to the [`asyncio`](https://docs.python.org/3/whatsnew/3.12.html#asyncio) module, along with the myriad of [CPython optimizations](https://docs.python.org/3/whatsnew/3.11.html#faster-cpython) that came packaged in Python 3.11.
 
-The API that TopOTheHourBot uses was built almost entirely from the ground up. To get it running, you'll need to install three libraries - two of these built specifically for this project and are not available through PyPI:
+The API that TopOTheHourBot uses was built almost entirely from scratch. To get it running, you'll need to install three libraries - two of these built specifically for this project and are not available through PyPI:
 - [`ircv3`](https://github.com/TopOTheHourBot/ircv3)
 - [`channels`](https://github.com/TopOTheHourBot/channels)
 - [`websockets`](https://websockets.readthedocs.io/en/stable/)
