@@ -17,10 +17,10 @@ Note that the word, "messages", was carefully chosen here - the averager **does 
 
 Ratings are expected to take the form "X/10", where "X" is any number. Numbers outside of the 0-10 range are [clamped](https://en.wikipedia.org/wiki/Clamping_(graphics)). The rating can be present anywhere within the message, with only the left-most one taken into account if there are multiple. To reference a rating without contributing to the average, you can surround it with quotations.
 
-<p align="center">
-    <img src="./assets/mechanics_showcase.gif">
-</p>
-<p align="center"><i>TopOTheHourBot running in my chat with a minimum of 3 messages and an 8.5 second timeout.</i></p>
+
+https://github.com/TopOTheHourBot/TopOTheHourBot/assets/53410383/630a1114-019b-4e16-bbce-8c27758c630b
+
+<p align="center"><i>TopOTheHourBot running in my chat with a minimum of 3 messages and a 5 second timeout.</i></p>
 
 In addition to averaging segue ratings, TopOTheHourBot has recently gained the ability to total Hasan's roleplay scores (+1s and -1s). It does this in a near-identical fashion to averaging segue ratings, but instead requires just 20 messages within 8 seconds of each other - the lower message threshold being due to the lower density of chatters that watch Hasan's gaming sessions.
 
