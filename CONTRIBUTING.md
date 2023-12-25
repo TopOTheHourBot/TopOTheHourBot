@@ -6,6 +6,8 @@ If you're **not familiar** with programming, you can create an [issue](https://g
 
 If you're **familiar** with programming, the rest of this document is dedicated to getting you up-to-speed on how TopOTheHourBot works and where in the code to construct new features. You'll of course be given credit in the repository's [README](./README.md) if your contributions are merged.
 
+## Agreements
+
 In general, if you're thinking about making a contribution that interacts with non-privileged chatters (chatters that are not moderators, VIPs, or Hasan) in some manner, **I will be seeking approval from Hasan's moderators first**. This wasn't an explicit requirement given to me by them, but I'd very much prefer if this was done so as to ensure that the feature doesn't come into conflict with their expectations of chat.
 
 Certain features will **always** be denied even though they do not go against [Twitch's Developer Agreement](https://www.twitch.tv/p/en/legal/developer-agreement/) - these are my own rules on what is and is not allowed. Please do not ask for or create features that perform the following operations:
@@ -22,5 +24,3 @@ Certain features will **always** be denied even though they do not go against [T
     2. There is no concrete definition of "spam". In general, I consider it to be any routine that sends a lot of messages in a short timeframe - it is an "I know it when I see it" kind of thing, and so the wording with regards to this rule is deliberately vague.
 
 TopOTheHourBot is, and will always be open source. All code contributions will be subject to the [MIT license](./LICENSE).
-
-
