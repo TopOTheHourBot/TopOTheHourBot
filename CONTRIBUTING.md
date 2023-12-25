@@ -72,7 +72,7 @@ While not particularly egregious, imagine a scenario where you have a multitude 
 
 ```mermaid
 stateDiagram-v2
-    state main() {
+    state WebSocketClientProtocol {
         [*] --> TopOTheHourBot
         TopOTheHourBot --> [*]
         state TopOTheHourBot {
