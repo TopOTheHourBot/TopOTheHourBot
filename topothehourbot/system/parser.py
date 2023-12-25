@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-__all__ = ["IRCv3ServerCommandParser"]
+__all__ = ["ServerCommandParser"]
 
 from collections.abc import Iterator
 from typing import Final, Literal, Self
@@ -10,7 +10,7 @@ from ircv3.dialects.twitch import (RoomState, ServerJoin, ServerPart,
                                    ServerPrivateMessage)
 
 
-class IRCv3ServerCommandParser(Iterator[ServerCommandProtocol]):
+class ServerCommandParser(Iterator[ServerCommandProtocol]):
 
     CRLF: Final[Literal["\r\n"]] = "\r\n"
 

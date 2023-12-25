@@ -18,18 +18,18 @@ from channels import stream
 from ircv3.dialects import twitch
 from ircv3.dialects.twitch import LocalServerCommand
 
-from .system import IRCv3Client, IRCv3ClientExtension
+from .system import Client, ClientExtension
 from .utilities import IntegerCounter, RealCounter
 
 
-class TopOTheHourBot(IRCv3Client):
+class TopOTheHourBot(Client):
     """TopOTheHourBot's client"""
 
     __slots__ = ()
     name: Final[Literal["topothehourbot"]] = "topothehourbot"
 
 
-class HasanAbiExtension(IRCv3ClientExtension[LocalServerCommand]):
+class HasanAbiExtension(ClientExtension[LocalServerCommand]):
     """TopOTheHourBot's Hasan-specific operations
 
     Does a few different things:
@@ -46,7 +46,7 @@ class HasanAbiExtension(IRCv3ClientExtension[LocalServerCommand]):
     __slots__ = ("roleplay_rating_total")
     target: Final[Literal["#hasanabi"]] = "#hasanabi"
 
-    def __init__(self, client: IRCv3Client, *, roleplay_rating_total: int = 0) -> None:
+    def __init__(self, client: Client, *, roleplay_rating_total: int = 0) -> None:
         super().__init__(client)
         self.roleplay_rating_total = roleplay_rating_total
 

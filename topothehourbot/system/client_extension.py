@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-__all__ = ["IRCv3ClientExtension"]
+__all__ = ["ClientExtension"]
 
 from collections.abc import Coroutine
 from contextlib import AbstractContextManager
@@ -11,11 +11,11 @@ from ircv3.dialects.twitch import (ServerPrivateMessage,
                                    SupportsClientProperties)
 from websockets import ConnectionClosed
 
-from .client import IRCv3Client
+from .client import Client
 
 
-class IRCv3ClientExtension[DistributeT](SupportsClientProperties):
-    """A wrapper type around an ``IRCv3Client`` instance with an independent
+class ClientExtension[DistributeT](SupportsClientProperties):
+    """A wrapper type around an ``Client`` instance with an independent
     diverter, allowing objects of any type to be distributed
 
     Note that this class does not have a distributor by default. How and when
@@ -25,10 +25,10 @@ class IRCv3ClientExtension[DistributeT](SupportsClientProperties):
     """
 
     __slots__ = ("_client", "_diverter")
-    _client: IRCv3Client
+    _client: Client
     _diverter: Diverter[DistributeT]
 
-    def __init__(self, client: IRCv3Client) -> None:
+    def __init__(self, client: Client) -> None:
         self._client = client
         self._diverter = Diverter()
 

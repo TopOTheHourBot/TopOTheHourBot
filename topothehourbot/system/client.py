@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-__all__ = ["IRCv3Client", "connect"]
+__all__ = ["Client", "connect"]
 
 import asyncio
 from abc import ABCMeta
@@ -19,10 +19,10 @@ from ircv3.dialects.twitch import (ClientJoin, ClientPart,
 from websockets import (ConnectionClosed, ConnectionClosedOK,
                         WebSocketClientProtocol)
 
-from .parser import IRCv3ServerCommandParser
+from .parser import ServerCommandParser
 
 
-class IRCv3Client(SupportsClientProperties, metaclass=ABCMeta):
+class Client(SupportsClientProperties, metaclass=ABCMeta):
 
     __slots__ = (
         "_connection",
@@ -75,7 +75,7 @@ class IRCv3Client(SupportsClientProperties, metaclass=ABCMeta):
         except ConnectionClosed as error:
             return error
 
-    async def recv(self) -> IRCv3ServerCommandParser:
+    async def recv(self) -> ServerCommandParser:
         """Receive a command batch from the IRC server
 
         Raises ``websockets.ConnectionClosed`` if the underlying connection is
@@ -83,7 +83,7 @@ class IRCv3Client(SupportsClientProperties, metaclass=ABCMeta):
         """
         data = await self._connection.recv()
         assert isinstance(data, str)
-        return IRCv3ServerCommandParser(data)
+        return ServerCommandParser(data)
 
     async def join(self, *rooms: str) -> Optional[ConnectionClosed]:
         """Send a JOIN command to the IRC server"""
@@ -177,11 +177,11 @@ class IRCv3Client(SupportsClientProperties, metaclass=ABCMeta):
         await accumulator
 
 
-async def connect[IRCv3ClientT: IRCv3Client](
-    client: type[IRCv3ClientT],
+async def connect[ClientT: Client](
+    client: type[ClientT],
     *,
     oauth_token: str,
-) -> AsyncIterator[IRCv3ClientT]:
+) -> AsyncIterator[ClientT]:
     """Connect to the Twitch IRC server as ``client``, reconnecting on each
     iteration
     """
