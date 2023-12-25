@@ -24,16 +24,16 @@ Certain features will **always** be denied even though they do not necessarily v
 
 TopOTheHourBot is, and will always be open source. All code contributions will be subject to the [MIT license](./LICENSE).
 
-## High Level Overview
+## Where Are The Callbacks?
 
 One of the first things you'll probably notice upon seeing TopOTheHourBot's code is the lack of `on_message()`, `on_connect()`, `on_whatever()` functions that are prevalent in many IRC libraries today. TopOTheHourBot is a bit quirky, in that, its most fundamental operation of averaging batch segue ratings requires two things that are awkward to implement in traditional callback-based paradigms:
 
 1. Averaging numbers across messages requires memory of those numbers, meaning that a state must be saved across invocations to the message callback.
 2. Reporting the average is based on a factor of time, meaning that the callback must have knowledge over when it has last been invoked.
 
-TopOTheHourBot's paradigm addresses this awkwardness with an API built on the concept of attaching and detaching buffers to a central object. This object fans messages out to each buffer, while the buffer provides tools to handle filtering, mapping, timeouts, etc. such that states and time between a cluster of messages can be managed within a single function.
+TopOTheHourBot has its own paradigm that makes an attempt to address these issues. The API it uses is built on the concept of attaching and detaching buffers (called `Channel`s) to a central object. This object fans messages out to each buffer, while the buffer provides tools to handle filtering, mapping, timeouts, etc. such that states and time between a cluster of messages can be managed within a single function.
 
-To showcase the difference this makes, suppose that our goal is to count the number of messages that contain the string `"hello"` - in a callback-based framework, this count must exist in the outer scope to "remember" what the prior count was:
+Suppose that our goal is to count the number of messages that contain the string `"hello"` - in a callback-based framework, this count must exist in the outer scope to "remember" what the prior count was:
 
 ```python
 class Listener:
@@ -46,7 +46,7 @@ class Listener:
             self.hello_count += 1
 ```
 
-Under the new paradigm, this count can be restricted to the scope of a single function, allowing us to avoid cluttering the outer scope:
+Under the TopOTheHourBot paradigm, this count can be restricted to the scope of a single function, allowing us to avoid cluttering the outer scope:
 
 ```python
 class Listener:
@@ -65,22 +65,25 @@ class Listener:
         return hello_count
 ```
 
-While not particularly egregious, imagine a scenario where you have a multitude of variables that need to be defined in a similar fashion - all having to exist in the outer scope while potentially serving vastly different purposes.
+While not particularly egregious, imagine a scenario where you have a multitude of variables that need to be defined in a similar fashion - each having to exist in the outer scope while potentially serving vastly different purposes - and you'll probably see the reason why TopOTheHourBot does things so differently (it just becomes a mess).
 
-## Low Level Overview
+## Architecture
 
 ```mermaid
 stateDiagram-v2
     state WebSocketClientProtocol {
+        direction LR
         [*] --> TopOTheHourBot
         TopOTheHourBot --> [*]
         state TopOTheHourBot {
+            direction LR
             [*] --> TopOTheHourBot.distribute()
             TopOTheHourBot.distribute() --> TopOTheHourBot.accumulate()
             TopOTheHourBot.distribute() --> HasanAbiExtension
             TopOTheHourBot.accumulate() --> [*]
             HasanAbiExtension --> [*]
             state HasanAbiExtension {
+                direction LR
                 [*] --> HasanAbiExtension.distribute()
                 HasanAbiExtension.distribute() --> HasanAbiExtension.handle_commands()
                 HasanAbiExtension.distribute() --> HasanAbiExtension.handle_segue_ratings()
