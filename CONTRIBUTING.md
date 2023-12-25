@@ -79,6 +79,7 @@ stateDiagram-v2
             TopOTheHourBot.distribute() --> TopOTheHourBot.accumulate()
             TopOTheHourBot.distribute() --> HasanAbiExtension
             TopOTheHourBot.accumulate() --> [*]
+            HasanAbiExtension --> [*]
             state HasanAbiExtension {
                 [*] --> HasanAbiExtension.distribute()
                 HasanAbiExtension.distribute() --> HasanAbiExtension.handle_commands()
