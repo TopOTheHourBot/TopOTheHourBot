@@ -24,3 +24,68 @@ Certain features will **always** be denied even though they do not go against [T
     2. There is no concrete definition of "spam". In general, I consider it to be any routine that sends a lot of messages in a short timeframe - it is an "I know it when I see it" kind of thing, and so the wording with regards to this rule is deliberately vague.
 
 TopOTheHourBot is, and will always be open source. All code contributions will be subject to the [MIT license](./LICENSE).
+
+## High Level Overview
+
+One of the first things you'll probably notice upon seeing TopOTheHourBot's code is the lack of `on_message()`, `on_connect()`, `on_whatever()` functions that are prevalent in many IRC libraries today. TopOTheHourBot is a bit quirky, in that, its most fundamental operation of averaging bulk segue ratings requires two things that are awkward to implement in traditional callback-based paradigms:
+
+1. Averaging a multitude of numbers requires knowledge of the numbers that came before, meaning that a state must be managed in the outer scope.
+2. Reporting the average is based on a factor of time, meaning that the callback must have knowledge over when it has last been invoked.
+
+TopOTheHourBot's new paradigm addresses this awkwardness with an API built on the concept of attaching and detaching buffers to a central object. This object fans messages out to each buffer, while the buffer provides tools to handle filtering, mapping, timeouts, etc. such that states and time between a cluster of messages can be managed within a single function.
+
+To showcase the difference this makes, suppose that our goal is count the number of messages that contain the string `"hello"` - in a callback-based framework, this count must exist in the outer scope to "remember" what the prior count was:
+
+```python
+class Listener:
+
+    def __init__(self) -> None:
+        self.hello_count = 0
+
+    async def on_message(self, message: Message) -> None:
+        if "hello" in message.content:
+            self.hello_count += 1
+```
+
+Under the new paradigm, this count can be restricted to the scope of a single function, allowing us to avoid cluttering the outer scope:
+
+```python
+class Listener:
+
+    def __init__(self) -> None:
+        ...
+
+    async def hello_counter(self) -> int:
+        with self.attachment() as channel:
+            hello_count = await (
+                aiter(channel)
+                    .map(lambda message: message.content)
+                    .filter(lambda content: "hello" in content)
+                    .count()
+            )
+        return hello_count
+```
+
+While not particularly egregious, imagine a scenario where you have a multitude of variables that need to be defined in a similar fashion - all having to exist in the outer scope while potentially serving vastly different purposes.
+
+## Low Level Overview
+
+```mermaid
+stateDiagram-v2
+    state TopOTheHourBot {
+        [*] --> TopOTheHourBot.distribute()
+        TopOTheHourBot.distribute() --> TopOTheHourBot.accumulate()
+        TopOTheHourBot.distribute() --> HasanAbiExtension
+        TopOTheHourBot.accumulate() --> [*]
+        state HasanAbiExtension {
+            [*] --> HasanAbiExtension.distribute()
+            HasanAbiExtension.distribute() --> HasanAbiExtension.handle_commands()
+            HasanAbiExtension.distribute() --> HasanAbiExtension.handle_segue_ratings()
+            HasanAbiExtension.distribute() --> HasanAbiExtension.handle_roleplay_ratings()
+            HasanAbiExtension.handle_commands() --> HasanAbiExtension.accumulate()
+            HasanAbiExtension.handle_segue_ratings() --> HasanAbiExtension.accumulate()
+            HasanAbiExtension.handle_roleplay_ratings() --> HasanAbiExtension.accumulate()
+            HasanAbiExtension.accumulate() --> [*]
+        }
+    }
+```
