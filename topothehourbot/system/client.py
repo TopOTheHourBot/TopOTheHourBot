@@ -12,7 +12,7 @@ from typing import Any, Final, Optional
 import ircv3
 import websockets
 from channels import Channel, Diverter
-from ircv3 import IRCv3ClientCommandProtocol, IRCv3ServerCommandProtocol, Ping
+from ircv3 import ClientCommandProtocol, Ping, ServerCommandProtocol
 from ircv3.dialects.twitch import (ClientJoin, ClientPart,
                                    ClientPrivateMessage, ServerPrivateMessage,
                                    SupportsClientProperties)
@@ -32,7 +32,7 @@ class IRCv3Client(SupportsClientProperties, metaclass=ABCMeta):
     )
 
     _connection: WebSocketClientProtocol
-    _diverter: Diverter[IRCv3ServerCommandProtocol]
+    _diverter: Diverter[ServerCommandProtocol]
     _last_message_epoch: float
     _last_join_epoch: float
 
@@ -45,7 +45,7 @@ class IRCv3Client(SupportsClientProperties, metaclass=ABCMeta):
         self._last_message_epoch = 0
         self._last_join_epoch = 0
 
-    async def __aiter__(self) -> AsyncIterator[IRCv3ServerCommandProtocol]:
+    async def __aiter__(self) -> AsyncIterator[ServerCommandProtocol]:
         try:
             while True:
                 commands = await self.recv()
@@ -63,7 +63,7 @@ class IRCv3Client(SupportsClientProperties, metaclass=ABCMeta):
         """
         return self._connection.latency * 1000
 
-    async def send(self, command: IRCv3ClientCommandProtocol | str, /) -> Optional[ConnectionClosed]:
+    async def send(self, command: ClientCommandProtocol | str, /) -> Optional[ConnectionClosed]:
         """Send a command to the IRC server
 
         Drops the command and returns ``websockets.ConnectionClosed`` if the
@@ -149,8 +149,8 @@ class IRCv3Client(SupportsClientProperties, metaclass=ABCMeta):
 
     def attachment(
         self,
-        channel: Optional[Channel[IRCv3ServerCommandProtocol]] = None,
-    ) -> AbstractContextManager[Channel[IRCv3ServerCommandProtocol]]:
+        channel: Optional[Channel[ServerCommandProtocol]] = None,
+    ) -> AbstractContextManager[Channel[ServerCommandProtocol]]:
         """Return a context manager that safely attaches and detaches
         ``channel``
 

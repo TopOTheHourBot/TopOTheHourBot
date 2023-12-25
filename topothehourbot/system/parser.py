@@ -5,12 +5,12 @@ __all__ = ["IRCv3ServerCommandParser"]
 from collections.abc import Iterator
 from typing import Final, Literal, Self
 
-from ircv3 import IRCv3Command, IRCv3ServerCommandProtocol, Ping
+from ircv3 import Command, Ping, ServerCommandProtocol
 from ircv3.dialects.twitch import (RoomState, ServerJoin, ServerPart,
                                    ServerPrivateMessage)
 
 
-class IRCv3ServerCommandParser(Iterator[IRCv3ServerCommandProtocol]):
+class IRCv3ServerCommandParser(Iterator[ServerCommandProtocol]):
 
     CRLF: Final[Literal["\r\n"]] = "\r\n"
 
@@ -28,11 +28,11 @@ class IRCv3ServerCommandParser(Iterator[IRCv3ServerCommandProtocol]):
     def __iter__(self) -> Self:
         return self
 
-    def __next__(self) -> IRCv3ServerCommandProtocol:
+    def __next__(self) -> ServerCommandProtocol:
         while (result := self.move_head()) is not self.EXHAUSTED:
             if result is self.UNRECOGNIZED:
                 continue
-            assert isinstance(result, IRCv3ServerCommandProtocol)
+            assert isinstance(result, ServerCommandProtocol)
             return result
         raise StopIteration
 
@@ -45,7 +45,7 @@ class IRCv3ServerCommandParser(Iterator[IRCv3ServerCommandProtocol]):
         if next == -1:
             self._head = next
             return self.EXHAUSTED
-        command = IRCv3Command.from_string(data[head:next])
+        command = Command.from_string(data[head:next])
         name = command.name
         self._head = next + len(self.CRLF)
         if name == "PRIVMSG":
