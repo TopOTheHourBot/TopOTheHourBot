@@ -8,9 +8,9 @@ If you're **familiar** with programming, the rest of this document is dedicated 
 
 ## Agreements
 
-In general, if you're thinking about making a contribution that interacts with non-privileged chatters (chatters that are not moderators, VIPs, or Hasan) in some manner, **I will be seeking approval from Hasan's moderators first**. This wasn't an explicit requirement given to me by them, but I'd very much prefer if this was done so as to ensure that the feature doesn't come into conflict with their expectations of chat.
+In general, if you're thinking about making a contribution that interacts with non-privileged chatters (chatters that are not moderators, VIPs, or Hasan) in some manner, **I will be seeking approval from Hasan's moderators first**. This wasn't an explicit requirement given to me by them, but I'd very much prefer if this was done so as to ensure the feature doesn't come into conflict with their expectations of chat.
 
-Certain features will **always** be denied even though they do not go against [Twitch's Developer Agreement](https://www.twitch.tv/p/en/legal/developer-agreement/) - these are my own rules on what is and is not allowed. Please do not ask for or create features that perform the following operations:
+Certain features will **always** be denied even though they do not necessarily violate [Twitch's Developer Agreement](https://www.twitch.tv/p/en/legal/developer-agreement/) - these are my own rules on what is and is not allowed. Please do not ask for or create features that perform the following operations:
 
 1. Persistently collects user-associated data, regardless of ephemerality.
     1. Persistence is referring to the state of existence between sessions of execution. User-associated data may only be collected in the execution state - all collections must be discarded when the session ends.
@@ -26,14 +26,14 @@ TopOTheHourBot is, and will always be open source. All code contributions will b
 
 ## High Level Overview
 
-One of the first things you'll probably notice upon seeing TopOTheHourBot's code is the lack of `on_message()`, `on_connect()`, `on_whatever()` functions that are prevalent in many IRC libraries today. TopOTheHourBot is a bit quirky, in that, its most fundamental operation of averaging bulk segue ratings requires two things that are awkward to implement in traditional callback-based paradigms:
+One of the first things you'll probably notice upon seeing TopOTheHourBot's code is the lack of `on_message()`, `on_connect()`, `on_whatever()` functions that are prevalent in many IRC libraries today. TopOTheHourBot is a bit quirky, in that, its most fundamental operation of averaging batch segue ratings requires two things that are awkward to implement in traditional callback-based paradigms:
 
-1. Averaging a multitude of numbers requires knowledge of the numbers that came before, meaning that a state must be managed in the outer scope.
+1. Averaging numbers across messages requires memory of those numbers, meaning that a state must be saved across invocations to the message callback.
 2. Reporting the average is based on a factor of time, meaning that the callback must have knowledge over when it has last been invoked.
 
-TopOTheHourBot's new paradigm addresses this awkwardness with an API built on the concept of attaching and detaching buffers to a central object. This object fans messages out to each buffer, while the buffer provides tools to handle filtering, mapping, timeouts, etc. such that states and time between a cluster of messages can be managed within a single function.
+TopOTheHourBot's paradigm addresses this awkwardness with an API built on the concept of attaching and detaching buffers to a central object. This object fans messages out to each buffer, while the buffer provides tools to handle filtering, mapping, timeouts, etc. such that states and time between a cluster of messages can be managed within a single function.
 
-To showcase the difference this makes, suppose that our goal is count the number of messages that contain the string `"hello"` - in a callback-based framework, this count must exist in the outer scope to "remember" what the prior count was:
+To showcase the difference this makes, suppose that our goal is to count the number of messages that contain the string `"hello"` - in a callback-based framework, this count must exist in the outer scope to "remember" what the prior count was:
 
 ```python
 class Listener:
