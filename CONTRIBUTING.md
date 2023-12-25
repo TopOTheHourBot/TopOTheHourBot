@@ -72,20 +72,24 @@ While not particularly egregious, imagine a scenario where you have a multitude 
 
 ```mermaid
 stateDiagram-v2
-    state TopOTheHourBot {
-        [*] --> TopOTheHourBot.distribute()
-        TopOTheHourBot.distribute() --> TopOTheHourBot.accumulate()
-        TopOTheHourBot.distribute() --> HasanAbiExtension
-        TopOTheHourBot.accumulate() --> [*]
-        state HasanAbiExtension {
-            [*] --> HasanAbiExtension.distribute()
-            HasanAbiExtension.distribute() --> HasanAbiExtension.handle_commands()
-            HasanAbiExtension.distribute() --> HasanAbiExtension.handle_segue_ratings()
-            HasanAbiExtension.distribute() --> HasanAbiExtension.handle_roleplay_ratings()
-            HasanAbiExtension.handle_commands() --> HasanAbiExtension.accumulate()
-            HasanAbiExtension.handle_segue_ratings() --> HasanAbiExtension.accumulate()
-            HasanAbiExtension.handle_roleplay_ratings() --> HasanAbiExtension.accumulate()
-            HasanAbiExtension.accumulate() --> [*]
+    state main() {
+        [*] --> TopOTheHourBot
+        TopOTheHourBot --> [*]
+        state TopOTheHourBot {
+            [*] --> TopOTheHourBot.distribute()
+            TopOTheHourBot.distribute() --> TopOTheHourBot.accumulate()
+            TopOTheHourBot.distribute() --> HasanAbiExtension
+            TopOTheHourBot.accumulate() --> [*]
+            state HasanAbiExtension {
+                [*] --> HasanAbiExtension.distribute()
+                HasanAbiExtension.distribute() --> HasanAbiExtension.handle_commands()
+                HasanAbiExtension.distribute() --> HasanAbiExtension.handle_segue_ratings()
+                HasanAbiExtension.distribute() --> HasanAbiExtension.handle_roleplay_ratings()
+                HasanAbiExtension.handle_commands() --> HasanAbiExtension.accumulate()
+                HasanAbiExtension.handle_segue_ratings() --> HasanAbiExtension.accumulate()
+                HasanAbiExtension.handle_roleplay_ratings() --> HasanAbiExtension.accumulate()
+                HasanAbiExtension.accumulate() --> [*]
+            }
         }
     }
 ```
