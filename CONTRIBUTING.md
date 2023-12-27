@@ -141,7 +141,61 @@ stateDiagram-v2
 
 Okay, so hopefully this high-level overview has made some kind of sense - I'll now be getting into the actual code. Instead of just showing you the code and talking about it, I think it'd be best to develop an example feature and talk about what I'm doing as I progress. It's likely that you'll want to contribute a feature that is a part of the `HasanAbiExtension`, and so we'll do something there (just not running it in Hasan's chat, though).
 
+The feature we'll be creating is something that's difficult to replicate in a callback-based paradigm, but made incredibly easy in TopOTheHourBot's - that being a "conversational" routine, where the client sends a message and expects another message in return.
 
+We'll have it work like this:
+1. If a chatter types "topothehourbot is cringe", the client will say to the chatter to take it back.
+2. The client will await the chatter's next message with a timeout, and respond accordingly based on the message's content (or, lack thereof if a timeout occurs).
+
+https://github.com/TopOTheHourBot/TopOTheHourBot/assets/53410383/ed558c7b-dee2-40c7-8d5e-e7f3614e3571
+
+### Before Building
+
+Before you begin modifying the `HasanAbiExtension`, or any other extension type for that matter, **I would first change the `target` attribute at the top of the definition to be a different chat room, such as your own**. It's a lot easier to test that way, and of course doesn't bother any mods.
+
+### Placement
+
+When considering a new feature, think about where it would best be placed under TopOTheHourBot's architecture. Certain features, like the one we're constructing now, requires that we yield a message and await another one in return from a specific chatter - these kinds of situations are often best formulated as another "`handle_something()`" function because we're dealing with cross-message states: the chatter who initially called the bot cringe needs to be saved such that we can filter for them at a later moment in time. Handling cross-message states is the entire reason why TopOTheHourBot has its own API.
+
+If your feature is a "fire-and-forget" style of routine, such as a command, it's likely that a new handler isn't necessary. Factor out commonalities to see if the feature could be put under an existing handler - a handler for every command, for example, would duplicate a lot of work and so all commands are put under `handle_commands()`.
+
+### Starting Off
+
+We'll start off with what is essentially boilerplate for all handler functions. We'll call our function `handle_haters()`:
+
+```python
+@stream.compose
+async def handle_haters(self) -> AsyncIterator[Coroutine]:
+    with self.attachment() as channel:
+        ...
+```
+
+`stream.compose()` is a decorator function that simply converts an asynchronous iterator or generator into a [`Stream`](https://github.com/TopOTheHourBot/channels/blob/main/channels/stream.py) object. This is atop all handler functions for use by `accumulate()`, which uses the `Stream.merge()` method to collect coroutines yielded by the handlers.
+
+The `with self.attachment() as channel:` statement will create, attach, and ensure the detachment of a [`Channel`](https://github.com/TopOTheHourBot/channels/blob/main/channels/channel.py) instance connected to the `HasanAbiExtension`'s [`Diverter`](https://github.com/TopOTheHourBot/channels/blob/main/channels/diverter.py). The `Diverter` is what manages the "spread" of commands and closure to each handling function - the `attachment()` method of the `HasanAbiExtension` is really just a call to `Diverter.attachment()`.
+
+When `HasanAbiExtension.distribute()` is executed, commands from the IRC server are distributed through the diverter as they arrive. If the connection ever ceases for some reason, the diverter is closed and all channels that were attached cease iteration. Under most circumstances, the diverter will detach the channels by itself, causing the `attachment()` context managers to essentially take no action upon exit. One might say that its "true" purpose is in dealing with coroutines that exit prematurely, but I have not yet found a situation where a premature exit is wanted or needed. Regardless, I advise using `attachment()` to construct and attach new channels when necessary.
+
+### Querying the Haters
+
+The next step that we'll take is to search for chatters that are saying TopOTheHourBot is cringe. We want the conversation to be repeatable, and so we'll query for the infringing remark in a loop:
+
+```python
+@stream.compose
+async def handle_haters(self) -> AsyncIterator[Coroutine]:
+    with self.attachment() as channel:
+        while (
+            message := await aiter(channel)
+                .filter(twitch.is_server_private_message)
+                .filter(lambda message: "topothehourbot is cringe" in message.comment)
+                .first()
+        ):
+            hater = message.sender
+```
+
+You'll notice this among a lot of message handlers: one of the first things to do is filter the channel for private messsages, as the channel may contain other commands. [PRIVMSG](https://modern.ircdocs.horse/#privmsg-message) commands, as they're called for some reason, are simply normal chat messages.
+
+The `Stream.first()` method being applied, here, obtains the first possible value from the filtered stream. If the stream is empty, then that can only mean the connection has been closed, and so it is okay to break our while loop by letting `Stream.first()` return `None`. Once obtaining a message with our criteria, we can save the chatter (the `message.sender`) as a state for later.
 
 [^1]: Bear in mind that this diagram purely shows the flow of messages and not the relationship between classes. It may appear as if `TopOTheHourBot` composites `HasanAbiExtension`, for example, but it's actually the complete opposite - `HasanAbiExtension` composites `TopOTheHourBot`, and `TopOTheHourBot` composites `WebSocketClientProtocol`.
 
