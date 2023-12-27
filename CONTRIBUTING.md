@@ -137,5 +137,12 @@ stateDiagram-v2
 
 `HasanAbiExtension` gets a bit more involved - its `distribute()` method attaches a channel to `TopOTheHourBot` on startup, and filters for Hasan-localised commands. These commands are then served to `handle_commands()`, `handle_segue_ratings()`, and `handle_roleplay_ratings()` which all are fairly self-explanatory. Each of these `handle_*()` methods attach a channel to the `HasanAbiExtension` instance and independently read incoming messages for their own purpose - `handle_commands()` responds to traditional call-and-respond commands[^2], `handle_segue_ratings()` searches and averages ad segue ratings, and `handle_roleplay_ratings()` searches and summarises roleplay ratings. These message handlers are asynchronous iterators that yield coroutines - `accumulate()` runs each of them together and dispatches these coroutines as they are yielded.
 
+## Building a Feature
+
+Okay, so hopefully this high-level overview has made some kind of sense - I'll now be getting into the actual code. Instead of just showing you the code and talking about it, I think it'd be best to develop an example feature and talk about what I'm doing as I progress. It's likely that you'll want to contribute a feature that is a part of the `HasanAbiExtension`, and so we'll do something there (just not running it in Hasan's chat, though).
+
+
+
 [^1]: Bear in mind that this diagram purely shows the flow of messages and not the relationship between classes. It may appear as if `TopOTheHourBot` composites `HasanAbiExtension`, for example, but it's actually the complete opposite - `HasanAbiExtension` composites `TopOTheHourBot`, and `TopOTheHourBot` composites `WebSocketClientProtocol`.
+
 [^2]: Messages that invoke the client's command interface - typically implemented by pairing an identifying prefix to a command name (e.g., `#scramble` to begin a scramble game with BlammoBot). TopOTheHourBot uses the dollar sign, `$`, as its command prefix (chosen because of its association with ads - fun fact). `!` is used by Fossabot and `#` is used by BlammoBot.
