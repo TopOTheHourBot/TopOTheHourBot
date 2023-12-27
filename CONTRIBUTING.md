@@ -28,7 +28,7 @@ TopOTheHourBot is, and will always be open source. All code contributions will b
 
 TopOTheHourBot is written in Python 3.12. Twitch chats, and especially Hasan's chat, can be extremely fast and so you might wonder why Python was the language of choice. There isn't really a satisfying answer to that, other than I just know Python better than any other language, and it's more than capable to handle the speed of Hasan's chat. Python can certainly be slow, but recent versions of the language have made great strides to speed it up. Keep in mind that a vast majority of chat messages are single words - often, emotes (e.g., KEKW, FeelsStrongMan, Bedge) - and so processing messages takes a lot less time than you might think.
 
-TopOTheHourBot uses an API that was built almost entirely from scratch. For a long time, the bot was implemented using [TwitchIO](https://twitchio.dev/en/stable/), but I slowly became annoyed with its callback-dependent nature and tendency to have connection issues. There's some more talk about the API design in the section below. There are three libraries that comprise TopOTheHourBot's API, two of which were built specifically for TopOTheHourBot and are not available through PyPI (installation instructions are in their respective READMEs):
+TopOTheHourBot uses an API that was built almost entirely from scratch. For a long time, the bot was implemented using [TwitchIO](https://twitchio.dev/en/stable/), but I slowly became annoyed with its callback-dependent nature and tendency to have connection issues. There are three libraries that comprise TopOTheHourBot's API, two of which were built specifically for TopOTheHourBot and are not available through PyPI (installation instructions are in their respective READMEs):
 - [`ircv3`](https://github.com/TopOTheHourBot/ircv3)
 - [`channels`](https://github.com/TopOTheHourBot/channels)
 - [`websockets`](https://websockets.readthedocs.io/en/stable/)
@@ -54,7 +54,7 @@ My personal development setup uses [Visual Studio Code](https://code.visualstudi
 
 You'll of course need a Twitch OAuth token to have this run successfully. See the [Twitch Developers documentation](https://dev.twitch.tv/docs/irc/authenticate-bot/) for details on generating one. To execute TopOTheHourBot's code under a different client, you'll want to change the `name` attribute at the top of the `TopOTheHourBot` class definition to the name of your bot's client. Likewise, to run the `HasanAbiExtension` in a different channel, you'll want to change the `target` attribute at the top of its definition to the name of the channel you'd like to have it execute in (bear in mind that the leading `#` character is necessary).
 
-You might also want to consider changing the logging level in [main.py](./main.py) from `INFO` to `DEBUG`. Doing so will write all input and output to the log - see [the websockets documentation](https://websockets.readthedocs.io/en/stable/topics/logging.html) for more details.
+You might also want to consider changing the logging level in [main.py](./main.py) from `INFO` to `DEBUG`. Doing so will write all input and output to the log - see the [websockets documentation](https://websockets.readthedocs.io/en/stable/topics/logging.html) for more details.
 
 ## Where Are The Callbacks?
 
@@ -103,7 +103,7 @@ While not particularly egregious, imagine a scenario where you have a multitude 
 
 With all of that said, let's finally take a look at how the TopOTheHourBot implementation uses this concept to full effect.
 
-You can really think of TopOTheHourBot as being a large [fan-out/fan-in](https://en.wikipedia.org/wiki/Fan-out_(software)) system. In the code, there is a `TopOTheHourBot` client class, and a `HasanAbiExtension` "client extension" class. `TopOTheHourBot`, by itself, does not do much at all - its sole job is to respond to [PINGs](https://modern.ircdocs.horse/#ping-message), and distribute incoming commands to its attachments. `HasanAbiExtension` is where much of the actual work is being done. While seemingly unnecessary, this apportioning of Hasan-specific operations was done in case the bot ever obtains capabilities in other channels - it's a future-proofing measure. The diagram, below, shows the flow of messages from the underlying websocket connection to this system:
+You can really think of TopOTheHourBot as being a large [fan-out/fan-in](https://en.wikipedia.org/wiki/Fan-out_(software)) system. In the code, there is a `TopOTheHourBot` client class, and a `HasanAbiExtension` "client extension" class. `TopOTheHourBot`, by itself, does not do much at all - its sole job is to respond to [PINGs](https://modern.ircdocs.horse/#ping-message), and distribute incoming commands to its attachments. `HasanAbiExtension` is where much of the actual work is being done. While seemingly unnecessary, this apportioning of Hasan-specific operations was done in case the bot ever obtains capabilities in other channels - it's a future-proofing measure. The diagram, below, shows the flow of messages from the underlying websocket connection to this system:[^1]
 
 ```mermaid
 stateDiagram-v2
@@ -133,6 +133,9 @@ stateDiagram-v2
     }
 ```
 
-Bear in mind that this diagram purely shows the flow of messages and not the relationship between classes. It may appear as if `TopOTheHourBot` composites `HasanAbiExtension`, for example, but it's actually the complete opposite - `HasanAbiExtension` composites `TopOTheHourBot`, and `TopOTheHourBot` composites `WebSocketClientProtocol`.
+`TopOTheHourBot` does not, by itself, house any responsive functionality other than to reply to PINGs, as stated prior. This is done in its `accumulate()` method, and thus does not have `handle_*()` methods alike `HasanAbiExtension`.
 
+`HasanAbiExtension` gets a bit more involved - its `distribute()` method attaches a channel to `TopOTheHourBot` on startup, and filters for Hasan-localised commands. These commands are then served to `handle_commands()`, `handle_segue_ratings()`, and `handle_roleplay_ratings()` which all are fairly self-explanatory. Each of these `handle_*()` methods attach a channel to the `HasanAbiExtension` instance and independently read incoming messages for their own purpose - `handle_commands()` responds to traditional call-and-respond commands[^2], `handle_segue_ratings()` searches and averages ad segue ratings, and `handle_roleplay_ratings()` searches and summarises roleplay ratings. These message handlers are asynchronous iterators that yield coroutines - `accumulate()` runs each of them together and dispatches these coroutines as they are yielded.
 
+[^1]: Bear in mind that this diagram purely shows the flow of messages and not the relationship between classes. It may appear as if `TopOTheHourBot` composites `HasanAbiExtension`, for example, but it's actually the complete opposite - `HasanAbiExtension` composites `TopOTheHourBot`, and `TopOTheHourBot` composites `WebSocketClientProtocol`.
+[^2]: Messages that invoke the client's command interface - typically implemented by pairing an identifying prefix to a command name (e.g., `#scramble` to begin a scramble game with BlammoBot). TopOTheHourBot uses the dollar sign, `$`, as its command prefix (chosen because of its association with ads - fun fact). `!` is used by Fossabot and `#` is used by BlammoBot.
