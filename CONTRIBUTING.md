@@ -139,7 +139,7 @@ stateDiagram-v2
 
 ## Building a Feature
 
-Okay, so hopefully this high-level overview has made some kind of sense - I'll now be getting into the actual code. Instead of just showing you the code and talking about it, I think it'd be best to develop an example feature and talk about what I'm doing as I progress. It's likely that you'll want to contribute a feature that is a part of the `HasanAbiExtension`, and so we'll do something there (just not running it in Hasan's chat, though).
+Okay, so hopefully this high-level overview has made some kind of sense - I'll now be getting into the actual code. Instead of just showing you existing code and talking about it, I think it'd be best to develop an example feature and talk about what I'm doing as I progress. It's likely that you'll want to contribute a feature that is a part of the `HasanAbiExtension`, and so we'll do something there (just not running it in Hasan's chat, though).
 
 The feature we'll be creating is something that's difficult to replicate in a callback-based paradigm, but made incredibly easy in TopOTheHourBot's - that being a "conversational" routine, where the client sends a message and expects another message in return.
 
@@ -151,13 +151,13 @@ https://github.com/TopOTheHourBot/TopOTheHourBot/assets/53410383/ed558c7b-dee2-4
 
 ### Before Building
 
-Before you begin modifying the `HasanAbiExtension`, or any other extension type for that matter, **I would first change the `target` attribute at the top of the definition to be a different chat room, such as your own**. It's a lot easier to test that way, and of course doesn't bother any mods.
+Before you begin modifying the `HasanAbiExtension`, or any other extension type for that matter, **I would first change the `target` attribute at the top of the definition to be a different chat room, such as your own**. It's a lot easier to test that way, and avoids disrupting larger chat rooms.
 
 ### Placement
 
-When considering a new feature, think about where it would best be placed under TopOTheHourBot's architecture. Certain features, like the one we're constructing now, requires that we yield a message and await another one in return from a specific chatter - these kinds of situations are often best formulated as another "`handle_something()`" function because we're dealing with cross-message states: the chatter who initially called the bot cringe needs to be saved such that we can filter for them at a later moment in time. Handling cross-message states is the entire reason why TopOTheHourBot has its own API.
+When considering a new feature, think about where it would best be placed under TopOTheHourBot's architecture. For this example, it'd likely be easiest to construct a new `handle_something()` function because a state (the chatter who initially called TopOTheHourBot cringe) needs to be referenced to detect a follow-up message.
 
-If your feature is a "fire-and-forget" style of routine, such as a command, it's likely that a new handler isn't necessary. Factor out commonalities to see if the feature could be put under an existing handler - a handler for every command, for example, would duplicate a lot of work and so all commands are put under `handle_commands()`.
+In general, any operation that deals in "cross-message" state will likely require an independent handling function. Traditional call-and-respond commands are a bit strange in TopOTheHourBot's world because they don't require later messages to be referenced - when a command is invoked, a response is dispatched and nothing more is expected - `handle_commands()` is extraordinarily different from the other handling functions because of this.
 
 ### Starting Off
 
@@ -170,11 +170,9 @@ async def handle_haters(self) -> AsyncIterator[Coroutine]:
         ...
 ```
 
-`stream.compose()` is a decorator function that simply converts an asynchronous iterator or generator into a [`Stream`](https://github.com/TopOTheHourBot/channels/blob/main/channels/stream.py) object. This is atop all handler functions for use by `accumulate()`, which uses the `Stream.merge()` method to collect coroutines yielded by the handlers.
+`stream.compose()` is a decorator function that simply converts an asynchronous iterator or generator return into a [`Stream`](https://github.com/TopOTheHourBot/channels/blob/main/channels/stream.py). This is atop all handler functions for use by `accumulate()`, which uses the `Stream.merge()` method to collect and dispatch coroutines yielded by the handlers.
 
-The `with self.attachment() as channel:` statement will create, attach, and ensure the detachment of a [`Channel`](https://github.com/TopOTheHourBot/channels/blob/main/channels/channel.py) instance connected to the `HasanAbiExtension`'s [`Diverter`](https://github.com/TopOTheHourBot/channels/blob/main/channels/diverter.py). The `Diverter` is what manages the "spread" of commands and closure to each handling function - the `attachment()` method of the `HasanAbiExtension` is really just a call to `Diverter.attachment()`.
-
-When `HasanAbiExtension.distribute()` is executed, commands from the IRC server are distributed through the diverter as they arrive. If the connection ever ceases for some reason, the diverter is closed and all channels that were attached cease iteration. Under most circumstances, the diverter will detach the channels by itself, causing the `attachment()` context managers to essentially take no action upon exit. One might say that its "true" purpose is in dealing with coroutines that exit prematurely, but I have not yet found a situation where a premature exit is wanted or needed. Regardless, I advise using `attachment()` to construct and attach new channels when necessary.
+The `with self.attachment() as channel:` statement will create, attach, and ensure the detachment of a [`Channel`](https://github.com/TopOTheHourBot/channels/blob/main/channels/channel.py) instance connected to the `HasanAbiExtension`'s [`Diverter`](https://github.com/TopOTheHourBot/channels/blob/main/channels/diverter.py)[^3]. The `Diverter` is what manages the "spread" of commands and closure to each handling function - the `attachment()` method of the `HasanAbiExtension` is really just a call to `Diverter.attachment()`.
 
 ### Querying the Haters
 
@@ -193,10 +191,12 @@ async def handle_haters(self) -> AsyncIterator[Coroutine]:
             hater = message.sender
 ```
 
-You'll notice this among a lot of message handlers: one of the first things to do is filter the channel for private messsages, as the channel may contain other commands. [PRIVMSG](https://modern.ircdocs.horse/#privmsg-message) commands, as they're called for some reason, are simply normal chat messages.
+One of the first things that many handling functions do is filter the channel for private messsages, as the channel may contain other commands. [PRIVMSG](https://modern.ircdocs.horse/#privmsg-message) commands, as they're called for some reason, are simply normal chat messages.
 
-The `Stream.first()` method being applied, here, obtains the first possible value from the filtered stream. If the stream is empty, then that can only mean the connection has been closed, and so it is okay to break our while loop by letting `Stream.first()` return `None`. Once obtaining a message with our criteria, we can save the chatter (the `message.sender`) as a state for later.
+The `Stream.first()` method being applied, here, obtains the first possible value from the filtered stream. If the stream is empty, then that can only mean the connection has been closed, and so it is okay to break our while loop by letting `Stream.first()` return `None`. Once obtaining a message with our criteria, we can save the chatter (the `message.sender`) as a state for later reference.
 
 [^1]: Bear in mind that this diagram purely shows the flow of messages and not the relationship between classes. It may appear as if `TopOTheHourBot` composites `HasanAbiExtension`, for example, but it's actually the complete opposite - `HasanAbiExtension` composites `TopOTheHourBot`, and `TopOTheHourBot` composites `WebSocketClientProtocol`.
 
 [^2]: Messages that invoke the client's command interface - typically implemented by pairing an identifying prefix to a command name (e.g., `#scramble` to begin a scramble game with BlammoBot). TopOTheHourBot uses the dollar sign, `$`, as its command prefix (chosen because of its association with ads - fun fact). `!` is used by Fossabot and `#` is used by BlammoBot.
+
+[^3]: When `HasanAbiExtension.distribute()` is executed, commands from the IRC server are distributed through the diverter as they arrive. If the connection ever ceases, the diverter is closed and all channels that were attached cease iteration. Under most circumstances, the diverter will detach the channels by itself, causing the `attachment()` context managers to essentially take no action upon exit. One might say that its "true" purpose is in dealing with coroutines that exit prematurely, but I have not yet found a situation where a premature exit is warranted. Regardless, I advise using `attachment()` to construct and attach new channels when necessary.
