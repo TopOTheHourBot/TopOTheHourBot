@@ -147,7 +147,7 @@ We'll have it work like this:
 1. If a chatter types "topothehourbot is cringe", the client will say to the chatter to take it back.
 2. The client will await the chatter's next message with a timeout, and respond accordingly based on the message's content (or, lack thereof if a timeout occurs).
 
-https://github.com/TopOTheHourBot/TopOTheHourBot/assets/53410383/ed558c7b-dee2-40c7-8d5e-e7f3614e3571
+https://github.com/TopOTheHourBot/TopOTheHourBot/assets/53410383/110eef17-d29a-468e-8377-f9b4a19a1b13
 
 ### Before Building
 
