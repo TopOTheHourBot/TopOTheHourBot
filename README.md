@@ -93,6 +93,14 @@ TopOTheHourBot accepts contributions - there is a [contribution guide](./CONTRIB
 
 If you ever have questions about how the bot is working in some areas, how to implement something, where things are located, etc. please feel free to create an issue and I'll get back to you ASAP!
 
+## Auditing
+
+TopOTheHourBot is completely open to audits as described by the [Twitch Developer Agreement](https://www.twitch.tv/p/en/legal/developer-agreement/), section IV. Developer Accounts and Rate Limits, sub-section E. Audit and Monitoring.
+
+The code on the main branch of this repository is **not always** reflective of the code that is being executed during deployment - the deployment build is sometimes using an older state of the branch in times of change. The virtual machine that deploys the bot has a clone of the main branch that is simply fast-forwarded when the branch's state is deemed stable.
+
+Please send a message to the email listed under [my GitHub profile](https://github.com/braedynl) if access to the virtual machine is desired.
+
 ## Credit
 
 This bot is *not* directly associated with any other project pertaining to Hasan's ad segues unless it is also disclosed by this document.
