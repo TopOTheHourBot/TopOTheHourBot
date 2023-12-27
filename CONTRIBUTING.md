@@ -24,6 +24,38 @@ Certain features will **always** be denied even though they do not necessarily v
 
 TopOTheHourBot is, and will always be open source. All code contributions will be subject to the [MIT license](./LICENSE).
 
+## Getting Started
+
+TopOTheHourBot is written in Python 3.12. Twitch chats, and especially Hasan's chat, can be extremely fast and so you might wonder why Python was the language of choice. There isn't really a satisfying answer to that, other than I just know Python better than any other language, and it's more than capable to handle the speed of Hasan's chat. Python can certainly be slow, but recent versions of the language have made great strides to speed it up. Keep in mind that a vast majority of chat messages are single words - often, emotes (e.g., KEKW, FeelsStrongMan, Bedge) - and so processing messages takes a lot less time than you might think.
+
+TopOTheHourBot uses an API that was built almost entirely from scratch. For a long time, the bot was implemented using [TwitchIO](https://twitchio.dev/en/stable/), but I slowly became annoyed with its callback-dependent nature and tendency to have connection issues. There's some more talk about the API design in the section below. There are three libraries that comprise TopOTheHourBot's API, two of which were built specifically for TopOTheHourBot and are not available through PyPI (installation instructions are in their respective READMEs):
+- [`ircv3`](https://github.com/TopOTheHourBot/ircv3)
+- [`channels`](https://github.com/TopOTheHourBot/channels)
+- [`websockets`](https://websockets.readthedocs.io/en/stable/)
+
+My personal development setup uses [Visual Studio Code](https://code.visualstudio.com/) with [Pylance](https://marketplace.visualstudio.com/items?itemName=ms-python.vscode-pylance) (using the `"basic"` type-checking option). TopOTheHourBot provides [a CLI](./main.py) that I recommend using in a debug configuration (your local .vscode/launch.json file):
+
+```json
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "TopOTheHourBot",
+            "type": "python",
+            "request": "launch",
+            "program": "main.py",
+            "args": [YOUR_TWITCH_OAUTH_TOKEN_HERE],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        }
+    ]
+}
+```
+
+You'll of course need a Twitch OAuth token to have this run successfully. See the [Twitch Developers documentation](https://dev.twitch.tv/docs/irc/authenticate-bot/) for details on generating one. To execute TopOTheHourBot's code under a different client, you'll want to change the `name` attribute at the top of the `TopOTheHourBot` class definition to the name of your bot's client. Likewise, to run the `HasanAbiExtension` in a different channel, you'll want to change the `target` attribute at the top of its definition to the name of the channel you'd like to have it execute in (bear in mind that the leading `#` character is necessary).
+
+You might also want to consider changing the logging level in [main.py](./main.py) from `INFO` to `DEBUG`. Doing so will write all input and output to the log - see [the websockets documentation](https://websockets.readthedocs.io/en/stable/topics/logging.html) for more details.
+
 ## Where Are The Callbacks?
 
 One of the first things you'll probably notice upon seeing TopOTheHourBot's code is the lack of `on_message()`, `on_connect()`, `on_whatever()` functions that are prevalent in many IRC libraries today. TopOTheHourBot is a bit quirky, in that, its most fundamental operation of averaging batch segue ratings requires two things that are awkward to implement in traditional callback-based paradigms:
@@ -102,3 +134,5 @@ stateDiagram-v2
 ```
 
 Bear in mind that this diagram purely shows the flow of messages and not the relationship between classes. It may appear as if `TopOTheHourBot` composites `HasanAbiExtension`, for example, but it's actually the complete opposite - `HasanAbiExtension` composites `TopOTheHourBot`, and `TopOTheHourBot` composites `WebSocketClientProtocol`.
+
+
