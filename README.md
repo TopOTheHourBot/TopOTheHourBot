@@ -91,7 +91,7 @@ The [contribution guide](./CONTRIBUTING.md) has more details.
 
 TopOTheHourBot accepts contributions - there is a [contribution guide](./CONTRIBUTING.md) that provides more details.
 
-If you ever have questions about how the bot is working in some areas, how to implement something, where things are located, etc. please feel free to create an issue and I'll get back to ASAP!
+If you ever have questions about how the bot is working in some areas, how to implement something, where things are located, etc. please feel free to create an issue and I'll get back to you ASAP!
 
 ## Credit
 
