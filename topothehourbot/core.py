@@ -105,17 +105,17 @@ class HasanAbiExtension(ClientExtension[LocalServerCommand]):
     segue_rating_initial: Final[RealCounter] = RealCounter(0, 0)
     segue_rating_pattern: Final[Pattern[str]] = re.compile(
         r"""
-        (?:^|\s)              # Should proceed the beginning or whitespace
+        (?:^|\s)               # Should proceed the beginning or whitespace
         (
-          [-+]?               # Optional + or -
+          [-+]?                # Optional + or -
           (?:
-            (?:\d+(?:.\d*)?)  # Integer with optional decimal part
+            (?:\d+(?:\.\d*)?)  # Integer with optional decimal part
             |
-            (?:.\d+)          # Decimal part only
+            (?:\.\d+)          # Decimal part only
           )
         )
-        \s?/\s?10             # Denominator of 10
-        (?:$|[\s,.!?])        # Should precede the end, whitespace, or some punctuation
+        \s?/\s?10              # Denominator of 10
+        (?:$|[\s,.!?])         # Should precede the end, whitespace, or some punctuation
         """,
         flags=re.VERBOSE,
     )
