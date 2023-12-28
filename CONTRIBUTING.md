@@ -197,12 +197,12 @@ The `Stream.first()` method being applied, here, obtains the first possible valu
 
 ### Our First Message
 
-At this point, we've obtained a message with the infringing remark, and so now we must respond. The `ClientExtension` type that `HasanAbiExtension` derives from defines a coroutine method, `message()`, to send PRIVMSG commands to the IRC server. We'll eventually hook this function up to `accumulate()`, and so we can yield the coroutine to let it execute when there's time available.
+At this point, we've obtained a message with the infringing remark, and so now we must respond. The `ClientExtension` type that `HasanAbiExtension` derives from defines a coroutine method, `message()`, to send PRIVMSG commands to the IRC server:
 
 ```python
 ...
 
-yield self.message(
+await self.message(
     "D: take that back, right now !!!!!!",
     target=message,
     important=True,
@@ -219,9 +219,11 @@ following_message = await (
 
 `message()` takes in two arguments aside from the message's content:
 - `target` can either be a `ServerPrivateMessage` or `str`, interpreted as being a reply if a `ServerPrivateMessage`, or standard message being sent to a room if a `str`.
-- `important` is a `bool` indicating whether to wait or discard the message if sending during a cooldown period. The `Client` type that `TopOTheHourBot` derives from is built such that all PRIVMSGs are subject to a 1.5 second cooldown, as a means to cooperate with [Twitch rate limits](https://dev.twitch.tv/docs/irc/#rate-limits).
+- `important` is a `bool` indicating whether to wait or discard the message if sending during a cooldown period. The `Client` type that `TopOTheHourBot` derives from is built such that all PRIVMSGs are subject to a 1.5 second cooldown as a means to cooperate with [Twitch rate limits](https://dev.twitch.tv/docs/irc/#rate-limits).
 
-After yielding our initial response, we can await the infringing user's next message by querying the `channel` again. We use the `Stream.timeout()` method to await this follow-up message for 10 seconds at maximum, and pass `first=True` to apply the timeout on first iteration[^4].
+Note that I'm `await`ing the `message()` call as opposed to yielding it like other message handlers typically do. Since this message handler will ultimately be hooked up to the `accumulate()` method, yielding a coroutine has the effect of submitting it for the next available time slot in the [event loop](https://docs.python.org/3/library/asyncio-eventloop.html#asyncio-event-loop) - while unlikely, it's possible that this could be a much later moment in time, so we can instead `await` the call to ensure the initial response gets out before we begin searching for a follow-up message.
+
+After sending out our initial response, we can await the infringing user's next message by querying the `channel` again. We use the `Stream.timeout()` method to await this follow-up message for 10 seconds at maximum, and pass `first=True` to apply the timeout on first iteration[^4].
 
 ### Following the Follow-Up
 
@@ -256,7 +258,7 @@ else:
     )
 ```
 
-Hopefully this is fairly self-explanatory. If a timeout occurred, we'll target the original infringing message, while other cases will target the follow-up message. Obviously these response conditions are not very robust (`"no"` could be found in the word `"nothing"`, for example, which wouldn't necessarily mean that the user replied to TopOTheHourBot), but this is just for demonstration purposes - you can probably imagine much greater possibilities with this system.
+Hopefully this is fairly self-explanatory. If a timeout occurred, we'll target the original infringing message, while other cases will target the follow-up message. Obviously these response conditions are not very robust (`"no"` could be found in the word `"nothing"`, for example, which wouldn't necessarily mean that the user replied to TopOTheHourBot), but this is just for demonstration purposes - you can probably imagine much greater possibilities with this system. Unlike the initial message, I'm opting to yield these because we have no more follow-ups to go through - the event loop can send it whenever it gets a chance to.
 
 Be sure to add new handling functions to `accumulate()`'s logic to have the routine executed:
 
@@ -291,7 +293,7 @@ async def handle_haters(self) -> AsyncIterator[Coroutine]:
         ):
             hater = message.sender
 
-            yield self.message(
+            await self.message(
                 "D: take that back, right now !!!!!!",
                 target=message,
                 important=True,
@@ -335,7 +337,7 @@ Hopefully this brief walkthrough was helpful and gives you some ideas of what mo
 
 For more information, I recommend reading through the function and class docstrings, as they should (hopefully) provide a bit more insight in areas that I've glossed over. The implementation of everything in the API was also made to be readable - seeing the logic behind the functions I've used here might be helpful as well.
 
-Do note that contributions to TopOTheHourBot is inclusive of the other two custom libraries it uses ([`ircv3`](https://github.com/TopOTheHourBot/ircv3) and [`channels`](https://github.com/TopOTheHourBot/channels)). `ircv3` does not have an object representation of all of the valid Twitch commands, as you might've noticed, and that's simply because I didn't have a need for them just yet. If your feature requires some of these commands, feel free to expand `ircv3` as well.
+Do note that contributions to TopOTheHourBot are inclusive of the other two custom libraries it uses ([`ircv3`](https://github.com/TopOTheHourBot/ircv3) and [`channels`](https://github.com/TopOTheHourBot/channels)). `ircv3` does not have an object representation of all of the valid Twitch commands, as you might've noticed, and that's simply because I didn't have a need for them just yet. If your feature requires some of these commands, feel free to expand `ircv3` as well.
 
 ## Limitations
 
@@ -347,6 +349,8 @@ TopOTheHourBot's API is not fully featured by any means. Certain functionality i
     - As to how this should be presented in the API is not something I'm aware of just yet. I have also not seen a need for it.
 - TopOTheHourBot cannot read certain messages such as ban events, subscriptions, cheers, and other Twitch-specific data.
     - This is simply because a model has not been made for them in [`ircv3`](https://github.com/TopOTheHourBot/ircv3). I have not seen a need for these types of messages just yet, and so the parser does not interpret them.
+
+Feel free to solve some of these limitations if you're up for it!
 
 [^1]: Bear in mind that this diagram purely shows the flow of messages and not the relationship between classes. It may appear as if `TopOTheHourBot` composites `HasanAbiExtension`, for example, but it's actually the complete opposite - `HasanAbiExtension` composites `TopOTheHourBot`, and `TopOTheHourBot` composites `WebSocketClientProtocol`.
 
