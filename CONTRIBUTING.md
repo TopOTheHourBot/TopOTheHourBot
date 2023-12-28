@@ -346,7 +346,7 @@ TopOTheHourBot's API is not fully featured by any means. Certain functionality i
 - TopOTheHourBot does not know its own user data aside from its IRC name - its colour, display name, ID, etc. are not directly accessible through the API.
     - As to how this should be presented in the API is not something I'm aware of just yet. I have also not seen a need for it.
 - TopOTheHourBot cannot read certain messages such as ban events, subscriptions, cheers, and other Twitch-specific data.
-    - This is simply because a model has not been made for it in [`ircv3`](https://github.com/TopOTheHourBot/ircv3). I have not seen a need for these types of messages just yet, and so they go uninterpreted.
+    - This is simply because a model has not been made for them in [`ircv3`](https://github.com/TopOTheHourBot/ircv3). I have not seen a need for these types of messages just yet, and so the parser does not interpret them.
 
 [^1]: Bear in mind that this diagram purely shows the flow of messages and not the relationship between classes. It may appear as if `TopOTheHourBot` composites `HasanAbiExtension`, for example, but it's actually the complete opposite - `HasanAbiExtension` composites `TopOTheHourBot`, and `TopOTheHourBot` composites `WebSocketClientProtocol`.
 
