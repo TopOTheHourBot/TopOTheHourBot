@@ -50,12 +50,12 @@ class ServerCommandParser(Iterator[ServerCommandProtocol]):
         self._head = next + len(self.CRLF)
         if name == "PRIVMSG":
             return ServerPrivateMessage.cast(command)
-        elif name == "ROOMSTATE":
+        if name == "ROOMSTATE":
             return RoomState.cast(command)
-        elif name == "PING":
+        if name == "PING":
             return Ping.cast(command)
-        elif name == "JOIN":
+        if name == "JOIN":
             return ServerJoin.cast(command)
-        elif name == "PART":
+        if name == "PART":
             return ServerPart.cast(command)
         return self.UNRECOGNIZED

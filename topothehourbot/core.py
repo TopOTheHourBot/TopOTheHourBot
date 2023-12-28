@@ -79,7 +79,7 @@ class HasanAbiExtension(ClientExtension[LocalServerCommand]):
                             target=message,
                             important=True,
                         )
-                    case ["$copy" | "$shadow", *words]:
+                    case ["$copy" | "$echo" | "$shadow", *words]:
                         yield self.message(
                             " ".join(words),
                             target=message,
@@ -124,9 +124,9 @@ class HasanAbiExtension(ClientExtension[LocalServerCommand]):
     async def handle_segue_ratings(self) -> AsyncIterator[Coroutine]:
         """Handle ad segue ratings
 
-        Averages the numerator of values in the form "X/10", where "X" is a
-        number between 0 and 10 (inclusive), typically given by chat when Hasan
-        segues into running an advertisement on the broadcast.
+        Averages the numerator of values in the form "X/10", where "X" is any
+        number clamped from 0 to 10 (inclusive), typically given by chat when
+        Hasan segues into running an advertisement on the broadcast.
         """
         with self.attachment() as channel:
             async for segue_rating, segue_rating_count in (

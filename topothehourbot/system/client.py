@@ -177,7 +177,7 @@ class Client(SupportsClientProperties, metaclass=ABCMeta):
         await accumulator
 
 
-async def connect[ClientT: Client](
+async def connect[ClientT: Client](  # TODO: Should authentication occur in this function?
     client: type[ClientT],
     *,
     oauth_token: str,
