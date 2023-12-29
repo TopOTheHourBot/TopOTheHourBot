@@ -265,6 +265,7 @@ class HasanAbiExtension(ClientExtension[LocalServerCommand]):
                     .merge(
                         self.handle_segue_ratings(),
                         self.handle_roleplay_ratings(),
+                        suppress_exceptions=True,
                     )
             ):
                 tasks.create_task(coro)
