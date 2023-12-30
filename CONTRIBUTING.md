@@ -186,14 +186,14 @@ async def handle_haters(self) -> AsyncIterator[Coroutine]:
             message := await aiter(channel)
                 .filter(twitch.is_server_private_message)
                 .filter(lambda message: "topothehourbot is cringe" in message.comment)
-                .first()
+                .next()
         ):
             hater = message.sender
 ```
 
 One of the first things that many handling functions do is filter the channel for private messsages, as the channel may contain other commands. [PRIVMSG](https://modern.ircdocs.horse/#privmsg-message) commands, as they're called for some reason, are simply normal chat messages.
 
-The `Stream.first()` method being applied, here, obtains the first possible value from the filtered stream. If the stream is empty, then that can only mean the connection has been closed, and so it is okay to break our while loop by letting `Stream.first()` return `None`. Once obtaining a message with our criteria, we can save the chatter (the `message.sender`) as a state for later reference.
+The `Stream.next()` method being applied, here, obtains the first possible value from the filtered stream. If the stream is empty, then that can only mean the connection has been closed, and so it is okay to break our while loop by letting `Stream.next()` return `None`. Once obtaining a message with our criteria, we can save the chatter (the `message.sender`) as a state for later reference.
 
 ### Our First Message
 
@@ -213,7 +213,7 @@ following_message = await (
         .filter(twitch.is_server_private_message)
         .filter(lambda message: message.sender == hater)
         .timeout(10, first=True)
-        .first()
+        .next()
 )
 ```
 
@@ -290,7 +290,7 @@ async def handle_haters(self) -> AsyncIterator[Coroutine]:
             message := await aiter(channel)
                 .filter(twitch.is_server_private_message)
                 .filter(lambda message: "topothehourbot is cringe" in message.comment)
-                .first()
+                .next()
         ):
             hater = message.sender
 
@@ -305,7 +305,7 @@ async def handle_haters(self) -> AsyncIterator[Coroutine]:
                     .filter(twitch.is_server_private_message)
                     .filter(lambda message: message.sender == hater)
                     .timeout(10, first=True)
-                    .first()
+                    .next()
             )
 
             if following_message is None:
