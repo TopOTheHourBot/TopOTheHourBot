@@ -14,7 +14,7 @@ from collections.abc import AsyncIterator, Coroutine
 from re import Pattern
 from typing import Final, Literal
 
-from channels import stream
+from channels import Stream, stream
 from ircv3.dialects import twitch
 from ircv3.dialects.twitch import LocalServerCommand
 
@@ -259,16 +259,18 @@ class HasanAbiExtension(ClientExtension[LocalServerCommand]):
         """Execute all message handlers asynchronously, dispatching coroutines
         as they are yielded
         """
+        merger = stream.merge(
+            self.handle_commands(),
+            self.handle_segue_ratings(),
+            self.handle_roleplay_ratings(),
+            suppress_exceptions=True,
+        )
         async with TaskGroup() as tasks:
-            async for coro in (
-                self.handle_commands()
-                    .merge(
-                        self.handle_segue_ratings(),
-                        self.handle_roleplay_ratings(),
-                        suppress_exceptions=True,
-                    )
-            ):
-                tasks.create_task(coro)
+            async for coro in merger:
+                if isinstance(coro, Stream):
+                    merger.add(coro)
+                else:
+                    tasks.create_task(coro)
 
     async def distribute(self) -> None:
         """Join the target room and eternally distribute its localised commands
