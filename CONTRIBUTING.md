@@ -172,7 +172,7 @@ async def handle_haters(self) -> AsyncIterator[Coroutine]:
 
 `stream.compose()` is a decorator function that simply converts an asynchronous iterator or generator return into a [`Stream`](https://github.com/TopOTheHourBot/channels/blob/main/channels/stream.py). This is atop all handler functions for use by `accumulate()`, which uses the `Stream.merge()` method to collect and dispatch coroutines yielded by the handlers.
 
-The `with self.attachment() as channel:` statement will create, attach, and ensure the detachment of a [`Channel`](https://github.com/TopOTheHourBot/channels/blob/main/channels/channel.py) instance connected to the `HasanAbiExtension`'s [`Diverter`](https://github.com/TopOTheHourBot/channels/blob/main/channels/diverter.py)[^3]. The `Diverter` is what manages the "spread" of commands and closure to each handling function - the `attachment()` method of the `HasanAbiExtension` is really just a call to `Diverter.attachment()`.
+The `with self.attachment() as channel:` statement will create, attach, and ensure the detachment of a [`Channel`](https://github.com/TopOTheHourBot/channels/blob/main/channels/channel.py) instance connected to the `HasanAbiExtension`'s [`Diverter`](https://github.com/TopOTheHourBot/channels/blob/main/channels/diverter.py). The `Diverter` is what manages the "spread" of commands and closure to each handling function - the `attachment()` method of the `HasanAbiExtension` is really just a call to `Diverter.attachment()`[^3][^4].
 
 ### Querying the Haters
 
@@ -223,7 +223,7 @@ following_message = await (
 
 Note that I'm `await`ing the `message()` call as opposed to yielding it like other message handlers typically do. Since this message handler will ultimately be hooked up to the `accumulate()` method, yielding a coroutine has the effect of submitting it for the next available time slot in the [event loop](https://docs.python.org/3/library/asyncio-eventloop.html#asyncio-event-loop) - while unlikely, it's possible that this could be a much later moment in time, so we can instead `await` the call to ensure the initial response gets out before we begin searching for a follow-up message.
 
-After sending out our initial response, we can await the infringing user's next message by querying the `channel` again. We use the `Stream.timeout()` method to await this follow-up message for 10 seconds at maximum, and pass `first=True` to apply the timeout on first iteration[^4].
+After sending out our initial response, we can await the infringing user's next message by querying the `channel` again. We use the `Stream.timeout()` method to await this follow-up message for 10 seconds at maximum, and pass `first=True` to apply the timeout on first iteration[^5].
 
 ### Following the Follow-Up
 
@@ -272,6 +272,7 @@ async def accumulate(self) -> None:
                     self.handle_segue_ratings(),
                     self.handle_roleplay_ratings(),
                     self.handle_haters(),  # Simply extend the call like so
+                    suppress_exceptions=True,
                 )
         ):
             tasks.create_task(coro)
@@ -356,6 +357,8 @@ Feel free to solve some of these limitations if you're up for it!
 
 [^2]: Messages that invoke the client's command interface - typically implemented by pairing an identifying prefix to a command name (e.g., `#scramble` to begin a scramble game with BlammoBot). TopOTheHourBot uses the dollar sign, `$`, as its command prefix (chosen because of its association with ads - fun fact). `!` is used by Fossabot and `#` is used by BlammoBot.
 
-[^3]: When `HasanAbiExtension.distribute()` is executed, commands from the IRC server are distributed through the diverter as they arrive. If the connection ever ceases, the diverter is closed and all channels that were attached cease iteration. Under most circumstances, the diverter will detach the channels by itself, causing the `attachment()` context managers to essentially take no action upon exit. One might say that its "true" purpose is in dealing with coroutines that exit prematurely, but I have not yet found a situation where a premature exit is warranted. Regardless, I advise using `attachment()` to construct and attach new channels when necessary.
+[^3]: When `HasanAbiExtension.distribute()` is executed, commands from the IRC server are distributed through the diverter as they arrive. If the connection ever ceases, the diverter is closed and all attached channels stop their iteration. Under most circumstances, the diverter will detach the channels by itself, causing the `attachment()` context managers to essentially take no action upon exit. Using `attachment()` is still advised, however, because it will detach the channel in the event that an exception is raised. It will also ensure that detachment occurs for temporary message handlers - coroutines that attach and read from the channel for a time shorter than the lifespan of the connection.
 
-[^4]: `first=False` by default because it's often that you'd want to await the sender to begin sending before the timeout goes into effect. `handle_segue_ratings()` is a good example of this - the first rating of a batch can take an unknown amount of time to discover, but ratings that follow need to be discovered within the time constraint.
+[^4]: At this point, you might be wondering what happens when an exception is raised in one of these functions. `attachment()` will, firstly, ensure that the channel you opened is detached from the diverter, assuming it was raised in the `with` statement. This is quite crucial, as the `distribute()` method would otherwise continue to fan messages out to the channel so long as the attachment existed - meaning that you'd be unendingly growing a buffer in memory. The exception gets logged under level `ERROR` and the handler is left in a "dead" state - other handlers are kept alive. The implementation makes no attempt to restart message handlers, as it would be a waste of resources if the exception were easily raisable. An exception raised by a message handler is seen as a bug - there should be no exceptions raised by them in general.
+
+[^5]: `first=False` by default because it's often that you'd want to await the sender to begin sending before the timeout goes into effect. `handle_segue_ratings()` is a good example of this - the first rating of a batch can take an unknown amount of time to discover, but ratings that follow need to be discovered within the time constraint.
