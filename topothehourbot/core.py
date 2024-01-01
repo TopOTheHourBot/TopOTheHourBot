@@ -16,6 +16,7 @@ from .utilities import Configuration
 
 @dataclass(slots=True, kw_only=True)
 class TopOTheHourBotConfiguration(Configuration):
+    """Configurable attributes for ``TopOTheHourBot``"""
 
     name: str = "topothehourbot"
 
