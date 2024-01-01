@@ -19,6 +19,12 @@ class Configuration:
 
     @classmethod
     def from_pickle(cls, path: PathLike, *, raise_not_found: bool = True) -> Self:
+        """Construct the configuration instance from a pickle file located at
+        ``path``
+
+        If ``raise_not_found`` is false, default-constructs the configuration
+        when the file cannot be located.
+        """
         try:
             with open(path, mode="rb") as file:
                 parameters = pickle.load(file)
@@ -31,6 +37,7 @@ class Configuration:
             return cls(**parameters)
 
     def into_pickle(self, path: PathLike, *, protocol: Optional[int] = pickle.HIGHEST_PROTOCOL) -> None:
+        """Save the configuration instance as a pickle file located at ``path``"""
         parameters = dataclasses.asdict(self)
         with open(path, mode="wb") as file:
             pickle.dump(parameters, file, protocol=protocol)
