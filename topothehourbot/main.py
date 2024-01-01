@@ -19,8 +19,8 @@ URI: Final[str] = "ws://irc-ws.chat.twitch.tv:80"
 
 DEFAULT_PICKLE_DIRECTORY: Final[Path] = Path(__file__).parent / "pickles"
 
-TOPOTHEHOURBOT_CONFIGURATION_PICKLE_FILE: Final[str] = "TopOTheHourBotConfiguration.pickle"
-HASANABI_EXTENSION_CONFIGURATION_PICKLE_FILE: Final[str] = "HasanAbiExtensionConfiguration.pickle"
+TOPOTHEHOURBOT_CONFIGURATION_PICKLE: Final[str] = "TopOTheHourBotConfiguration.pickle"
+HASANABI_EXTENSION_CONFIGURATION_PICKLE: Final[str] = "HasanAbiExtensionConfiguration.pickle"
 
 
 async def main(
@@ -45,14 +45,14 @@ async def main(
         client = TopOTheHourBot(
             connection=connection,
             config=TopOTheHourBotConfiguration.from_pickle(
-                path=pickle_directory / TOPOTHEHOURBOT_CONFIGURATION_PICKLE_FILE,
+                path=pickle_directory / TOPOTHEHOURBOT_CONFIGURATION_PICKLE,
                 raise_not_found=False,
             ),
         )
         hasanabi_extension = HasanAbiExtension(
             client=client,
             config=HasanAbiExtensionConfiguration.from_pickle(
-                path=pickle_directory / HASANABI_EXTENSION_CONFIGURATION_PICKLE_FILE,
+                path=pickle_directory / HASANABI_EXTENSION_CONFIGURATION_PICKLE,
                 raise_not_found=False,
             ),
         )
@@ -65,10 +65,10 @@ async def main(
                 await client.distribute()
         finally:
             hasanabi_extension.config.into_pickle(
-                path=pickle_directory / HASANABI_EXTENSION_CONFIGURATION_PICKLE_FILE,
+                path=pickle_directory / HASANABI_EXTENSION_CONFIGURATION_PICKLE,
                 protocol=pickle.HIGHEST_PROTOCOL,
             )
             client.config.into_pickle(
-                path=pickle_directory / TOPOTHEHOURBOT_CONFIGURATION_PICKLE_FILE,
+                path=pickle_directory / TOPOTHEHOURBOT_CONFIGURATION_PICKLE,
                 protocol=pickle.HIGHEST_PROTOCOL,
             )
