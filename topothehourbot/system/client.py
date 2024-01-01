@@ -107,7 +107,7 @@ class Client(SupportsClientProperties, metaclass=ABCMeta):
         comment: str,
         target: ServerPrivateMessage | str,
         *,
-        important: bool = False,
+        important: bool = True,
     ) -> Optional[ConnectionClosed]:
         """Send a PRIVMSG command to the IRC server
 
@@ -170,25 +170,16 @@ class Client(SupportsClientProperties, metaclass=ABCMeta):
                     tasks.create_task(coro)
 
     async def distribute(self) -> None:
-        accumulator = asyncio.create_task(self.accumulate())
-        with self._diverter.closure() as diverter:
-            async for command in self:
-                diverter.send(command)
-        await accumulator
+        async with TaskGroup() as tasks:
+            tasks.create_task(self.accumulate())
+            with self._diverter.closure() as diverter:
+                async for command in self:
+                    diverter.send(command)
 
 
-async def connect[ClientT: Client](  # TODO: Should authentication occur in this function?
-    client: type[ClientT],
-    *,
-    oauth_token: str,
-) -> AsyncIterator[ClientT]:
+async def connect[ClientT: Client](client: type[ClientT], **kwargs: Any) -> AsyncIterator[ClientT]:
     """Connect to the Twitch IRC server as ``client``, reconnecting on each
     iteration
     """
     async for connection in websockets.connect("ws://irc-ws.chat.twitch.tv:80"):
-        connected_client = client(connection)
-        await connected_client.send("CAP REQ :twitch.tv/commands twitch.tv/membership twitch.tv/tags")
-        await connected_client.send(f"PASS oauth:{oauth_token}")
-        error = await connected_client.send(f"NICK {connected_client.name}")
-        if not error:
-            yield connected_client
+        yield client(connection, **kwargs)

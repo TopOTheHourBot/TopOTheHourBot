@@ -7,43 +7,17 @@ __all__ = [
 
 import pickle
 from asyncio import TaskGroup
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Final, Optional
+from typing import Final
 
 from . import system
-from .core import HasanAbiExtension, TopOTheHourBot
+from .core import TopOTheHourBot, TopOTheHourBotConfiguration
+from .extensions import HasanAbiExtension, HasanAbiExtensionConfiguration
 
 DEFAULT_PICKLE_DIRECTORY: Final[Path] = Path(__file__).parent / "pickles"
 
-
-@dataclass(slots=True)
-class HasanAbiExtensionParameters:
-    """Persistent objects to save and load for ``HasanAbiExtension``"""
-
-    roleplay_rating_total: int = 0
-
-
-def load_pickle[DefaultT](path: Path, *, default: DefaultT = None) -> Any | DefaultT:
-    """Load a pickled object from ``path``
-
-    Returns ``default`` if the file pointed to by ``path`` is not found.
-    """
-    try:
-        with open(path, mode="rb") as file:
-            return pickle.load(file)
-    except FileNotFoundError:
-        return default
-
-
-def save_pickle(path: Path, object: Any, *, protocol: Optional[int] = pickle.HIGHEST_PROTOCOL) -> None:
-    """Save a pickled object to ``path``
-
-    ``protocol`` argument passed to ``pickle.dump()`` - see its docstring for
-    more details.
-    """
-    with open(path, mode="wb") as file:
-        pickle.dump(object, file, protocol)
+TOPOTHEHOURBOT_CONFIGURATION_PICKLE_FILE: Final[str] = "TopOTheHourBotConfiguration.pickle"
+HASANABI_EXTENSION_CONFIGURATION_PICKLE_FILE: Final[str] = "HasanAbiExtensionConfiguration.pickle"
 
 
 async def main(
@@ -63,23 +37,34 @@ async def main(
     does not already exist.
     """
     pickle_directory = pickle_directory.resolve()
-    assert pickle_directory.is_dir()
     pickle_directory.mkdir(exist_ok=True)
-    async for client in system.connect(TopOTheHourBot, oauth_token=oauth_token):
-        parameters: HasanAbiExtensionParameters = load_pickle(
-            pickle_directory / "HasanAbi.pickle",
-            default=HasanAbiExtensionParameters(),
-        )
-        extension = HasanAbiExtension(
+    async for client in system.connect(
+        TopOTheHourBot,
+        config=TopOTheHourBotConfiguration.from_pickle(
+            path=pickle_directory / TOPOTHEHOURBOT_CONFIGURATION_PICKLE_FILE,
+            raise_not_found=False,
+        ),
+    ):
+        hasanabi_extension = HasanAbiExtension(
             client=client,
-            roleplay_rating_total=parameters.roleplay_rating_total,
+            config=HasanAbiExtensionConfiguration.from_pickle(
+                path=pickle_directory / HASANABI_EXTENSION_CONFIGURATION_PICKLE_FILE,
+                raise_not_found=False,
+            ),
         )
+        await client.send("CAP REQ :twitch.tv/commands twitch.tv/membership twitch.tv/tags")
+        await client.send(f"PASS oauth:{oauth_token}")
+        await client.send(f"NICK {client.name}")
         try:
             async with TaskGroup() as tasks:
-                tasks.create_task(extension.distribute())
+                tasks.create_task(hasanabi_extension.distribute())
                 await client.distribute()
         finally:
-            save_pickle(
-                pickle_directory / "HasanAbi.pickle",
-                HasanAbiExtensionParameters(extension.roleplay_rating_total),
+            hasanabi_extension.config.into_pickle(
+                path=pickle_directory / HASANABI_EXTENSION_CONFIGURATION_PICKLE_FILE,
+                protocol=pickle.HIGHEST_PROTOCOL,
+            )
+            client.config.into_pickle(
+                path=pickle_directory / TOPOTHEHOURBOT_CONFIGURATION_PICKLE_FILE,
+                protocol=pickle.HIGHEST_PROTOCOL,
             )

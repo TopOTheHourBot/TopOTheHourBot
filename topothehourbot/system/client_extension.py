@@ -59,7 +59,7 @@ class ClientExtension[DistributeT](SupportsClientProperties):
         comment: str,
         target: ServerPrivateMessage | str,
         *,
-        important: bool = False,
+        important: bool = True,
     ) -> Coroutine[Any, Any, Optional[ConnectionClosed]]:
         """Send a PRIVMSG command to the IRC server
 

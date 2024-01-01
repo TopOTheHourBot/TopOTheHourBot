@@ -26,10 +26,7 @@ class Counter[T](Box[T]):
 
 @dataclass(init=False, slots=True)
 class IntegerCounter(Counter[int]):
-    """A ``Counter`` type whose ``value`` is an ``int``
-
-    Adds basic arithmetic operations.
-    """
+    """A ``Counter`` type whose ``value`` is an ``int``"""
 
     def __init__(self, value: int | str, count: int = 1) -> None:
         self.value = int(value)
@@ -41,25 +38,16 @@ class IntegerCounter(Counter[int]):
             self.count + other.count,
         )
 
-    def __sub__(self, other: IntegerCounter) -> IntegerCounter:
+    def clamp(self, lower: int, upper: int) -> IntegerCounter:
         return IntegerCounter(
-            self.value - other.value,
-            self.count - other.count,
-        )
-
-    def __mul__(self, other: IntegerCounter) -> IntegerCounter:
-        return IntegerCounter(
-            self.value * other.value,
-            self.count * other.count
+            max(lower, min(upper, self.value)),
+            self.count,
         )
 
 
 @dataclass(init=False, slots=True)
 class RealCounter(Counter[float]):
-    """A ``Counter`` type whose ``value`` is a ``float``
-
-    Adds basic arithmetic operations.
-    """
+    """A ``Counter`` type whose ``value`` is a ``float``"""
 
     def __init__(self, value: float | int | str, count: int = 1) -> None:
         self.value = float(value)
@@ -71,22 +59,7 @@ class RealCounter(Counter[float]):
             self.count + other.count,
         )
 
-    def __sub__(self, other: RealCounter) -> RealCounter:
-        return RealCounter(
-            self.value - other.value,
-            self.count - other.count,
-        )
-
-    def __mul__(self, other: RealCounter) -> RealCounter:
-        return RealCounter(
-            self.value * other.value,
-            self.count * other.count,
-        )
-
     def clamp(self, lower: float, upper: float) -> RealCounter:
-        """Return a new ``RealCounter`` with ``value`` clamped between
-        ``lower`` and ``upper``
-        """
         return RealCounter(
             max(lower, min(upper, self.value)),
             self.count,
