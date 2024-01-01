@@ -10,9 +10,12 @@ from asyncio import TaskGroup
 from pathlib import Path
 from typing import Final
 
-from . import system
+import websockets
+
 from .core import TopOTheHourBot, TopOTheHourBotConfiguration
 from .extensions import HasanAbiExtension, HasanAbiExtensionConfiguration
+
+URI: Final[str] = "ws://irc-ws.chat.twitch.tv:80"
 
 DEFAULT_PICKLE_DIRECTORY: Final[Path] = Path(__file__).parent / "pickles"
 
@@ -38,13 +41,14 @@ async def main(
     """
     pickle_directory = pickle_directory.resolve()
     pickle_directory.mkdir(exist_ok=True)
-    async for client in system.connect(
-        TopOTheHourBot,
-        config=TopOTheHourBotConfiguration.from_pickle(
-            path=pickle_directory / TOPOTHEHOURBOT_CONFIGURATION_PICKLE_FILE,
-            raise_not_found=False,
-        ),
-    ):
+    async for connection in websockets.connect(URI):
+        client = TopOTheHourBot(
+            connection=connection,
+            config=TopOTheHourBotConfiguration.from_pickle(
+                path=pickle_directory / TOPOTHEHOURBOT_CONFIGURATION_PICKLE_FILE,
+                raise_not_found=False,
+            ),
+        )
         hasanabi_extension = HasanAbiExtension(
             client=client,
             config=HasanAbiExtensionConfiguration.from_pickle(

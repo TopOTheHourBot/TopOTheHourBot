@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-__all__ = ["Client", "connect"]
+__all__ = ["Client"]
 
 import asyncio
 from abc import ABCMeta
@@ -10,7 +10,6 @@ from contextlib import AbstractContextManager
 from typing import Any, Final, Optional
 
 import ircv3
-import websockets
 from channels import Channel, Diverter
 from ircv3 import ClientCommandProtocol, Ping, ServerCommandProtocol
 from ircv3.dialects.twitch import (ClientJoin, ClientPart,
@@ -175,11 +174,3 @@ class Client(SupportsClientProperties, metaclass=ABCMeta):
             with self._diverter.closure() as diverter:
                 async for command in self:
                     diverter.send(command)
-
-
-async def connect[ClientT: Client](client: type[ClientT], **kwargs: Any) -> AsyncIterator[ClientT]:
-    """Connect to the Twitch IRC server as ``client``, reconnecting on each
-    iteration
-    """
-    async for connection in websockets.connect("ws://irc-ws.chat.twitch.tv:80"):
-        yield client(connection, **kwargs)
