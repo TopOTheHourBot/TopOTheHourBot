@@ -1,5 +1,7 @@
 # Contributing
 
+**Note: This document is still under construction!**
+
 Heyyo! If you're reading this, then that means you're thinking about making a contribution - that's great!
 
 If you're **not familiar** with programming, you can create an [issue](https://github.com/TopOTheHourBot/TopOTheHourBot/issues) to describe your idea. If I like your idea, I will develop the implementation and grant you credit in this repository's [README](./README.md). If you don't want to create a GitHub account, feel free to message me (@Lyystra) in chat - I'm typically in [Hasan's](https://www.twitch.tv/hasanabi), [Will's](https://www.twitch.tv/willneff), or [Jerma's](https://www.twitch.tv/jerma985).

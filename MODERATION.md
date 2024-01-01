@@ -1,5 +1,7 @@
 # Moderation
 
+**Note: This document is still under construction!**
+
 This document is intended for moderators that have TopOTheHourBot running in their chat room (which is just Hasan's chat at the moment).
 
 TopOTheHourBot does not have much with regards to functionality, as its primary purpose has been to average segue ratings. Traditional "!verb" commands, like those implemented by [Fossabot](https://fossabot.com/) and [Nightbot](https://nightbot.tv/), are actually a bit strange to TopOTheHourBot because its infrastructure was built to prioritise cross-message relationships over messages in isolation (many-to-one or many-to-many versus one-to-one).
