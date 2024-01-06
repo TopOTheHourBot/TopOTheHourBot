@@ -3,6 +3,7 @@ from __future__ import annotations
 __all__ = ["Client"]
 
 import asyncio
+import logging
 from abc import ABCMeta
 from asyncio import TaskGroup
 from collections.abc import AsyncIterator, Coroutine
@@ -15,8 +16,7 @@ from ircv3 import ClientCommandProtocol, Ping, ServerCommandProtocol
 from ircv3.dialects.twitch import (ClientJoin, ClientPart,
                                    ClientPrivateMessage, ServerPrivateMessage,
                                    SupportsClientProperties)
-from websockets import (ConnectionClosed, ConnectionClosedOK,
-                        WebSocketClientProtocol)
+from websockets import ConnectionClosed, WebSocketClientProtocol
 
 from .parser import ServerCommandParser
 
@@ -50,7 +50,8 @@ class Client(SupportsClientProperties, metaclass=ABCMeta):
                 commands = await self.recv()
                 for command in commands:
                     yield command
-        except ConnectionClosedOK:
+        except ConnectionClosed:
+            logging.exception("Connection closed during perpetual reception")
             return
 
     @property
