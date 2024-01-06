@@ -94,9 +94,7 @@ class HasanAbiExtension(ClientExtension[LocalServerCommand]):
         decay: float,
         threshold: int = 0,
     ) -> AsyncIterator[Coroutine]:
-        assert not channel.closed
-
-        with channel.closure():
+        with channel.open().closure():
             counter = await (
                 aiter(channel)
                     .finite_timeout(decay)
@@ -164,9 +162,7 @@ class HasanAbiExtension(ClientExtension[LocalServerCommand]):
         decay: float,
         threshold: int = 0,
     ) -> AsyncIterator[Coroutine]:
-        assert not channel.closed
-
-        with channel.closure():
+        with channel.open().closure():
             counter = await (
                 aiter(channel)
                     .finite_timeout(decay)
@@ -211,8 +207,8 @@ class HasanAbiExtension(ClientExtension[LocalServerCommand]):
         bots = self.config.bots
         name = self.name
 
-        segue_ratings = Channel[RealCounter]().close()
-        roleplay_ratings = Channel[IntegerCounter]().close()
+        segue_rating_channel = Channel[RealCounter]().close()
+        roleplay_rating_channel = Channel[IntegerCounter]().close()
 
         with self.attachment() as channel:
             async for message in (
@@ -268,9 +264,11 @@ class HasanAbiExtension(ClientExtension[LocalServerCommand]):
                                     target=message,
                                 )
                             else:
-                                if segue_ratings.closed:
-                                    segue_ratings.open()
-                                    yield self.handle_segue_ratings(segue_ratings, decay=decay)
+                                if segue_rating_channel.closed:
+                                    yield self.handle_segue_ratings(
+                                        segue_rating_channel,
+                                        decay=decay,
+                                    )
                                     yield self.message(
                                         f"Segue ratings are now tallying with decay time of {decay:.2f} seconds",
                                         target=message,
@@ -281,13 +279,13 @@ class HasanAbiExtension(ClientExtension[LocalServerCommand]):
                                         target=message,
                                     )
                         case ["segue", "stop", *_]:
-                            if segue_ratings.closed:
+                            if segue_rating_channel.closed:
                                 yield self.message(
                                     "Segue ratings were not tallying",
                                     target=message,
                                 )
                             else:
-                                segue_ratings.close()
+                                segue_rating_channel.close()
                                 yield self.message(
                                     "Segue ratings have stopped tallying",
                                     target=message,
@@ -314,9 +312,11 @@ class HasanAbiExtension(ClientExtension[LocalServerCommand]):
                                     target=message,
                                 )
                             else:
-                                if roleplay_ratings.closed:
-                                    roleplay_ratings.open()
-                                    yield self.handle_roleplay_ratings(roleplay_ratings, decay=decay)
+                                if roleplay_rating_channel.closed:
+                                    yield self.handle_roleplay_ratings(
+                                        roleplay_rating_channel,
+                                        decay=decay,
+                                    )
                                     yield self.message(
                                         f"Roleplay scores are now tallying with decay time of {decay:.2f} seconds",
                                         target=message,
@@ -327,13 +327,13 @@ class HasanAbiExtension(ClientExtension[LocalServerCommand]):
                                         target=message,
                                     )
                         case ["roleplay", "stop", *_]:
-                            if roleplay_ratings.closed:
+                            if roleplay_rating_channel.closed:
                                 yield self.message(
                                     "Roleplay scores were not tallying",
                                     target=message,
                                 )
                             else:
-                                roleplay_ratings.close()
+                                roleplay_rating_channel.close()
                                 yield self.message(
                                     "Roleplay scores have stopped tallying",
                                     target=message,
@@ -342,29 +342,29 @@ class HasanAbiExtension(ClientExtension[LocalServerCommand]):
 
                 if (match := self.segue_rating_pattern.search(comment)):
                     rating = RealCounter(match.group(1)).clamp(0, 10)
-                    if segue_ratings.closed:
+                    if segue_rating_channel.closed:
                         if self.config.segue_rating_inference:
-                            segue_ratings.open().send(rating)
+                            segue_rating_channel.open().send(rating)
                             yield self.handle_segue_ratings(
-                                segue_ratings,
+                                segue_rating_channel,
                                 decay=self.config.segue_rating_inference_decay,
                                 threshold=self.config.segue_rating_inference_threshold,
                             )
                     else:
-                        segue_ratings.send(rating)
+                        segue_rating_channel.send(rating)
 
                 if (match := self.roleplay_rating_pattern.search(comment)):
                     rating = IntegerCounter(match.group(1))
-                    if roleplay_ratings.closed:
+                    if roleplay_rating_channel.closed:
                         if self.config.roleplay_rating_inference:
-                            roleplay_ratings.open().send(rating)
+                            roleplay_rating_channel.open().send(rating)
                             yield self.handle_roleplay_ratings(
-                                roleplay_ratings,
+                                roleplay_rating_channel,
                                 decay=self.config.roleplay_rating_inference_decay,
                                 threshold=self.config.roleplay_rating_inference_threshold,
                             )
                     else:
-                        roleplay_ratings.send(rating)
+                        roleplay_rating_channel.send(rating)
 
     async def accumulate(self) -> None:
         """Execute all message handlers asynchronously, dispatching coroutines
