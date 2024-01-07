@@ -27,7 +27,7 @@ from .utilities import IntegerCounter, RealCounter
 @dataclass(slots=True, kw_only=True)
 class HasanAbiExtensionConfiguration(Configuration):
 
-    target: str = "#hasanabi"
+    room: str = "#hasanabi"
 
     supervisors: set[str] = dataclasses.field(default_factory=lambda: {"lyystra", "astryyl", "bytesized_", "emjaye"})
     bots: set[str] = dataclasses.field(default_factory=lambda: {"fossabot", "blammobot", "frierenbot"})
@@ -141,7 +141,7 @@ class HasanAbiExtension(ClientExtension[LocalServerCommand]):
         yield self.message(
             f"DANKIES 🔔 {segue_rating_count:,d} chatters rated this ad segue an average"
             f" of {segue_rating:.2f}/10 - {random.choice(reactions)}",
-            target=self.config.target,
+            target=self.config.room,
         )
 
     roleplay_rating_initial: Final[IntegerCounter] = IntegerCounter(0, 0)
@@ -198,7 +198,7 @@ class HasanAbiExtension(ClientExtension[LocalServerCommand]):
             f"donScoot 🔔 hassy {"gained" if roleplay_rating_delta >= 0 else "lost"}"
             f" {roleplay_rating_delta:+,d} points for this roleplay moment - hassy has"
             f" {roleplay_rating_total:,d} points in total {random.choice(reactions)}",
-            target=self.config.target,
+            target=self.config.room,
         )
 
     @stream.compose
@@ -385,7 +385,7 @@ class HasanAbiExtension(ClientExtension[LocalServerCommand]):
         """Join the target room and eternally distribute its localised commands
         to attachments
         """
-        await self.join(self.config.target)
+        await self.join(self.config.room)
         async with TaskGroup() as tasks:
             tasks.create_task(self.accumulate())
             with self._diverter.closure() as diverter:
@@ -393,6 +393,6 @@ class HasanAbiExtension(ClientExtension[LocalServerCommand]):
                     async for command in (
                         aiter(channel)
                             .filter(twitch.is_local_server_command)
-                            .filter(lambda command: command.room == self.config.target)
+                            .filter(lambda command: command.room == self.config.room)
                     ):
                         diverter.send(command)
