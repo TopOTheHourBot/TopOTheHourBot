@@ -6,8 +6,8 @@ from collections.abc import Iterator
 from typing import Final, Literal, Self
 
 from ircv3 import Command, Ping, ServerCommandProtocol
-from ircv3.dialects.twitch import (RoomState, ServerJoin, ServerPart,
-                                   ServerPrivateMessage)
+from ircv3.dialects.twitch import (RoomState, ServerJoin, ServerMessage,
+                                   ServerPart)
 
 
 class ServerCommandParser(Iterator[ServerCommandProtocol]):
@@ -21,22 +21,23 @@ class ServerCommandParser(Iterator[ServerCommandProtocol]):
     _data: str
     _head: int
 
-    def __init__(self, data: str, *, head: int = 0) -> None:
+    def __init__(self, data: str) -> None:
+        super().__init__()
         self._data = data
-        self._head = head
+        self._head = 0
 
     def __iter__(self) -> Self:
         return self
 
     def __next__(self) -> ServerCommandProtocol:
-        while (result := self.move_head()) is not self.EXHAUSTED:
+        while (result := self._move_head()) is not self.EXHAUSTED:
             if result is self.UNRECOGNIZED:
                 continue
             assert isinstance(result, ServerCommandProtocol)
             return result
         raise StopIteration
 
-    def move_head(self) -> object:
+    def _move_head(self) -> object:
         head = self._head
         if head == -1:
             return self.EXHAUSTED
@@ -49,7 +50,7 @@ class ServerCommandParser(Iterator[ServerCommandProtocol]):
         name = command.name
         self._head = next + len(self.CRLF)
         if name == "PRIVMSG":
-            return ServerPrivateMessage.cast(command)
+            return ServerMessage.cast(command)
         if name == "ROOMSTATE":
             return RoomState.cast(command)
         if name == "PING":
