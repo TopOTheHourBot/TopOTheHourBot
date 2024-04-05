@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-__all__ = ["Client", "Channel"]
+__all__ = ["ClientWriter", "ChannelWriter"]
 
 import asyncio
 from collections import defaultdict
@@ -11,7 +11,7 @@ from ircv3.dialects.twitch import (ClientJoin, ClientMessage, ClientPart,
 from websockets import WebSocketClientProtocol
 
 
-class Client:
+class ClientWriter:
 
     # These are strictly accessed as class variables to ensure that, no matter
     # the instance, all will be working with the same cooldowns and epochs.
@@ -39,15 +39,15 @@ class Client:
     Set to 0 if the client has not sent a JOIN.
     """
 
-    __slots__ = ("_channels", "websocket", "name")
-    _channels: dict[str, Channel]
-    websocket: WebSocketClientProtocol
+    __slots__ = ("_channel_writers", "_websocket", "name")
+    _channel_writers: dict[str, ChannelWriter]
+    _websocket: WebSocketClientProtocol
     name: str
 
     def __init__(self, websocket: WebSocketClientProtocol, *, name: str) -> None:
         super().__init__()
-        self._channels = {}
-        self.websocket = websocket
+        self._channel_writers = {}
+        self._websocket = websocket
         self.name = name
 
     @property
@@ -58,13 +58,13 @@ class Client:
         standard rate limit).
 
         Note that setting this property will modify the message cooldown for
-        all ``Client`` instances of the same name.
+        all ``ClientWriter`` instances of the same name.
         """
-        return Client._message_cooldowns[self.name]
+        return ClientWriter._message_cooldowns[self.name]
 
     @message_cooldown.setter
     def message_cooldown(self, cooldown: float) -> None:
-        Client._message_cooldowns[self.name] = cooldown
+        ClientWriter._message_cooldowns[self.name] = cooldown
 
     @property
     def join_cooldown(self) -> float:
@@ -74,13 +74,13 @@ class Client:
         standard rate limit).
 
         Note that setting this property will modify the join cooldown for all
-        ``Client`` instances of the same name.
+        ``ClientWriter`` instances of the same name.
         """
-        return Client._join_cooldowns[self.name]
+        return ClientWriter._join_cooldowns[self.name]
 
     @join_cooldown.setter
     def join_cooldown(self, cooldown: float) -> None:
-        Client._join_cooldowns[self.name] = cooldown
+        ClientWriter._join_cooldowns[self.name] = cooldown
 
     @property
     def last_message_epoch(self) -> float:
@@ -89,7 +89,7 @@ class Client:
 
         Set to 0 if the client has not sent a PRIVMSG.
         """
-        return Client._last_message_epochs[self.name]
+        return ClientWriter._last_message_epochs[self.name]
 
     @property
     def last_join_epoch(self) -> float:
@@ -98,7 +98,7 @@ class Client:
 
         Set to 0 if the client has not sent a JOIN.
         """
-        return Client._last_join_epochs[self.name]
+        return ClientWriter._last_join_epochs[self.name]
 
     @property
     def latency(self) -> float:
@@ -106,20 +106,23 @@ class Client:
 
         Set to 0 if the websocket has not sent a ping.
         """
-        return self.websocket.latency * 1000
+        return self._websocket.latency * 1000
 
-    def channel(self, name: str) -> Channel:
-        channels = self._channels
+    def create_channel_writer(self, name: str) -> ChannelWriter:
+        channels = self._channel_writers
         try:
             return channels[name]
         except KeyError:
-            channel = Channel(self, name=name)
+            channel = ChannelWriter(self, name=name)
             channels[name] = channel
             return channel
 
+    def destroy_channel_writer(self, name: str) -> ChannelWriter | None:
+        return self._channel_writers.pop(name, None)
+
     async def send(self, command: object, /) -> None:
         data = str(command)
-        await self.websocket.send(data)
+        await self._websocket.send(data)
 
     async def message(
         self,
@@ -130,23 +133,23 @@ class Client:
     ) -> None:
         name = self.name
         curr_message_epoch = asyncio.get_running_loop().time()
-        last_message_epoch = Client._last_message_epochs[name]
+        last_message_epoch = ClientWriter._last_message_epochs[name]
         if last_message_epoch:
             delay = max(
-                Client._message_cooldowns[name]
+                ClientWriter._message_cooldowns[name]
                 - (curr_message_epoch - last_message_epoch),
                 0,
             )
         else:
             delay = 0
         if important:
-            Client._last_message_epochs[name] = curr_message_epoch + delay
+            ClientWriter._last_message_epochs[name] = curr_message_epoch + delay
             if delay:
                 await asyncio.sleep(delay)
         else:
             if delay:
                 return
-            Client._last_message_epochs[name] = curr_message_epoch
+            ClientWriter._last_message_epochs[name] = curr_message_epoch
         comment = str(comment)
         command = ClientMessage(target, comment) if isinstance(target, str) else target.reply(comment)
         return await self.send(command)
@@ -154,16 +157,16 @@ class Client:
     async def join(self, *rooms: str) -> None:
         name = self.name
         curr_join_epoch = asyncio.get_running_loop().time()
-        last_join_epoch = Client._last_join_epochs[name]
+        last_join_epoch = ClientWriter._last_join_epochs[name]
         if last_join_epoch:
             delay = max(
-                Client._join_cooldowns[name]
+                ClientWriter._join_cooldowns[name]
                 - (curr_join_epoch - last_join_epoch),
                 0,
             )
         else:
             delay = 0
-        Client._last_join_epochs[name] = curr_join_epoch + delay
+        ClientWriter._last_join_epochs[name] = curr_join_epoch + delay
         if delay:
             await asyncio.sleep(delay)
         return await self.send(ClientJoin(*rooms))
@@ -172,19 +175,19 @@ class Client:
         return await self.send(ClientPart(*rooms))
 
     async def close(self) -> None:
-        await self.websocket.close()
+        await self._websocket.close()
 
 
-class Channel:
+class ChannelWriter:
 
-    __slots__ = ("client", "name", "room")
-    client: Client
+    __slots__ = ("client_writer", "name", "room")
+    client_writer: ClientWriter
     name: str
     room: str
 
-    def __init__(self, client: Client, *, name: str) -> None:
+    def __init__(self, client_writer: ClientWriter, *, name: str) -> None:
         super().__init__()
-        self.client = client
+        self.client_writer = client_writer
         self.name = name
         self.room = "#" + name
 
@@ -195,7 +198,7 @@ class Channel:
         *,
         important: bool = True,
     ) -> None:
-        await self.client.message(
+        await self.client_writer.message(
             comment,
             self.room if target == "#" else target,
             important=important,
