@@ -5,7 +5,7 @@ __all__ = ["ServerCommandParser"]
 from collections.abc import Iterator
 from typing import Final, Literal, Self
 
-from ircv3 import Command, Ping, ServerCommandProtocol
+from ircv3 import Command, Ping, RPLWelcome, ServerCommandProtocol
 from ircv3.dialects.twitch import (RoomState, ServerJoin, ServerMessage,
                                    ServerPart)
 
@@ -59,4 +59,6 @@ class ServerCommandParser(Iterator[ServerCommandProtocol]):
             return ServerJoin.cast(command)
         if name == "PART":
             return ServerPart.cast(command)
+        if name == "001":
+            return RPLWelcome.cast(command)
         return self.UNRECOGNIZED
