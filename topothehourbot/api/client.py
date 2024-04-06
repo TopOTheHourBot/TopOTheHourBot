@@ -170,9 +170,9 @@ class ClientWriter:
     Set to 0 if the client has not sent a JOIN.
     """
 
-    __slots__ = ("client", "writer")
+    __slots__ = ("client", "_writer")
     client: Client
-    writer: WebSocketClientProtocol
+    _writer: WebSocketClientProtocol
 
     def __init__(
         self,
@@ -180,7 +180,7 @@ class ClientWriter:
         writer: WebSocketClientProtocol,
     ) -> None:
         self.client = client
-        self.writer = writer
+        self._writer = writer
 
     @property
     def name(self) -> str:
@@ -196,7 +196,7 @@ class ClientWriter:
 
         Set to 0 if the websocket has not sent a ping.
         """
-        return self.writer.latency * 1000
+        return self._writer.latency * 1000
 
     @property
     def message_cooldown(self) -> float:
@@ -250,7 +250,7 @@ class ClientWriter:
 
     async def send(self, command: object, /) -> None:
         data = str(command)
-        await self.writer.send(data)
+        await self._writer.send(data)
 
     async def message(
         self,
@@ -303,14 +303,14 @@ class ClientWriter:
         return await self.send(ClientPart(*rooms))
 
     async def close(self) -> None:
-        await self.writer.close()
+        await self._writer.close()
 
 
 class ChannelWriter:
 
-    __slots__ = ("channel", "writer")
+    __slots__ = ("channel", "_writer")
     channel: Channel
-    writer: ClientWriter
+    _writer: ClientWriter
 
     def __init__(
         self,
@@ -318,7 +318,11 @@ class ChannelWriter:
         writer: ClientWriter,
     ) -> None:
         self.channel = channel
-        self.writer = writer
+        self._writer = writer
+
+    @property
+    def client(self) -> Client:
+        return self._writer.client
 
     @property
     def name(self) -> str:
@@ -335,7 +339,7 @@ class ChannelWriter:
         *,
         important: bool = True,
     ) -> None:
-        await self.writer.message(
+        await self._writer.message(
             comment,
             self.room if target == "#" else target,
             important=important,
