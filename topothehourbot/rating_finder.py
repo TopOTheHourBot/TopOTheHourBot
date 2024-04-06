@@ -11,32 +11,42 @@ __all__ = [
 import re
 from collections.abc import ValuesView
 from decimal import Decimal
-from typing import TypedDict, override
+from typing import Self, TypedDict
 
 from ircv3 import CommandProtocolJSON
 from ircv3.dialects.twitch import ServerMessage
 
-from .api.client import Channel
-from .api.utilities import Buffer, BufferedJob, Failure, Signal, Success
+from .api.client import ChannelWriter
+from .api.utilities import Buffer, Failure, Job, Signal, Success
 
 
 class RatingJSON(TypedDict):
 
     message: CommandProtocolJSON
     value: float
+    index_begin: int
+    index_end: int
 
 
 class Rating:
 
-    __slots__ = ("message", "value")
+    __slots__ = ("message", "value", "index_begin", "index_end")
     message: ServerMessage
-    """The message containing the rating value"""
     value: Decimal
-    """The rating value"""
+    index_begin: int
+    index_end: int
 
-    def __init__(self, message: ServerMessage, value: Decimal) -> None:
+    def __init__(
+        self,
+        message: ServerMessage,
+        value: Decimal,
+        index_begin: int,
+        index_end: int,
+    ) -> None:
         self.message = message
         self.value = value
+        self.index_begin = index_begin
+        self.index_end = index_end
 
     @property
     def key(self) -> str:
@@ -52,6 +62,8 @@ class Rating:
         return {
             "message": self.message.to_json(),
             "value": float(self.value),
+            "index_begin": self.index_begin,
+            "index_end": self.index_end,
         }
 
 
@@ -109,8 +121,8 @@ class RatingBatch:
         if count:
             return self.sum / count
 
-    def add(self, rating: Rating) -> None:
-        """Add a rating to the set"""
+    def add(self, rating: Rating) -> Self:
+        """Add a rating to the batch"""
         key = rating.key
         map = self._map
         sum = self._sum
@@ -118,9 +130,10 @@ class RatingBatch:
             sum -= map[key].value
         self._sum = sum + rating.value
         map[key] = rating
+        return self
 
     def to_json(self) -> RatingBatchJSON:
-        """Return a JSON representation of the set"""
+        """Return a JSON representation of the batch"""
         return {
             "ratings": [rating.to_json() for rating in self.ratings],
             "count": self.count,
@@ -150,17 +163,11 @@ class RatingFinder:
 
     __slots__ = (
         "_job",
-        "_channel",
-        "success_signal",
-        "failure_signal",
         "delay",
         "max_count",
         "min_count",
     )
-    _job: BufferedJob[Rating, RatingBatch, RatingBatch]
-    _channel: Channel
-    success_signal: Signal[[Channel, RatingBatch], object]
-    failure_signal: Signal[[Channel, RatingBatch], object]
+    _job: Job[[ChannelWriter, Rating], RatingBatch, RatingBatch]
     delay: float
     max_count: int | None
     min_count: int
@@ -173,55 +180,70 @@ class RatingFinder:
         min_count: int = 40,
     ) -> None:
         super().__init__()
-        self._job = BufferedJob(self._job_process)
-        self._job.success_signal.add_callback(self._on_job_success)
-        self._job.failure_signal.add_callback(self._on_job_failure)
-        self.success_signal = Signal()
-        self.failure_signal = Signal()
+        self._job = Job(self._job_process)
         self.delay = delay
         self.max_count = max_count
         self.min_count = min_count
 
-    async def _job_process(self, buffer: Buffer[Rating]) -> Success[RatingBatch] | Failure[RatingBatch]:
-        ratings = RatingBatch()
-        max_count = self.max_count
-        min_count = self.min_count
-        delay = self.delay
-        async for rating in (
-            aiter(buffer)
-                .finite_timeout(delay)
-                .limit(max_count)
-        ):
-            ratings.add(rating)
-        if ratings.count < min_count:
-            return Failure(ratings)
-        return Success(ratings)
+    @property
+    def success_signal(self) -> Signal[[RatingBatch, ChannelWriter, Rating], object]:
+        return self._job.success_signal
 
-    async def _on_job_success(self, ratings: RatingBatch) -> None:
-        waiter = self.success_signal.maybe_run(self._channel, ratings)
-        if waiter is not None:
-            await waiter
+    @property
+    def failure_signal(self) -> Signal[[RatingBatch, ChannelWriter, Rating], object]:
+        return self._job.failure_signal
 
-    async def _on_job_failure(self, ratings: RatingBatch) -> None:
-        waiter = self.failure_signal.maybe_run(self._channel, ratings)
-        if waiter is not None:
-            await waiter
-
-    async def _on_channel_ready(self, channel: Channel) -> None:
-        self._channel = channel
-
-    async def _on_channel_message(self, channel: Channel, message: ServerMessage) -> None:
-        rater = message.sender
-        if channel.client.name == rater.name:
-            return
+    def find(self, message: ServerMessage) -> Rating | None:
         match = self.pattern.search(message.comment)
-        if match is None:
+        if match is not None:
+            return Rating(
+                message=message,
+                value=Decimal(match.group(1)),
+                index_begin=match.span(1)[0],
+                index_end=match.span(1)[1],
+            )
+
+    async def _job_process(self, writer: ChannelWriter, initial_rating: Rating) -> Success[RatingBatch] | Failure[RatingBatch]:
+        ratings = Buffer[Rating]()
+        ratings.send(initial_rating)
+
+        async def on_channel_message(writer: ChannelWriter, message: ServerMessage) -> None:
+            if writer.client.name == message.sender.name:
+                return
+            rating = self.find(message)
+            if rating is None:
+                return
+            ratings.send(rating)
+
+        with (
+            writer
+                .channel
+                .message_signal
+                .continuation(on_channel_message)
+        ):
+            batch = await (
+                aiter(ratings)
+                    .finite_timeout(self.delay)
+                    .limit(self.max_count)
+                    .reduce(RatingBatch(), RatingBatch.add)
+            )
+            if batch.count < self.min_count:
+                result = Failure(batch)
+            else:
+                result = Success(batch)
+
+        return result
+
+    async def on_channel_message(self, writer: ChannelWriter, message: ServerMessage) -> None:
+        if writer.client.name == message.sender.name:
             return
-        job = self._job
-        if not job.running():
-            job.run()
-        rating = Rating(
-            message=message,
-            value=Decimal(match.group(1)),
-        )
-        job.send(rating)
+        rating = self.find(message)
+        if rating is None:
+            return
+        with (
+            writer
+                .channel
+                .message_signal
+                .suspension(self.on_channel_message)
+        ):
+            await self._job.run(writer, rating)

@@ -6,12 +6,10 @@ __all__ = [
     "Success",
     "Failure",
     "Job",
-    "BufferedJob",
     "job",
 ]
 
 import asyncio
-import functools
 import logging
 from abc import ABCMeta, abstractmethod
 from asyncio import CancelledError, Task
@@ -19,8 +17,6 @@ from collections.abc import Callable, Coroutine, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Any, Concatenate, Literal, Self, final, override
-
-from .buffers import Buffer
 
 
 class Processor[**ParamTs, ResultT](metaclass=ABCMeta):
@@ -101,6 +97,22 @@ class Signal[**ParamTs, ResultT](Processor[ParamTs, None]):
         self.add_callback(callback)
         return callback
 
+    @contextmanager
+    def continuation(self, callback: Callable[ParamTs, Coroutine[Any, Any, ResultT]]) -> Iterator[Self]:
+        self.add_callback(callback)
+        try:
+            yield self
+        finally:
+            self.remove_callback(callback)
+
+    @contextmanager
+    def suspension(self, callback: Callable[ParamTs, Coroutine[Any, Any, ResultT]]) -> Iterator[Self]:
+        self.remove_callback(callback)
+        try:
+            yield self
+        finally:
+            self.add_callback(callback)
+
     def callback_partial(self, *args: Any, **kwargs: Any) -> Callable[[Callable[..., Coroutine[Any, Any, ResultT]]], Callable[ParamTs, Coroutine[Any, Any, ResultT]]]:
         """Decorate a callback to schedule upon the signal's emission,
         partially applying the given arguments, alike ``functools.partial()``
@@ -116,14 +128,6 @@ class Signal[**ParamTs, ResultT](Processor[ParamTs, None]):
             return callback_partial_wrapper
 
         return callback_partial_decorator
-
-    @contextmanager
-    def callback_manager(self, callback: Callable[ParamTs, Coroutine[Any, Any, ResultT]]) -> Iterator[Self]:
-        self.add_callback(callback)
-        try:
-            yield self
-        finally:
-            self.remove_callback(callback)
 
     def add_callback(self, callback: Callable[ParamTs, Coroutine[Any, Any, ResultT]]) -> Self:
         """Add a callback to schedule upon the signal's emission"""
@@ -187,8 +191,8 @@ class Job[**ParamTs, SuccessT, FailureT](Processor[ParamTs, Success[SuccessT] | 
 
     __slots__ = ("_process", "success_signal", "failure_signal")
     _process: Callable[ParamTs, Coroutine[Any, Any, Success[SuccessT] | Failure[FailureT]]]
-    success_signal: Signal[[SuccessT], Any]
-    failure_signal: Signal[[FailureT], Any]
+    success_signal: Signal[Concatenate[SuccessT, ParamTs], Any]
+    failure_signal: Signal[Concatenate[FailureT, ParamTs], Any]
 
     def __init__(self, process: Callable[ParamTs, Coroutine[Any, Any, Success[SuccessT] | Failure[FailureT]]]) -> None:
         super().__init__()
@@ -205,52 +209,16 @@ class Job[**ParamTs, SuccessT, FailureT](Processor[ParamTs, Success[SuccessT] | 
         result = await self.process(*args, **kwargs)
         if result.success():
             assert isinstance(result, Success)
-            self.success_signal.maybe_run(result.value)
+            self.success_signal.maybe_run(result.value, *args, **kwargs)
         else:
             assert isinstance(result, Failure)
-            self.failure_signal.maybe_run(result.value)
+            self.failure_signal.maybe_run(result.value, *args, **kwargs)
 
     @override
     def run(self, *args: ParamTs.args, **kwargs: ParamTs.kwargs) -> Task[None]:
         if self.running():
             raise RuntimeError("Job is already running")
         return super().run(*args, **kwargs)
-
-
-class BufferedJob[BufferT, SuccessT, FailureT](Job[[], SuccessT, FailureT]):
-
-    __slots__ = ("_buffer",)
-    _buffer: Buffer[BufferT]
-
-    def __init__(
-        self,
-        process: Callable[[Buffer[BufferT]], Coroutine[Any, Any, Success[SuccessT] | Failure[FailureT]]],
-        *,
-        buffer: Buffer[BufferT] | None = None,
-    ) -> None:
-        if buffer is None:
-            buffer = Buffer()
-        buffer.close()
-        super().__init__(functools.partial(process, buffer))
-        self._buffer = buffer
-
-    @override
-    def _on_task_done(self, task: Task[None]) -> None:
-        super()._on_task_done(task)
-        self._buffer.clear()
-        self._buffer.close()
-
-    @override
-    def run(self) -> Task[None]:
-        self._buffer.open()
-        try:
-            return super().run()
-        except:
-            self._buffer.close()
-            raise
-
-    def send(self, value: BufferT, /) -> None:
-        self._buffer.send(value)
 
 
 def job[**ParamTs, SuccessT, FailureT](
@@ -260,18 +228,3 @@ def job[**ParamTs, SuccessT, FailureT](
     ],
 ) -> Job[ParamTs, SuccessT, FailureT]:
     return Job(process)
-
-
-def buffered_job[BufferT, SuccessT, FailureT](
-    buffer: Buffer[BufferT] | None = None,
-) -> Callable[
-    [Callable[[Buffer[BufferT]], Coroutine[Any, Any, Success[SuccessT] | Failure[FailureT]]]],
-    BufferedJob[BufferT, SuccessT, FailureT],
-]:
-
-    def buffered_job_decorator(
-        process: Callable[[Buffer[BufferT]], Coroutine[Any, Any, Success[SuccessT] | Failure[FailureT]]],
-    ) -> BufferedJob[BufferT, SuccessT, FailureT]:
-        return BufferedJob(process, buffer=buffer)
-
-    return buffered_job_decorator
