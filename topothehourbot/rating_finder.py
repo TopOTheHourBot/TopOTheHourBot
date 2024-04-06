@@ -16,7 +16,6 @@ from typing import TypedDict, override
 from ircv3 import CommandProtocolJSON
 from ircv3.dialects.twitch import ServerMessage
 
-from .api.app import ChannelApp, Plugin
 from .api.client import Channel
 from .api.utilities import Buffer, BufferedJob, Failure, Signal, Success
 
@@ -130,7 +129,7 @@ class RatingBatch:
         }
 
 
-class RatingFinder(Plugin[ChannelApp]):
+class RatingFinder:
 
     pattern = re.compile(
         pattern=r"""
@@ -226,17 +225,3 @@ class RatingFinder(Plugin[ChannelApp]):
             value=Decimal(match.group(1)),
         )
         job.send(rating)
-
-    @override
-    def on_load(self, app: ChannelApp) -> ChannelApp:
-        app = super().on_load(app)
-        app.ready_signal.add_callback(self._on_channel_ready)
-        app.message_signal.add_callback(self._on_channel_message)
-        return app
-
-    @override
-    def on_unload(self, app: ChannelApp) -> ChannelApp:
-        app = super().on_unload(app)
-        app.ready_signal.remove_callback(self._on_channel_ready)
-        app.message_signal.remove_callback(self._on_channel_message)
-        return app

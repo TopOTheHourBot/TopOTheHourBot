@@ -6,8 +6,7 @@ import random
 
 from ircv3.dialects.twitch import ServerMessage
 
-from .api.app import ChannelApp
-from .api.client import Channel
+from .api.client import Channel, ChannelWriter
 from .api.commands import CommandGroup, Success
 from .rating_finder import RatingBatch, RatingFinder
 
@@ -55,23 +54,20 @@ async def on_rating_finder_success(channel: Channel, ratings: RatingBatch) -> No
         f" of {mean:.2f}/10 - {reaction}",
     )
 
-app = (
-    ChannelApp("hasanabi")
-        .load(rating_finder)
-)
+channel = Channel(name="hasanabi")
 
-@app.message_signal.callback
+@channel.message_signal.callback
 async def on_channel_message(
-    channel: Channel,
+    writer: ChannelWriter,
     message: ServerMessage,
     *,
     commands: CommandGroup = CommandGroup(prefix="$").add_command(name="ping"),
 ) -> None:
-    if channel.client.name == message.sender.name:
+    if writer.client.name == message.sender.name:
         return
     match commands.parse(message.comment):
         case Success(name="ping"):
-            await channel.message(
+            await writer.message(
                 "pong",
                 target=message,
             )

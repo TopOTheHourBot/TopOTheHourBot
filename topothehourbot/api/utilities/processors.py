@@ -18,7 +18,7 @@ from asyncio import CancelledError, Task
 from collections.abc import Callable, Coroutine, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Any, Literal, Self, final, override
+from typing import Any, Concatenate, Literal, Self, final, override
 
 from .buffers import Buffer
 

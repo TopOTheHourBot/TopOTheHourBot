@@ -2,13 +2,11 @@ from __future__ import annotations
 
 __all__ = ["app"]
 
-from . import hasanabi
-from .api.app import ClientApp
+from .api.client import Client
 
 app = (
-    ClientApp(
+    Client(
         oauth_token="...",
         name="topothehourbot",
     )
-    .load(hasanabi.app)
 )
