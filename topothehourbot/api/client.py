@@ -9,7 +9,7 @@ __all__ = [
 
 import asyncio
 from collections import defaultdict
-from typing import ClassVar, Final
+from typing import ClassVar, Final, Self
 
 import websockets
 from ircv3 import Ping, RPLWelcome
@@ -48,13 +48,27 @@ class ClientReader:
         self.name = name
         self.room = "#" + name
         self.welcome_signal = Signal()
-        self.ping_signal = Signal().add_callback(self._on_client_ping)
+        self.ping_signal = Signal().add_callback(self.on_client_ping)
         self.message_signal = Signal()
         self.join_signal = Signal()
         self.part_signal = Signal()
 
-    async def _on_client_ping(self, writer: ClientWriter, command: Ping) -> None:
+    async def on_client_ping(self, writer: ClientWriter, command: Ping) -> None:
         await writer.send(command.reply())
+
+    def add_channel_reader(self, reader: ChannelReader) -> Self:
+        self.welcome_signal.add_callback(reader.on_client_welcome)
+        self.message_signal.add_callback(reader.on_client_message)
+        self.join_signal.add_callback(reader.on_client_join)
+        self.part_signal.add_callback(reader.on_client_part)
+        return self
+
+    def remove_channel_reader(self, reader: ChannelReader) -> Self:
+        self.welcome_signal.remove_callback(reader.on_client_welcome)
+        self.message_signal.remove_callback(reader.on_client_message)
+        self.join_signal.remove_callback(reader.on_client_join)
+        self.part_signal.remove_callback(reader.on_client_part)
+        return self
 
     async def read(self):
         async for websocket in websockets.connect(self.uri):
@@ -100,26 +114,10 @@ class ChannelReader:
         self.join_signal = Signal()
         self.part_signal = Signal()
 
-    # def add_callbacks(self) -> Self:
-    #     client_reader = self.client_reader
-    #     client_reader.welcome_signal.add_callback(self._on_client_welcome)
-    #     client_reader.message_signal.add_callback(self._on_client_message)
-    #     client_reader.join_signal.add_callback(self._on_client_join)
-    #     client_reader.part_signal.add_callback(self._on_client_part)
-    #     return self
-
-    # def remove_callbacks(self) -> Self:
-    #     client_reader = self.client_reader
-    #     client_reader.welcome_signal.remove_callback(self._on_client_welcome)
-    #     client_reader.message_signal.remove_callback(self._on_client_message)
-    #     client_reader.join_signal.remove_callback(self._on_client_join)
-    #     client_reader.part_signal.remove_callback(self._on_client_part)
-    #     return self
-
-    async def _on_client_welcome(self, writer: ClientWriter, command: RPLWelcome) -> None:
+    async def on_client_welcome(self, writer: ClientWriter, command: RPLWelcome) -> None:
         await writer.join(self.room)
 
-    async def _on_client_message(self, writer: ClientWriter, command: ServerMessage) -> None:
+    async def on_client_message(self, writer: ClientWriter, command: ServerMessage) -> None:
         if self.room != command.room:
             return
         self.message_signal.maybe_run(
@@ -127,7 +125,7 @@ class ChannelReader:
             command,
         )
 
-    async def _on_client_join(self, writer: ClientWriter, command: ServerJoin) -> None:
+    async def on_client_join(self, writer: ClientWriter, command: ServerJoin) -> None:
         if self.room != command.room:
             return
         self.join_signal.maybe_run(
@@ -135,7 +133,7 @@ class ChannelReader:
             command,
         )
 
-    async def _on_client_part(self, writer: ClientWriter, command: ServerPart) -> None:
+    async def on_client_part(self, writer: ClientWriter, command: ServerPart) -> None:
         if self.room != command.room:
             return
         self.part_signal.maybe_run(
