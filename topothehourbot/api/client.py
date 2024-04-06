@@ -179,7 +179,6 @@ class ClientWriter:
         client: Client,
         writer: WebSocketClientProtocol,
     ) -> None:
-        super().__init__()
         self.client = client
         self.writer = writer
 
