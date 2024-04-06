@@ -53,8 +53,8 @@ class ClientReader:
         self.join_signal = Signal()
         self.part_signal = Signal()
 
-    async def _on_client_ping(self, client: ClientWriter, ping: Ping) -> None:
-        await client.send(ping.reply())
+    async def _on_client_ping(self, writer: ClientWriter, command: Ping) -> None:
+        await writer.send(command.reply())
 
     async def read(self):
         async for websocket in websockets.connect(self.uri):
