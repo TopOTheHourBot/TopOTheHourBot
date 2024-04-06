@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 __all__ = [
-    "ClientReader",
+    "Client",
     "ClientWriter",
-    "ChannelReader",
+    "Channel",
     "ChannelWriter",
 ]
 
@@ -21,7 +21,7 @@ from .parser import ServerCommandParser
 from .utilities import Signal
 
 
-class ClientReader:
+class Client:
 
     uri: Final[str] = "ws://irc-ws.chat.twitch.tv:80"
 
@@ -56,18 +56,18 @@ class ClientReader:
     async def on_client_ping(self, writer: ClientWriter, command: Ping) -> None:
         await writer.send(command.reply())
 
-    def add_channel_reader(self, reader: ChannelReader) -> Self:
-        self.welcome_signal.add_callback(reader.on_client_welcome)
-        self.message_signal.add_callback(reader.on_client_message)
-        self.join_signal.add_callback(reader.on_client_join)
-        self.part_signal.add_callback(reader.on_client_part)
+    def add_channel(self, channel: Channel) -> Self:
+        self.welcome_signal.add_callback(channel.on_client_welcome)
+        self.message_signal.add_callback(channel.on_client_message)
+        self.join_signal.add_callback(channel.on_client_join)
+        self.part_signal.add_callback(channel.on_client_part)
         return self
 
-    def remove_channel_reader(self, reader: ChannelReader) -> Self:
-        self.welcome_signal.remove_callback(reader.on_client_welcome)
-        self.message_signal.remove_callback(reader.on_client_message)
-        self.join_signal.remove_callback(reader.on_client_join)
-        self.part_signal.remove_callback(reader.on_client_part)
+    def remove_channel(self, channel: Channel) -> Self:
+        self.welcome_signal.remove_callback(channel.on_client_welcome)
+        self.message_signal.remove_callback(channel.on_client_message)
+        self.join_signal.remove_callback(channel.on_client_join)
+        self.part_signal.remove_callback(channel.on_client_part)
         return self
 
     async def read(self):
@@ -92,7 +92,7 @@ class ClientReader:
                         self.welcome_signal.maybe_run(writer, command)
 
 
-class ChannelReader:
+class Channel:
 
     __slots__ = (
         "name",
@@ -170,26 +170,26 @@ class ClientWriter:
     Set to 0 if the client has not sent a JOIN.
     """
 
-    __slots__ = ("reader", "writer")
-    reader: ClientReader
+    __slots__ = ("client", "writer")
+    client: Client
     writer: WebSocketClientProtocol
 
     def __init__(
         self,
-        reader: ClientReader,
+        client: Client,
         writer: WebSocketClientProtocol,
     ) -> None:
         super().__init__()
-        self.reader = reader
+        self.client = client
         self.writer = writer
 
     @property
     def name(self) -> str:
-        return self.reader.name
+        return self.client.name
 
     @property
     def room(self) -> str:
-        return self.reader.room
+        return self.client.room
 
     @property
     def latency(self) -> float:
@@ -309,25 +309,25 @@ class ClientWriter:
 
 class ChannelWriter:
 
-    __slots__ = ("reader", "writer")
-    reader: ChannelReader
+    __slots__ = ("channel", "writer")
+    channel: Channel
     writer: ClientWriter
 
     def __init__(
         self,
-        reader: ChannelReader,
+        channel: Channel,
         writer: ClientWriter,
     ) -> None:
-        self.reader = reader
+        self.channel = channel
         self.writer = writer
 
     @property
     def name(self) -> str:
-        return self.reader.name
+        return self.channel.name
 
     @property
     def room(self) -> str:
-        return self.reader.room
+        return self.channel.room
 
     async def message(
         self,
