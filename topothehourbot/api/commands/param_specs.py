@@ -6,6 +6,7 @@ __all__ = [
     "StringParamSpec",
     "IntegerParamSpec",
     "FloatParamSpec",
+    "HandleParamSpec",
 ]
 
 from abc import ABCMeta, abstractmethod
@@ -89,3 +90,12 @@ class FloatParamSpec(InstancedDefaultParamSpec[float]):
     @override
     def convert(self, argument: str, /) -> float:
         return float(argument)
+
+
+class HandleParamSpec(StringParamSpec):
+
+    __slots__ = ()
+
+    @override
+    def convert(self, argument: str) -> str:
+        return "@" + super().convert(argument).lstrip("@")
