@@ -9,7 +9,7 @@ __all__ = [
 
 import asyncio
 from collections import defaultdict
-from typing import ClassVar, Final, Self
+from typing import ClassVar, Final, Protocol, Self, override, runtime_checkable
 
 import websockets
 from ircv3 import Ping, RPLWelcome
@@ -21,7 +21,28 @@ from .parser import ServerCommandParser
 from .utilities import Signal
 
 
-class Client:
+@runtime_checkable
+class SupportsOnClientWelcome(Protocol):
+    async def on_client_welcome(self, writer: ClientWriter, command: RPLWelcome, /) -> object: ...
+
+@runtime_checkable
+class SupportsOnClientPing(Protocol):
+    async def on_client_ping(self, writer: ClientWriter, command: Ping, /) -> object: ...
+
+@runtime_checkable
+class SupportsOnClientMessage(Protocol):
+    async def on_client_message(self, writer: ClientWriter, command: ServerMessage, /) -> object: ...
+
+@runtime_checkable
+class SupportsOnClientJoin(Protocol):
+    async def on_client_join(self, writer: ClientWriter, command: ServerJoin, /) -> object: ...
+
+@runtime_checkable
+class SupportsOnClientPart(Protocol):
+    async def on_client_part(self, writer: ClientWriter, command: ServerPart, /) -> object: ...
+
+
+class Client(SupportsOnClientPing):
 
     uri: Final[str] = "ws://irc-ws.chat.twitch.tv:80"
 
@@ -53,22 +74,35 @@ class Client:
         self.join_signal = Signal()
         self.part_signal = Signal()
 
+    def add_callbacks(self, suite: object) -> Self:
+        if isinstance(suite, SupportsOnClientWelcome):
+            self.welcome_signal.add_callback(suite.on_client_welcome)
+        if isinstance(suite, SupportsOnClientPing):
+            self.ping_signal.add_callback(suite.on_client_ping)
+        if isinstance(suite, SupportsOnClientMessage):
+            self.message_signal.add_callback(suite.on_client_message)
+        if isinstance(suite, SupportsOnClientJoin):
+            self.join_signal.add_callback(suite.on_client_join)
+        if isinstance(suite, SupportsOnClientPart):
+            self.part_signal.add_callback(suite.on_client_part)
+        return self
+
+    def remove_callbacks(self, suite: object) -> Self:
+        if isinstance(suite, SupportsOnClientWelcome):
+            self.welcome_signal.remove_callback(suite.on_client_welcome)
+        if isinstance(suite, SupportsOnClientPing):
+            self.ping_signal.remove_callback(suite.on_client_ping)
+        if isinstance(suite, SupportsOnClientMessage):
+            self.message_signal.remove_callback(suite.on_client_message)
+        if isinstance(suite, SupportsOnClientJoin):
+            self.join_signal.remove_callback(suite.on_client_join)
+        if isinstance(suite, SupportsOnClientPart):
+            self.part_signal.remove_callback(suite.on_client_part)
+        return self
+
+    @override
     async def on_client_ping(self, writer: ClientWriter, command: Ping) -> None:
         await writer.send(command.reply())
-
-    def add_channel(self, channel: Channel) -> Self:
-        self.welcome_signal.add_callback(channel.on_client_welcome)
-        self.message_signal.add_callback(channel.on_client_message)
-        self.join_signal.add_callback(channel.on_client_join)
-        self.part_signal.add_callback(channel.on_client_part)
-        return self
-
-    def remove_channel(self, channel: Channel) -> Self:
-        self.welcome_signal.remove_callback(channel.on_client_welcome)
-        self.message_signal.remove_callback(channel.on_client_message)
-        self.join_signal.remove_callback(channel.on_client_join)
-        self.part_signal.remove_callback(channel.on_client_part)
-        return self
 
     async def read(self):
         async for websocket in websockets.connect(self.uri):
@@ -92,7 +126,25 @@ class Client:
                         self.welcome_signal.maybe_run(writer, command)
 
 
-class Channel:
+@runtime_checkable
+class SupportsOnChannelMessage(Protocol):
+    async def on_channel_message(self, writer: ChannelWriter, command: ServerMessage, /) -> object: ...
+
+@runtime_checkable
+class SupportsOnChannelJoin(Protocol):
+    async def on_channel_join(self, writer: ChannelWriter, command: ServerJoin, /) -> object: ...
+
+@runtime_checkable
+class SupportsOnChannelPart(Protocol):
+    async def on_channel_part(self, writer: ChannelWriter, command: ServerPart, /) -> object: ...
+
+
+class Channel(
+    SupportsOnClientWelcome,
+    SupportsOnClientMessage,
+    SupportsOnClientJoin,
+    SupportsOnClientPart,
+):
 
     __slots__ = (
         "name",
@@ -114,9 +166,29 @@ class Channel:
         self.join_signal = Signal()
         self.part_signal = Signal()
 
+    def add_callbacks(self, suite: object) -> Self:
+        if isinstance(suite, SupportsOnChannelMessage):
+            self.message_signal.add_callback(suite.on_channel_message)
+        if isinstance(suite, SupportsOnChannelJoin):
+            self.join_signal.add_callback(suite.on_channel_join)
+        if isinstance(suite, SupportsOnChannelPart):
+            self.part_signal.add_callback(suite.on_channel_part)
+        return self
+
+    def remove_callbacks(self, suite: object) -> Self:
+        if isinstance(suite, SupportsOnChannelMessage):
+            self.message_signal.remove_callback(suite.on_channel_message)
+        if isinstance(suite, SupportsOnChannelJoin):
+            self.join_signal.remove_callback(suite.on_channel_join)
+        if isinstance(suite, SupportsOnChannelPart):
+            self.part_signal.remove_callback(suite.on_channel_part)
+        return self
+
+    @override
     async def on_client_welcome(self, writer: ClientWriter, command: RPLWelcome) -> None:
         await writer.join(self.room)
 
+    @override
     async def on_client_message(self, writer: ClientWriter, command: ServerMessage) -> None:
         if self.room != command.room:
             return
@@ -125,6 +197,7 @@ class Channel:
             command,
         )
 
+    @override
     async def on_client_join(self, writer: ClientWriter, command: ServerJoin) -> None:
         if self.room != command.room:
             return
@@ -133,6 +206,7 @@ class Channel:
             command,
         )
 
+    @override
     async def on_client_part(self, writer: ClientWriter, command: ServerPart) -> None:
         if self.room != command.room:
             return

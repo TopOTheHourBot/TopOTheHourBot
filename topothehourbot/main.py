@@ -1,12 +1,14 @@
 from __future__ import annotations
 
-__all__ = ["app"]
+__all__ = ["topothehourbot"]
 
+from . import hasanabi
 from .api.client import Client
 
-app = (
+topothehourbot = (
     Client(
         oauth_token="...",
         name="topothehourbot",
     )
+    .add_callbacks(hasanabi.channel)
 )

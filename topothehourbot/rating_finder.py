@@ -11,12 +11,12 @@ __all__ = [
 import re
 from collections.abc import ValuesView
 from decimal import Decimal
-from typing import Self, TypedDict
+from typing import Self, TypedDict, override
 
 from ircv3 import CommandProtocolJSON
 from ircv3.dialects.twitch import ServerMessage
 
-from .api.client import ChannelWriter
+from .api.client import ChannelWriter, SupportsOnChannelMessage
 from .api.utilities import Buffer, Failure, Job, Signal, Success
 
 
@@ -142,7 +142,7 @@ class RatingBatch:
         }
 
 
-class RatingFinder:
+class RatingFinder(SupportsOnChannelMessage):
 
     pattern = re.compile(
         pattern=r"""
@@ -234,6 +234,7 @@ class RatingFinder:
 
         return result
 
+    @override
     async def on_channel_message(self, writer: ChannelWriter, message: ServerMessage) -> None:
         if writer.client.name == message.sender.name:
             return
