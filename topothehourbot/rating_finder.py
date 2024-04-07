@@ -242,8 +242,8 @@ class RatingFinder:
             return
         with (
             writer
-                .channel
-                .message_signal
+                .channel         # Suspend ourselves so that we don't re-run the
+                .message_signal  # job; _job_process() will pick up from here
                 .suspension(self.on_channel_message)
         ):
             await self._job.run(writer, rating)

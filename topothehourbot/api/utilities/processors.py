@@ -99,6 +99,9 @@ class Signal[**ParamTs, ResultT](Processor[ParamTs, None]):
 
     @contextmanager
     def continuation(self, callback: Callable[ParamTs, Coroutine[Any, Any, ResultT]]) -> Iterator[Self]:
+        """Return a context manager that adds and removes a callback upon enter
+        and exit, respectively
+        """
         self.add_callback(callback)
         try:
             yield self
@@ -107,6 +110,9 @@ class Signal[**ParamTs, ResultT](Processor[ParamTs, None]):
 
     @contextmanager
     def suspension(self, callback: Callable[ParamTs, Coroutine[Any, Any, ResultT]]) -> Iterator[Self]:
+        """Return a context manager that removes and adds a callback upon enter
+        and exit, respectively
+        """
         self.remove_callback(callback)
         try:
             yield self
