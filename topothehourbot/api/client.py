@@ -325,6 +325,10 @@ class ChannelWriter:
         return self._writer.client
 
     @property
+    def latency(self) -> float:
+        return self._writer.latency
+
+    @property
     def name(self) -> str:
         return self.channel.name
 
