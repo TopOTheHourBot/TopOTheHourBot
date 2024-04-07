@@ -104,7 +104,7 @@ class Client(SupportsOnClientPing):
     async def on_client_ping(self, writer: ClientWriter, command: Ping) -> None:
         await writer.send(command.reply())
 
-    async def read(self):
+    async def run(self) -> None:
         async for websocket in websockets.connect(self.uri):
             writer = ClientWriter(self, websocket)
             await writer.send("CAP REQ :twitch.tv/commands twitch.tv/membership twitch.tv/tags")
@@ -210,6 +210,9 @@ class Channel(
     async def on_client_part(self, writer: ClientWriter, command: ServerPart) -> None:
         if self.room != command.room:
             return
+        if command.source.startswith(self.name):  # Client is banned from this channel, remove
+            writer.client.remove_callbacks(self)  # our callbacks
+            return                                # TODO: Perhaps try to re-join?
         self.part_signal.maybe_run(
             ChannelWriter(self, writer),
             command,
