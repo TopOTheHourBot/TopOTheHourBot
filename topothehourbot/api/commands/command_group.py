@@ -5,6 +5,7 @@ __all__ = [
     "Success",
     "Failure",
     "UnknownCommand",
+    "UnknownParameter",
     "BadArgument",
     "MissingArgument",
     "InconvertibleArgument",
@@ -59,6 +60,18 @@ class UnknownCommand(Failure):
     @override
     def reason(self) -> str:
         return f"Unknown command, \"{self.name}\""
+
+
+@dataclass(slots=True, kw_only=True)
+class UnknownParameter(Failure):
+
+    parameter: str
+    """The name of the unknown parameter"""
+
+    @property
+    @override
+    def reason(self) -> str:
+        return f"Unknown parameter, \"{self.parameter}\""
 
 
 @dataclass(slots=True, kw_only=True)
@@ -117,7 +130,12 @@ class CommandGroup:
     def __hash__(self) -> int:
         result = self._hash
         if result is None:
-            result = hash((self.prefix, tuple(self._commands.items())))
+            result = hash(
+                (
+                    self.prefix,
+                    tuple(self._commands.items()),
+                ),
+            )
             self._hash = result
         return result
 
@@ -187,7 +205,8 @@ class CommandGroup:
 
         parameters = dict[str, object]()
 
-        for parameter, specification in command.params():
+        # Required parameters (positional only)
+        for parameter, specification in command.required_params():
             if parser.ok():
                 argument = parser.take_until()
                 try:
@@ -201,15 +220,47 @@ class CommandGroup:
                         argument=argument,
                     )
             else:
-                default = specification.default
-                if default is None:
-                    return MissingArgument(
+                return MissingArgument(
+                    comment=comment,
+                    prefix=prefix,
+                    name=name,
+                    parameter=parameter,
+                )
+
+        # Optional parameters (keyword only)
+        while parser.ok():
+            parameter, delimiter, argument = parser.take_until().partition("=")
+            specification = command.get_optional_param(parameter)
+            if specification is None:
+                return UnknownParameter(
+                    comment=comment,
+                    prefix=prefix,
+                    name=name,
+                    parameter=parameter,
+                )
+            elif delimiter:
+                try:
+                    parameters[parameter] = specification.convert(argument)
+                except ValueError:
+                    return InconvertibleArgument(
                         comment=comment,
                         prefix=prefix,
                         name=name,
                         parameter=parameter,
+                        argument=argument,
                     )
-                parameters[parameter] = default
+            else:
+                return MissingArgument(
+                    comment=comment,
+                    prefix=prefix,
+                    name=name,
+                    parameter=parameter,
+                )
+
+        # Back-populate defaults for optional parameters that weren't specified
+        for parameter, specification in command.optional_params():
+            if parameter not in parameters:
+                parameters[parameter] = specification.default
 
         return Success(
             comment=comment,

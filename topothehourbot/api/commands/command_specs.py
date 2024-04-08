@@ -2,6 +2,7 @@ from __future__ import annotations
 
 __all__ = ["CommandSpec"]
 
+import itertools
 from collections.abc import Iterator
 from typing import Self
 
@@ -19,26 +20,44 @@ class CommandSpec:
     dictionaries and sets. Hashing is only supported for caching purposes.
     """
 
-    __slots__ = ("_params", "_hash")
-    _params: dict[str, ParamSpec[object]]
+    __slots__ = ("_required_params", "_optional_params", "_hash")
+    _required_params: dict[str, ParamSpec[object]]
+    _optional_params: dict[str, ParamSpec[object]]
     _hash: int | None
 
     def __init__(self) -> None:
-        self._params = {}
+        self._required_params = {}
+        self._optional_params = {}
         self._hash = None
 
     def __hash__(self) -> int:
         result = self._hash
         if result is None:
-            result = hash(tuple(self._params.items()))
+            result = hash(
+                (
+                    tuple(self.required_params()),
+                    tuple(self.optional_params()),
+                ),
+            )
             self._hash = result
         return result
 
     def params(self) -> Iterator[tuple[str, ParamSpec[object]]]:
-        """Return an iterator over the specification's parameter names and
-        specifications
-        """
-        return iter(self._params.items())
+        return itertools.chain(self.required_params(), self.optional_params())
+
+    def required_params(self) -> Iterator[tuple[str, ParamSpec[object]]]:
+        """Return an iterator over the specification's required parameters"""
+        return iter(self._required_params.items())
+
+    def optional_params(self) -> Iterator[tuple[str, ParamSpec[object]]]:
+        """Return an iterator over the specification's optional parameters"""
+        return iter(self._optional_params.items())
+
+    def get_required_param(self, name: str) -> ParamSpec[object] | None:
+        return self._required_params.get(name, None)
+
+    def get_optional_param(self, name: str) -> ParamSpec[object] | None:
+        return self._optional_params.get(name, None)
 
     def add_param(
         self,
@@ -50,13 +69,13 @@ class CommandSpec:
         Raises ``ValueError`` if the parameter name has already been used, or
         if the specification has no default while prior ones do.
         """
-        params = self._params
-        if name in params:
+        if self.get_required_param(name) or self.get_optional_param(name):
             raise ValueError(f"Parameter name {name!r} already in use")
-        if spec.required() and params:
-            prior_spec = next(reversed(params.values()))
-            if prior_spec.optional():
-                raise ValueError("Non-defaulting parameter cannot follow a defaulting parameter")
-        params[name] = spec
+        if spec.required() and self._optional_params:
+            raise ValueError("Required parameter cannot follow an optional parameter")
+        if spec.required():
+            self._required_params[name] = spec
+        else:
+            self._optional_params[name] = spec
         self._hash = None  # Re-calculate hash
         return self
