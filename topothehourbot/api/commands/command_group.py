@@ -13,8 +13,7 @@ __all__ = [
 ]
 
 from dataclasses import dataclass
-from functools import lru_cache
-from typing import Self, override
+from typing import Self, cast, override
 
 from .command_specs import CommandSpec
 from .parser import Parser
@@ -112,34 +111,17 @@ class CommandGroup:
 
     Supports addition, removal, retrieval, and parsing of comments into command
     data.
-
-    Note that ``CommandGroup`` instances are hashable, but should not be used
-    in dictionaries and sets. Hashing is only supported for caching purposes.
     """
 
-    __slots__ = ("prefix", "_commands", "_hash")
+    __slots__ = ("prefix", "_schemas")
     prefix: str
-    _commands: dict[str, CommandSpec]
-    _hash: int | None
+    _schemas: dict[str, CommandSpec]
 
     def __init__(self, prefix: str = "!") -> None:
         self.prefix = prefix
-        self._commands = {}
-        self._hash = None
+        self._schemas = {}
 
-    def __hash__(self) -> int:
-        result = self._hash
-        if result is None:
-            result = hash(
-                (
-                    self.prefix,
-                    tuple(self._commands.items()),
-                ),
-            )
-            self._hash = result
-        return result
-
-    def add_command(
+    def add_spec(
         self,
         name: str,
         spec: CommandSpec = CommandSpec(),
@@ -148,35 +130,32 @@ class CommandGroup:
 
         Raises ``ValueError`` if the command name has already been used.
         """
-        commands = self._commands
-        if name in commands:
+        schemas = self._schemas
+        if name in schemas:
             raise ValueError(f"Command name {name!r} already in use")
-        commands[name] = spec
-        self._hash = None  # Re-calculate hash
+        schemas[name] = spec
         return self
 
-    def get_command(self, name: str) -> CommandSpec | None:
+    def get_spec(self, name: str) -> CommandSpec | None:
         """Return the command specification with the given name
 
         If the name has not been assigned to a specification, return ``None``.
         """
-        return self._commands.get(name)
+        return self._schemas.get(name)
 
-    def remove_command(self, name: str) -> bool:
+    def remove_spec(self, name: str) -> bool:
         """Remove the command specification with the given name
 
         Returns true if a corresponding specification was found and removed,
         otherwise false.
         """
         try:
-            del self._commands[name]
+            del self._schemas[name]
         except KeyError:
             return False
         else:
-            self._hash = None  # Re-calculate hash
             return True
 
-    @lru_cache()
     def parse(self, comment: str) -> Result | None:
         """Attempt to parse ``comment`` into a matching command specification
 
@@ -193,78 +172,102 @@ class CommandGroup:
 
         parser = Parser(comment, index=len(prefix))
 
-        name = parser.take_until(exclude_current=False)
-        command = self.get_command(name)
+        comm_name = parser.take_until(exclude_current=False)
+        comm_spec = self.get_spec(comm_name)
 
-        if command is None:
+        if comm_spec is None:
             return UnknownCommand(
                 comment=comment,
                 prefix=prefix,
-                name=name,
+                name=comm_name,
             )
 
         parameters = dict[str, object]()
 
         # Required parameters (positional only)
-        for parameter, specification in command.required_params():
+        for param_name, param_spec in comm_spec.required_schemas():
             if parser.ok():
                 argument = parser.take_until()
                 try:
-                    parameters[parameter] = specification.convert(argument)
+                    parameters[param_name] = param_spec.factory(argument)
                 except ValueError:
                     return InconvertibleArgument(
                         comment=comment,
                         prefix=prefix,
-                        name=name,
-                        parameter=parameter,
+                        name=comm_name,
+                        parameter=param_name,
                         argument=argument,
                     )
             else:
                 return MissingArgument(
                     comment=comment,
                     prefix=prefix,
-                    name=name,
-                    parameter=parameter,
+                    name=comm_name,
+                    parameter=param_name,
                 )
+
+        # Variadic parameter
+        variadic_schema = comm_spec.variadic_schema()
+        if variadic_schema:
+            param_name, param_spec = variadic_schema
+            parameters[param_name] = []
+            while parser.ok():
+                argument = parser.take_until()
+                if "=" in argument:
+                    parser.advance(-len(argument) - 1)
+                    break
+                try:
+                    argument = param_spec.factory(argument)
+                except ValueError:
+                    return InconvertibleArgument(
+                        comment=comment,
+                        prefix=prefix,
+                        name=comm_name,
+                        parameter=param_name,
+                        argument=argument,
+                    )
+                else:
+                    arguments = cast(list[object], parameters[param_name])
+                    arguments.append(argument)
 
         # Optional parameters (keyword only)
         while parser.ok():
-            parameter, delimiter, argument = parser.take_until().partition("=")
-            specification = command.get_optional_param(parameter)
-            if specification is None:
+            param_name, delimiter, argument = parser.take_until().partition("=")
+            param_spec = comm_spec.get_optional_spec(param_name)
+            if param_spec is None:
                 return UnknownParameter(
                     comment=comment,
                     prefix=prefix,
-                    name=name,
-                    parameter=parameter,
+                    name=comm_name,
+                    parameter=param_name,
                 )
             elif delimiter:
                 try:
-                    parameters[parameter] = specification.convert(argument)
+                    parameters[param_name] = param_spec.factory(argument)
                 except ValueError:
                     return InconvertibleArgument(
                         comment=comment,
                         prefix=prefix,
-                        name=name,
-                        parameter=parameter,
+                        name=comm_name,
+                        parameter=param_name,
                         argument=argument,
                     )
             else:
                 return MissingArgument(
                     comment=comment,
                     prefix=prefix,
-                    name=name,
-                    parameter=parameter,
+                    name=comm_name,
+                    parameter=param_name,
                 )
 
         # Back-populate defaults for optional parameters that weren't specified
-        for parameter, specification in command.optional_params():
-            if parameter not in parameters:
-                parameters[parameter] = specification.default
+        for param_name, param_spec in comm_spec.optional_schemas():
+            if param_name not in parameters:
+                parameters[param_name] = param_spec.default
 
         return Success(
             comment=comment,
             prefix=prefix,
-            name=name,
+            name=comm_name,
             parameters=parameters,
         )

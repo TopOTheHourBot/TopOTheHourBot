@@ -2,11 +2,16 @@ from __future__ import annotations
 
 __all__ = ["CommandSpec"]
 
-import itertools
 from collections.abc import Iterator
 from typing import Self
 
-from .param_specs import ParamSpec, StringParamSpec
+from .param_specs import (OptionalParamSpec, ParamSpec, RequiredParamSpec,
+                          VariadicParamSpec)
+
+type ParamSchema[T] = tuple[str, ParamSpec[T]]
+type RequiredParamSchema[T] = tuple[str, RequiredParamSpec[T]]
+type VariadicParamSchema[T] = tuple[str, VariadicParamSpec[T]]
+type OptionalParamSchema[T] = tuple[str, OptionalParamSpec[T]]
 
 
 class CommandSpec:
@@ -15,67 +20,74 @@ class CommandSpec:
     Represents a sort of "unnamed command", i.e., an instance of
     ``CommandSpec`` contains a command's parameters, but is not associated with
     a name (for reusability purposes).
-
-    Note that ``CommandSpec`` instances are hashable, but should not be used in
-    dictionaries and sets. Hashing is only supported for caching purposes.
     """
 
-    __slots__ = ("_required_params", "_optional_params", "_hash")
-    _required_params: dict[str, ParamSpec[object]]
-    _optional_params: dict[str, ParamSpec[object]]
-    _hash: int | None
+    __slots__ = (
+        "_required_schemas",
+        "_variadic_schema",
+        "_optional_schemas",
+    )
+    _required_schemas: dict[str, RequiredParamSpec[object]]
+    _variadic_schema: VariadicParamSchema[object] | None
+    _optional_schemas: dict[str, OptionalParamSpec[object]]
 
     def __init__(self) -> None:
-        self._required_params = {}
-        self._optional_params = {}
-        self._hash = None
+        self._required_schemas = {}
+        self._variadic_schema = None
+        self._optional_schemas = {}
 
-    def __hash__(self) -> int:
-        result = self._hash
-        if result is None:
-            result = hash(
-                (
-                    tuple(self.required_params()),
-                    tuple(self.optional_params()),
-                ),
-            )
-            self._hash = result
-        return result
+    def schemas(self) -> Iterator[ParamSchema[object]]:
+        yield from self.required_schemas()
+        schema = self.variadic_schema()
+        if schema is not None:
+            yield schema
+        yield from self.optional_schemas()
 
-    def params(self) -> Iterator[tuple[str, ParamSpec[object]]]:
-        return itertools.chain(self.required_params(), self.optional_params())
+    def required_schemas(self) -> Iterator[RequiredParamSchema[object]]:
+        return iter(self._required_schemas.items())
 
-    def required_params(self) -> Iterator[tuple[str, ParamSpec[object]]]:
-        """Return an iterator over the specification's required parameters"""
-        return iter(self._required_params.items())
+    def variadic_schema(self) -> VariadicParamSchema[object] | None:
+        return self._variadic_schema
 
-    def optional_params(self) -> Iterator[tuple[str, ParamSpec[object]]]:
-        """Return an iterator over the specification's optional parameters"""
-        return iter(self._optional_params.items())
+    def optional_schemas(self) -> Iterator[OptionalParamSchema[object]]:
+        return iter(self._optional_schemas.items())
 
-    def get_required_param(self, name: str) -> ParamSpec[object] | None:
-        return self._required_params.get(name, None)
+    def get_required_spec(self, name: str) -> RequiredParamSpec[object] | None:
+        return self._required_schemas.get(name, None)
 
-    def get_optional_param(self, name: str) -> ParamSpec[object] | None:
-        return self._optional_params.get(name, None)
+    def get_variadic_spec(self) -> VariadicParamSpec[object] | None:
+        schema = self._variadic_schema
+        if schema:
+            return schema[1]
 
-    def add_param(
+    def get_optional_spec(self, name: str) -> OptionalParamSpec[object] | None:
+        return self._optional_schemas.get(name, None)
+
+    def add_spec(
         self,
         name: str,
-        spec: ParamSpec[object] = StringParamSpec(),
+        spec: ParamSpec[object] = RequiredParamSpec(),
     ) -> Self:
-        """Add a parameter to the specification
-
-        Raises ``ValueError`` if the parameter name has already been used, or
-        if the specification has no default while prior ones do.
-        """
-        if self.get_required_param(name) or self.get_optional_param(name):
+        """Add a parameter to the specification"""
+        variadic_schema = self._variadic_schema
+        if variadic_schema and name == variadic_schema[0]:
             raise ValueError(f"Parameter name {name!r} already in use")
-        if spec.required() and self._optional_params:
-            raise ValueError("Required parameter cannot follow an optional parameter")
-        if spec.required():
-            self._required_params[name] = spec
-        else:
-            self._optional_params[name] = spec
-        self._hash = None  # Re-calculate hash
+        required_schemas = self._required_schemas
+        optional_schemas = self._optional_schemas
+        if required_schemas.get(name) or optional_schemas.get(name):
+            raise ValueError(f"Parameter name {name!r} already in use")
+        if isinstance(spec, RequiredParamSpec):
+            if variadic_schema:
+                raise ValueError("Required parameter cannot follow a variadic parameter")
+            if optional_schemas:
+                raise ValueError("Required parameter cannot follow an optional parameter")
+            required_schemas[name] = spec
+        elif isinstance(spec, VariadicParamSpec):
+            if variadic_schema:
+                raise ValueError("Cannot add more than one variadic parameter")
+            if optional_schemas:
+                raise ValueError("Variadic parameter cannot follow an optional parameter")
+            self._variadic_schema = (name, spec)
+        elif isinstance(spec, OptionalParamSpec):
+            optional_schemas[name] = spec
         return self
