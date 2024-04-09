@@ -111,6 +111,10 @@ class CommandGroup:
             while parser.ok():
                 argument = parser.take_until()
                 if "=" in argument:
+                    # Presence of the equals sign indicates that this is an
+                    # optional parameter - put the parser back to the beginning
+                    # of this token and let the optional-parameter-parsing code
+                    # take it from here
                     parser.advance(-len(argument) - 1)
                     break
                 try:
@@ -133,6 +137,10 @@ class CommandGroup:
                 except ValueError:
                     return ValueError(f"Inconvertible argument, '{argument}', provided to parameter, '{param_name}'")
             else:
+                # This case occurs when we're given an invocation alike:
+                # `!command optional_param_name`
+                # I experimented with inferring the default in this scenario
+                # but it's a bit too confusing in my opinion
                 return ValueError(f"Missing argument to parameter, '{param_name}'")
 
         # Back-populate defaults for optional parameters that weren't specified
