@@ -75,7 +75,7 @@ class CommandGroup:
         else:
             return True
 
-    def parse(self, comment: str) -> Match | ValueError:
+    def match(self, comment: str) -> Match | ValueError:
         """Attempt to parse ``comment`` into a matching command specification"""
         prefix = self.prefix
 
@@ -130,7 +130,7 @@ class CommandGroup:
             param_name, delimiter, argument = parser.take_until().partition("=")
             param_spec = comm_spec.get_optional_spec(param_name)
             if param_spec is None:
-                return ValueError(f"Unknown parameter, '{param_name}', provided to command, '{comm_name}'")
+                return ValueError(f"Unknown parameter, '{param_name}'")
             elif delimiter:
                 try:
                     parameters[param_name] = param_spec.factory(argument)
