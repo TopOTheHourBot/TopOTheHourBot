@@ -9,6 +9,9 @@ from dataclasses import dataclass
 from typing import Self, cast
 
 from .command_specs import CommandSpec
+from .exceptions import (InconvertibleArgumentError, MatchError,
+                         MissingArgumentError, MissingPrefixError,
+                         UnknownCommandError, UnknownParameterError)
 from .parser import Parser
 
 
@@ -17,7 +20,7 @@ class Match:
 
     comment: str
     prefix: str
-    name: str
+    command: str
     parameters: dict[str, object]
 
 
@@ -27,10 +30,6 @@ class CommandGroup:
     Supports addition, removal, retrieval, and parsing of comments into command
     data.
     """
-
-    # Instantiated early since this will be the most common case by far, and
-    # doesn't require string templating
-    MISSING_PREFIX_ERROR = ValueError("Missing prefix")
 
     __slots__ = ("prefix", "_schemas")
     prefix: str
@@ -75,12 +74,15 @@ class CommandGroup:
         else:
             return True
 
-    def match(self, comment: str) -> Match | ValueError:
+    def match(self, comment: str) -> Match | MatchError:
         """Attempt to parse ``comment`` into a matching command specification"""
         prefix = self.prefix
 
         if not comment.startswith(prefix):
-            return self.MISSING_PREFIX_ERROR
+            return MissingPrefixError(
+                comment=comment,
+                prefix=prefix,
+            )
 
         parser = Parser(comment, index=len(prefix))
 
@@ -88,7 +90,11 @@ class CommandGroup:
         comm_spec = self.get_spec(comm_name)
 
         if comm_spec is None:
-            return ValueError(f"Unknown command, '{comm_name}'")
+            return UnknownCommandError(
+                comment=comment,
+                prefix=prefix,
+                command=comm_name,
+            )
 
         parameters = dict[str, object]()
 
@@ -99,9 +105,20 @@ class CommandGroup:
                 try:
                     parameters[param_name] = param_spec.factory(argument)
                 except ValueError:
-                    return ValueError(f"Inconvertible argument, '{argument}', provided to parameter, '{param_name}'")
+                    return InconvertibleArgumentError(
+                        comment=comment,
+                        prefix=prefix,
+                        command=comm_name,
+                        parameter=param_name,
+                        argument=argument,
+                    )
             else:
-                return ValueError(f"Missing argument to parameter, '{param_name}'")
+                return MissingArgumentError(
+                    comment=comment,
+                    prefix=prefix,
+                    command=comm_name,
+                    parameter=param_name,
+                )
 
         # Variadic parameter
         variadic_schema = comm_spec.variadic_schema()
@@ -120,7 +137,13 @@ class CommandGroup:
                 try:
                     argument = param_spec.factory(argument)
                 except ValueError:
-                    return ValueError(f"Inconvertible argument, '{argument}', provided to parameter, '{param_name}'")
+                    return InconvertibleArgumentError(
+                        comment=comment,
+                        prefix=prefix,
+                        command=comm_name,
+                        parameter=param_name,
+                        argument=argument,
+                    )
                 else:
                     arguments = cast(list[object], parameters[param_name])
                     arguments.append(argument)
@@ -130,18 +153,34 @@ class CommandGroup:
             param_name, delimiter, argument = parser.take_until().partition("=")
             param_spec = comm_spec.get_optional_spec(param_name)
             if param_spec is None:
-                return ValueError(f"Unknown parameter, '{param_name}'")
+                return UnknownParameterError(
+                    comment=comment,
+                    prefix=prefix,
+                    command=comm_name,
+                    parameter=param_name,
+                )
             elif delimiter:
                 try:
                     parameters[param_name] = param_spec.factory(argument)
                 except ValueError:
-                    return ValueError(f"Inconvertible argument, '{argument}', provided to parameter, '{param_name}'")
+                    return InconvertibleArgumentError(
+                        comment=comment,
+                        prefix=prefix,
+                        command=comm_name,
+                        parameter=param_name,
+                        argument=argument,
+                    )
             else:
                 # This case occurs when we're given an invocation alike:
                 # `!command optional_param_name`
                 # I experimented with inferring the default in this scenario
                 # but it's a bit too confusing in my opinion
-                return ValueError(f"Missing argument to parameter, '{param_name}'")
+                return MissingArgumentError(
+                    comment=comment,
+                    prefix=prefix,
+                    command=comm_name,
+                    parameter=param_name,
+                )
 
         # Back-populate defaults for optional parameters that weren't specified
         for param_name, param_spec in comm_spec.optional_schemas():
@@ -151,6 +190,6 @@ class CommandGroup:
         return Match(
             comment=comment,
             prefix=prefix,
-            name=comm_name,
+            command=comm_name,
             parameters=parameters,
         )
