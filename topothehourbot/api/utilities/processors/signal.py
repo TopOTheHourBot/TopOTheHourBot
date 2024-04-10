@@ -40,7 +40,7 @@ class Signal[**ParamTs, ResultT](Processor[ParamTs, None]):
             except CancelledError:
                 for task in tasks:
                     task.cancel()
-                return
+                raise
             except TimeoutError:
                 logging.exception("Callback timed out during Signal processing")
             except Exception:
