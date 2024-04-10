@@ -6,13 +6,12 @@ import asyncio
 from asyncio import Future
 from collections import deque as Deque
 from collections.abc import AsyncIterator
-from typing import Optional, final
+from typing import Optional
 
 from . import stream
 from .exceptions import Closure
 
 
-@final
 class Buffer[T]:
 
     __slots__ = ("_buffer", "_receiver", "_closed")
