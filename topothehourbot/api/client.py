@@ -50,7 +50,7 @@ type SupportsOnClientCommand = (
 )
 
 
-class Client(SupportsOnClientPing):
+class Client:
 
     uri: Final[str] = "ws://irc-ws.chat.twitch.tv:80"
 
@@ -77,7 +77,7 @@ class Client(SupportsOnClientPing):
         self.name = name
         self.room = "#" + name
         self.welcome_signal = Signal()
-        self.ping_signal = Signal().add_callback(self.on_client_ping)
+        self.ping_signal = Signal().add_callback(ClientWriter.pong)
         self.message_signal = Signal()
         self.join_signal = Signal()
         self.part_signal = Signal()
@@ -107,10 +107,6 @@ class Client(SupportsOnClientPing):
         if isinstance(suite, SupportsOnClientPart):
             self.part_signal.remove_callback(suite.on_client_part)
         return self
-
-    @override
-    async def on_client_ping(self, writer: ClientWriter, command: Ping) -> None:
-        await writer.send(command.reply())
 
     async def run(self) -> None:
         async for websocket in websockets.connect(self.uri):
@@ -340,9 +336,12 @@ class ClientWriter:
         """
         return ClientWriter._last_join_epochs[self.name]
 
-    async def send(self, command: object, /) -> None:
+    async def send(self, command: object) -> None:
         data = str(command)
         await self._writer.send(data)
+
+    async def pong(self, target: Ping) -> None:
+        await self.send(target.reply())
 
     async def message(
         self,
