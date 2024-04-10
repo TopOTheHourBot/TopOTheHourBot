@@ -451,3 +451,9 @@ class ChannelWriter:
             self.room if target == "#" else target,
             important=important,
         )
+
+    async def join(self) -> None:
+        await self.unwrap().join(self.room)
+
+    async def part(self) -> None:
+        await self.unwrap().part(self.room)
