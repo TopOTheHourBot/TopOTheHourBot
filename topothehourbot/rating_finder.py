@@ -14,11 +14,10 @@ from decimal import Decimal
 from typing import Self, TypedDict, override
 
 from ircv3 import CommandProtocolJSON
-from ircv3.dialects.twitch import ServerMessage, ServerPart
+from ircv3.dialects.twitch import ServerMessage
 
-from .api.client import (ChannelWriter, SupportsOnChannelMessage,
-                         SupportsOnChannelPart)
-from .api.utilities import Buffer, Failure, Job, Signal, Success
+from .api.client import ChannelWriter, SupportsOnChannelMessage
+from .api.utilities import Buffer, Job, Signal
 
 
 class RatingJSON(TypedDict):
@@ -143,10 +142,7 @@ class RatingBatch:
         }
 
 
-class RatingFinder(
-    SupportsOnChannelMessage,
-    SupportsOnChannelPart,
-):
+class RatingFinder(SupportsOnChannelMessage):
 
     pattern = re.compile(
         pattern=r"""
@@ -167,11 +163,13 @@ class RatingFinder(
 
     __slots__ = (
         "_job",
+        "batch_signal",
         "delay",
         "max_count",
         "min_count",
     )
-    _job: Job[[ChannelWriter, Rating], RatingBatch, RatingBatch]
+    _job: Job[[ChannelWriter, Rating], None]
+    batch_signal: Signal[[ChannelWriter, RatingBatch], object]
     delay: float
     max_count: int | None
     min_count: int
@@ -185,29 +183,12 @@ class RatingFinder(
     ) -> None:
         super().__init__()
         self._job = Job(self._job_process)
+        self.batch_signal = Signal()
         self.delay = delay
         self.max_count = max_count
         self.min_count = min_count
 
-    @property
-    def success_signal(self) -> Signal[[RatingBatch, ChannelWriter, Rating], object]:
-        return self._job.success_signal
-
-    @property
-    def failure_signal(self) -> Signal[[RatingBatch, ChannelWriter, Rating], object]:
-        return self._job.failure_signal
-
-    def find(self, message: ServerMessage) -> Rating | None:
-        match = self.pattern.search(message.comment)
-        if match is not None:
-            return Rating(
-                message=message,
-                value=Decimal(match.group(1)),
-                index_begin=match.span(1)[0],
-                index_end=match.span(1)[1],
-            )
-
-    async def _job_process(self, writer: ChannelWriter, initial_rating: Rating) -> Success[RatingBatch] | Failure[RatingBatch]:
+    async def _job_process(self, writer: ChannelWriter, initial_rating: Rating) -> None:
         ratings = Buffer[Rating]()
         ratings.send(initial_rating)
 
@@ -231,12 +212,19 @@ class RatingFinder(
                     .limit(self.max_count)
                     .reduce(RatingBatch(), RatingBatch.add)
             )
-            if batch.count < self.min_count:
-                result = Failure(batch)
-            else:
-                result = Success(batch)
 
-        return result
+        if batch.count >= self.min_count:
+            self.batch_signal.maybe_run(writer, batch)
+
+    def find(self, message: ServerMessage) -> Rating | None:
+        match = self.pattern.search(message.comment)
+        if match is not None:
+            return Rating(
+                message=message,
+                value=Decimal(match.group(1)),
+                index_begin=match.span(1)[0],
+                index_end=match.span(1)[1],
+            )
 
     @override
     async def on_channel_message(self, writer: ChannelWriter, command: ServerMessage) -> None:
@@ -252,14 +240,3 @@ class RatingFinder(
                 .suspension(self.on_channel_message)
         ):
             await self._job.run(writer, rating)
-
-    @override
-    async def on_channel_part(self, writer: ChannelWriter, command: ServerPart) -> None:
-        if command.source.startswith(writer.client.name):
-            for processor in (
-                self._job,
-                self._job.success_signal,
-                self._job.failure_signal,
-            ):
-                processor.cancel()
-            writer.channel.remove_callbacks(self)

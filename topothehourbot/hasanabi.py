@@ -11,12 +11,12 @@ from .api import commands
 from .api.client import Channel, ChannelWriter
 from .api.commands import (CommandGroup, CommandSpec, Match, ParameterError,
                            VariadicParamSpec)
-from .rating_finder import Rating, RatingBatch, RatingFinder
+from .rating_finder import RatingBatch, RatingFinder
 
 rating_finder = RatingFinder()
 
-@rating_finder.success_signal.callback
-async def on_rating_finder_success(ratings: RatingBatch, /, writer: ChannelWriter, initial_rating: Rating) -> None:
+@rating_finder.batch_signal.callback
+async def on_rating_finder_batch(writer: ChannelWriter, ratings: RatingBatch) -> None:
     count = ratings.count
     mean = ratings.mean
 
