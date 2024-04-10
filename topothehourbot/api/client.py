@@ -109,8 +109,9 @@ class Client:
         return self
 
     async def run(self) -> None:
+        writer = ClientWriter(self)
         async for websocket in websockets.connect(self.uri):
-            writer = ClientWriter(self, websocket)
+            writer.wrap(websocket)
             await writer.send("CAP REQ :twitch.tv/commands twitch.tv/membership twitch.tv/tags")
             await writer.send(f"PASS oauth:{self.oauth_token}")
             await writer.send(f"NICK {self.name}")
@@ -203,7 +204,7 @@ class Channel(
         if self.room != command.room:
             return
         self.message_signal.maybe_run(
-            ChannelWriter(self, writer),
+            ChannelWriter(self).wrap(writer),
             command,
         )
 
@@ -212,7 +213,7 @@ class Channel(
         if self.room != command.room:
             return
         self.join_signal.maybe_run(
-            ChannelWriter(self, writer),
+            ChannelWriter(self).wrap(writer),
             command,
         )
 
@@ -221,7 +222,7 @@ class Channel(
         if self.room != command.room:
             return
         waiter = self.part_signal.maybe_run(
-            ChannelWriter(self, writer),
+            ChannelWriter(self).wrap(writer),
             command,
         )
         if command.source.startswith(self.name):  # Client is banned from this channel
@@ -258,17 +259,21 @@ class ClientWriter:
     Set to 0 if the client has not sent a JOIN.
     """
 
-    __slots__ = ("client", "_writer")
+    __slots__ = ("client", "_websocket")
     client: Client
-    _writer: WebSocketClientProtocol
+    _websocket: WebSocketClientProtocol | None
 
-    def __init__(
-        self,
-        client: Client,
-        writer: WebSocketClientProtocol,
-    ) -> None:
+    def __init__(self, client: Client) -> None:
         self.client = client
-        self._writer = writer
+        self._websocket = None
+
+    def wrap(self, websocket: WebSocketClientProtocol) -> Self:
+        self._websocket = websocket
+        return self
+
+    def unwrap(self) -> WebSocketClientProtocol:
+        assert self._websocket is not None, "ClientWriter has not wrapped"
+        return self._websocket
 
     @property
     def name(self) -> str:
@@ -284,7 +289,7 @@ class ClientWriter:
 
         Set to 0 if the websocket has not sent a ping.
         """
-        return self._writer.latency * 1000
+        return self.unwrap().latency * 1000
 
     @property
     def message_cooldown(self) -> float:
@@ -338,7 +343,7 @@ class ClientWriter:
 
     async def send(self, command: object) -> None:
         data = str(command)
-        await self._writer.send(data)
+        await self.unwrap().send(data)
 
     async def pong(self, target: Ping) -> None:
         await self.send(target.reply())
@@ -371,7 +376,7 @@ class ClientWriter:
             ClientWriter._last_message_epochs[name] = curr_message_epoch
         comment = str(comment)
         command = ClientMessage(target, comment) if isinstance(target, str) else target.reply(comment)
-        return await self.send(command)
+        await self.send(command)
 
     async def join(self, *rooms: str) -> None:
         name = self.name
@@ -388,36 +393,40 @@ class ClientWriter:
         ClientWriter._last_join_epochs[name] = curr_join_epoch + delay
         if delay:
             await asyncio.sleep(delay)
-        return await self.send(ClientJoin(*rooms))
+        await self.send(ClientJoin(*rooms))
 
     async def part(self, *rooms: str) -> None:
-        return await self.send(ClientPart(*rooms))
+        await self.send(ClientPart(*rooms))
 
     async def close(self) -> None:
-        await self._writer.close()
+        await self.unwrap().close()
 
 
 class ChannelWriter:
 
     __slots__ = ("channel", "_writer")
     channel: Channel
-    _writer: ClientWriter
+    _writer: ClientWriter | None
 
-    def __init__(
-        self,
-        channel: Channel,
-        writer: ClientWriter,
-    ) -> None:
+    def __init__(self, channel: Channel) -> None:
         self.channel = channel
+        self._writer = None
+
+    def wrap(self, writer: ClientWriter) -> Self:
         self._writer = writer
+        return self
+
+    def unwrap(self) -> ClientWriter:
+        assert self._writer is not None, "ChannelWriter has not wrapped"
+        return self._writer
 
     @property
     def client(self) -> Client:
-        return self._writer.client
+        return self.unwrap().client
 
     @property
     def latency(self) -> float:
-        return self._writer.latency
+        return self.unwrap().latency
 
     @property
     def name(self) -> str:
@@ -434,7 +443,7 @@ class ChannelWriter:
         *,
         important: bool = True,
     ) -> None:
-        await self._writer.message(
+        await self.unwrap().message(
             comment,
             self.room if target == "#" else target,
             important=important,
