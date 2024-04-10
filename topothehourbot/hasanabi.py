@@ -7,8 +7,10 @@ from typing import cast
 
 from ircv3.dialects.twitch import ServerMessage
 
+from .api import commands
 from .api.client import Channel, ChannelWriter
-from .api.commands import CommandGroup, CommandSpec, HandleParamSpec, Success
+from .api.commands import (CommandGroup, CommandSpec, Match, ParameterError,
+                           VariadicParamSpec)
 from .rating_finder import Rating, RatingBatch, RatingFinder
 
 rating_finder = RatingFinder()
@@ -60,33 +62,50 @@ channel = (
         .add_callbacks(rating_finder)
 )
 
-commands = (
+command_group = (
     CommandGroup(prefix="$")
-        .add_command(name="ping")
-        .add_command(
+        .add_spec(name="ping")
+        .add_spec(
+            name="copy",
+            spec=CommandSpec()
+                .add_spec(
+                    name="words",
+                    spec=VariadicParamSpec(),
+                )
+        )
+        .add_spec(
             name="code",
             spec=CommandSpec()
-                .add_param(name="handle0", spec=HandleParamSpec())
-                .add_param(name="handle1", spec=HandleParamSpec())
-                .add_param(name="handle2", spec=HandleParamSpec())
+                .add_spec(
+                    name="handles",
+                    spec=VariadicParamSpec(factory=commands.handle)
+                )
         )
 )
 
 @channel.message_signal.callback
 async def on_channel_message(writer: ChannelWriter, message: ServerMessage) -> None:
-    if writer.client.name == message.sender.name:
+    sender = message.sender
+    if writer.client.name == sender.name:
         return
-    match commands.parse(message.comment):
-        case Success(name="ping"):
+    match command_group.match(message.comment):
+        case Match(name="ping"):
             await writer.message(
                 f"{writer.latency:.0f}ms",
                 target=message,
             )
-        case Success(name="code", parameters=parameters):
-            handles = " ".join(cast(dict[str, str], parameters).values())
+        case Match(name="copy", parameters={"words": words}):
+            await writer.message(
+                words,
+                target=message,
+            )
+        case Match(name="code", parameters={"handles": handles}):
+            handles = " ".join(cast(list[str], handles))
             await writer.message(
                 f"{handles} Okayge You can find the bot's source code on GitHub: https://github.com/TopOTheHourBot/",
                 target=message,
             )
+        case ParameterError() as error:
+            await writer.message(error, target=message)
         case _:
             return
