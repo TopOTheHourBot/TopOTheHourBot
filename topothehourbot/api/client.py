@@ -41,6 +41,14 @@ class SupportsOnClientJoin(Protocol):
 class SupportsOnClientPart(Protocol):
     async def on_client_part(self, writer: ClientWriter, command: ServerPart, /) -> object: ...
 
+type SupportsOnClientCommand = (
+    SupportsOnClientWelcome
+    | SupportsOnClientPing
+    | SupportsOnClientMessage
+    | SupportsOnClientJoin
+    | SupportsOnClientPart
+)
+
 
 class Client(SupportsOnClientPing):
 
@@ -74,7 +82,7 @@ class Client(SupportsOnClientPing):
         self.join_signal = Signal()
         self.part_signal = Signal()
 
-    def add_callbacks(self, suite: object) -> Self:
+    def add_callbacks(self, suite: SupportsOnClientCommand) -> Self:
         if isinstance(suite, SupportsOnClientWelcome):
             self.welcome_signal.add_callback(suite.on_client_welcome)
         if isinstance(suite, SupportsOnClientPing):
@@ -87,7 +95,7 @@ class Client(SupportsOnClientPing):
             self.part_signal.add_callback(suite.on_client_part)
         return self
 
-    def remove_callbacks(self, suite: object) -> Self:
+    def remove_callbacks(self, suite: SupportsOnClientCommand) -> Self:
         if isinstance(suite, SupportsOnClientWelcome):
             self.welcome_signal.remove_callback(suite.on_client_welcome)
         if isinstance(suite, SupportsOnClientPing):
@@ -138,6 +146,12 @@ class SupportsOnChannelJoin(Protocol):
 class SupportsOnChannelPart(Protocol):
     async def on_channel_part(self, writer: ChannelWriter, command: ServerPart, /) -> object: ...
 
+type SupportsOnChannelCommand = (
+    SupportsOnChannelMessage
+    | SupportsOnChannelJoin
+    | SupportsOnChannelPart
+)
+
 
 class Channel(
     SupportsOnClientWelcome,
@@ -166,7 +180,7 @@ class Channel(
         self.join_signal = Signal()
         self.part_signal = Signal()
 
-    def add_callbacks(self, suite: object) -> Self:
+    def add_callbacks(self, suite: SupportsOnChannelCommand) -> Self:
         if isinstance(suite, SupportsOnChannelMessage):
             self.message_signal.add_callback(suite.on_channel_message)
         if isinstance(suite, SupportsOnChannelJoin):
@@ -175,7 +189,7 @@ class Channel(
             self.part_signal.add_callback(suite.on_channel_part)
         return self
 
-    def remove_callbacks(self, suite: object) -> Self:
+    def remove_callbacks(self, suite: SupportsOnChannelCommand) -> Self:
         if isinstance(suite, SupportsOnChannelMessage):
             self.message_signal.remove_callback(suite.on_channel_message)
         if isinstance(suite, SupportsOnChannelJoin):
