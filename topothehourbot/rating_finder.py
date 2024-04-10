@@ -14,9 +14,10 @@ from decimal import Decimal
 from typing import Self, TypedDict, override
 
 from ircv3 import CommandProtocolJSON
-from ircv3.dialects.twitch import ServerMessage
+from ircv3.dialects.twitch import ServerMessage, ServerPart
 
-from .api.client import ChannelWriter, SupportsOnChannelMessage
+from .api.client import (ChannelWriter, SupportsOnChannelMessage,
+                         SupportsOnChannelPart)
 from .api.utilities import Buffer, Failure, Job, Signal, Success
 
 
@@ -98,7 +99,7 @@ class RatingBatch:
 
     @property
     def ratings(self) -> ValuesView[Rating]:
-        """A view on the set's current collection of ratings"""
+        """A view on the batch's current collection of ratings"""
         return self._map.values()
 
     @property
@@ -142,7 +143,10 @@ class RatingBatch:
         }
 
 
-class RatingFinder(SupportsOnChannelMessage):
+class RatingFinder(
+    SupportsOnChannelMessage,
+    SupportsOnChannelPart,
+):
 
     pattern = re.compile(
         pattern=r"""
@@ -235,16 +239,27 @@ class RatingFinder(SupportsOnChannelMessage):
         return result
 
     @override
-    async def on_channel_message(self, writer: ChannelWriter, message: ServerMessage) -> None:
-        if writer.client.name == message.sender.name:
+    async def on_channel_message(self, writer: ChannelWriter, command: ServerMessage) -> None:
+        if writer.client.name == command.sender.name:
             return
-        rating = self.find(message)
+        rating = self.find(command)
         if rating is None:
             return
         with (
             writer
-                .channel         # Suspend ourselves so that we don't re-run the
-                .message_signal  # job; _job_process() will pick up from here
+                .channel
+                .message_signal
                 .suspension(self.on_channel_message)
         ):
             await self._job.run(writer, rating)
+
+    @override
+    async def on_channel_part(self, writer: ChannelWriter, command: ServerPart) -> None:
+        if command.source.startswith(writer.client.name):
+            for processor in (
+                self._job,
+                self._job.success_signal,
+                self._job.failure_signal,
+            ):
+                processor.cancel()
+            writer.channel.remove_callbacks(self)
