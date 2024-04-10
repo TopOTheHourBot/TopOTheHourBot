@@ -12,7 +12,7 @@ __all__ = [
 import asyncio
 import logging
 from abc import ABCMeta, abstractmethod
-from asyncio import CancelledError, Task
+from asyncio import CancelledError, Task, TimeoutError
 from collections.abc import Callable, Coroutine, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -64,33 +64,41 @@ class Processor[**ParamTs, ResultT](metaclass=ABCMeta):
 
 class Signal[**ParamTs, ResultT](Processor[ParamTs, None]):
 
-    __slots__ = ("_callbacks",)
+    __slots__ = ("_callbacks", "timeout")
     _callbacks: set[Callable[ParamTs, Coroutine[Any, Any, ResultT]]]
+    timeout: float | None
 
-    def __init__(self) -> None:
+    def __init__(self, timeout: float | None = None) -> None:
         super().__init__()
         self._callbacks = set()
+        self.timeout = timeout
 
     @override
     async def process(self, *args: ParamTs.args, **kwargs: ParamTs.kwargs) -> None:
         """Dispatch all callbacks as a task and await their returns"""
         loop = asyncio.get_running_loop()
+        timeout = self.timeout
 
         tasks = set[Task[ResultT]]()
         for callback in self._callbacks:
-            task = loop.create_task(callback(*args, **kwargs))
+            task = loop.create_task(asyncio.wait_for(callback(*args, **kwargs), timeout=timeout))
             tasks.add(task)  # type: ignore
 
         for waiter in asyncio.as_completed(tasks):
             try:
-                await waiter
+                result = await waiter
             except CancelledError:
                 for task in tasks:
                     task.cancel()
                 return
+            except TimeoutError:
+                logging.exception("Callback timed out during Signal processing")
             except Exception:
-                # TODO: Write to own logger instance
                 logging.exception("Callback excepted during Signal processing")
+            else:
+                if result is None:
+                    continue
+                logging.info(f"Callback finished normally with result, {result!r}")
 
     def callback(self, callback: Callable[ParamTs, Coroutine[Any, Any, ResultT]]) -> Callable[ParamTs, Coroutine[Any, Any, ResultT]]:
         """Decorate a callback to schedule upon the signal's emission"""
