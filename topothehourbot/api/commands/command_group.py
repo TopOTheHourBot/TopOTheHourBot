@@ -193,3 +193,9 @@ class CommandGroup:
             command=comm_name,
             parameters=parameters,
         )
+
+    def match_raise(self, comment: str) -> Match:
+        result = self.match(comment)
+        if isinstance(result, MatchError):
+            raise result
+        return result
