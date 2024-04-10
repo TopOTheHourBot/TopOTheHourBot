@@ -210,19 +210,14 @@ class Channel(
     async def on_client_part(self, writer: ClientWriter, command: ServerPart) -> None:
         if self.room != command.room:
             return
-        if command.source.startswith(self.name):  # Client is banned from this channel -
-            waiter = self.part_signal.maybe_run(  # we'll emit one last time, await, and
-                ChannelWriter(self, writer),      # remove our callbacks
-                command,
-            )
-            if waiter is not None:
-                await waiter
-            writer.client.remove_callbacks(self)
-            return
-        self.part_signal.maybe_run(
+        waiter = self.part_signal.maybe_run(
             ChannelWriter(self, writer),
             command,
         )
+        if command.source.startswith(self.name):  # Client is banned from this channel
+            if waiter is not None:
+                await waiter
+            writer.client.remove_callbacks(self)
 
 
 class ClientWriter:
