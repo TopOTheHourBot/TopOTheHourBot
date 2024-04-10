@@ -15,7 +15,7 @@ import websockets
 from ircv3 import Ping, RPLWelcome
 from ircv3.dialects.twitch import (ClientJoin, ClientMessage, ClientPart,
                                    ServerJoin, ServerMessage, ServerPart)
-from websockets import WebSocketClientProtocol
+from websockets import ConnectionClosed, WebSocketClientProtocol
 
 from .parser import ServerCommandParser
 from .utilities import Signal
@@ -112,23 +112,26 @@ class Client:
         writer = ClientWriter(self)
         async for websocket in websockets.connect(self.uri):
             writer.wrap(websocket)
-            await writer.send("CAP REQ :twitch.tv/commands twitch.tv/membership twitch.tv/tags")
-            await writer.send(f"PASS oauth:{self.oauth_token}")
-            await writer.send(f"NICK {self.name}")
-            async for data in websocket:
-                assert isinstance(data, str)
-                parser = ServerCommandParser(data)
-                for command in parser:
-                    if isinstance(command, ServerMessage):
-                        self.message_signal.maybe_run(writer, command)
-                    elif isinstance(command, Ping):
-                        self.ping_signal.run(writer, command)  # We always provide one callback
-                    elif isinstance(command, ServerJoin):
-                        self.join_signal.maybe_run(writer, command)
-                    elif isinstance(command, ServerPart):
-                        self.part_signal.maybe_run(writer, command)
-                    elif isinstance(command, RPLWelcome):
-                        self.welcome_signal.maybe_run(writer, command)
+            try:
+                await writer.send("CAP REQ :twitch.tv/commands twitch.tv/membership twitch.tv/tags")
+                await writer.send(f"PASS oauth:{self.oauth_token}")
+                await writer.send(f"NICK {self.name}")
+                async for data in websocket:
+                    assert isinstance(data, str)
+                    parser = ServerCommandParser(data)
+                    for command in parser:
+                        if isinstance(command, ServerMessage):
+                            self.message_signal.maybe_run(writer, command)
+                        elif isinstance(command, Ping):
+                            self.ping_signal.run(writer, command)  # We always provide one callback
+                        elif isinstance(command, ServerJoin):
+                            self.join_signal.maybe_run(writer, command)
+                        elif isinstance(command, ServerPart):
+                            self.part_signal.maybe_run(writer, command)
+                        elif isinstance(command, RPLWelcome):
+                            self.welcome_signal.maybe_run(writer, command)
+            except ConnectionClosed:
+                continue  # TODO: Manual close() call should stop this loop
 
 
 @runtime_checkable
