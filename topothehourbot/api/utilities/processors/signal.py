@@ -6,8 +6,8 @@ import asyncio
 import logging
 from asyncio import CancelledError, Task
 from collections.abc import Callable, Coroutine, Iterator
-from contextlib import contextmanager
-from typing import Any, Self, override
+from contextlib import AbstractContextManager, contextmanager
+from typing import Any, Literal, Self, overload, override
 
 from .processor import Processor
 
@@ -68,35 +68,89 @@ class Signal[**ParamTs, ResultT](Processor[ParamTs, None]):
         return callback
 
     @contextmanager
-    def continuation(self, callback: Callable[ParamTs, Coroutine[Any, Any, ResultT]]) -> Iterator[Self]:
-        """Return a context manager that adds and removes a callback upon enter
-        and exit, respectively
-        """
-        self.add_callback(callback)
+    def _add_callback_manager(self, callback: Callable[ParamTs, Coroutine[Any, Any, ResultT]]) -> Iterator[Self]:
         try:
             yield self
         finally:
-            self.remove_callback(callback)
+            self.remove_callback(callback, temporary=False)
 
-    @contextmanager
-    def suspension(self, callback: Callable[ParamTs, Coroutine[Any, Any, ResultT]]) -> Iterator[Self]:
-        """Return a context manager that removes and adds a callback upon enter
-        and exit, respectively
+    @overload
+    def add_callback(
+        self,
+        callback: Callable[ParamTs, Coroutine[Any, Any, ResultT]],
+        *,
+        temporary: Literal[True],
+    ) -> AbstractContextManager[Self]: ...
+    @overload
+    def add_callback(
+        self,
+        callback: Callable[ParamTs, Coroutine[Any, Any, ResultT]],
+        *,
+        temporary: Literal[False],
+    ) -> Self: ...
+    @overload
+    def add_callback(
+        self,
+        callback: Callable[ParamTs, Coroutine[Any, Any, ResultT]],
+    ) -> Self: ...
+
+    def add_callback(
+        self,
+        callback: Callable[ParamTs, Coroutine[Any, Any, ResultT]],
+        *,
+        temporary: bool = False,
+    ) -> Self | AbstractContextManager[Self]:
+        """Add a callback to schedule upon the signal's emission
+
+        If ``temporary``, return a context manager that removes the callback
+        upon exit.
         """
-        self.remove_callback(callback)
-        try:
-            yield self
-        finally:
-            self.add_callback(callback)
-
-    def add_callback(self, callback: Callable[ParamTs, Coroutine[Any, Any, ResultT]]) -> Self:
-        """Add a callback to schedule upon the signal's emission"""
         self._callbacks.add(callback)
+        if temporary:
+            return self._add_callback_manager(callback)
         return self
 
-    def remove_callback(self, callback: Callable[ParamTs, Coroutine[Any, Any, ResultT]]) -> Self:
-        """Remove a callback to schedule upon the signal's emission"""
+    @contextmanager
+    def _remove_callback_manager(self, callback: Callable[ParamTs, Coroutine[Any, Any, ResultT]]) -> Iterator[Self]:
+        try:
+            yield self
+        finally:
+            self.add_callback(callback, temporary=False)
+
+    @overload
+    def remove_callback(
+        self,
+        callback: Callable[ParamTs, Coroutine[Any, Any, ResultT]],
+        *,
+        temporary: Literal[True],
+    ) -> AbstractContextManager[Self]: ...
+    @overload
+    def remove_callback(
+        self,
+        callback: Callable[ParamTs, Coroutine[Any, Any, ResultT]],
+        *,
+        temporary: Literal[False],
+    ) -> Self: ...
+    @overload
+    def remove_callback(
+        self,
+        callback: Callable[ParamTs, Coroutine[Any, Any, ResultT]],
+    ) -> Self: ...
+
+    def remove_callback(
+        self,
+        callback: Callable[ParamTs, Coroutine[Any, Any, ResultT]],
+        *,
+        temporary: bool = False,
+    ) -> Self | AbstractContextManager[Self]:
+        """Remove a callback to schedule upon the signal's emission
+
+        If ``temporary``, return a context manager that adds the callback upon
+        exit.
+        """
         self._callbacks.discard(callback)
+        if temporary:
+            return self._remove_callback_manager(callback)
         return self
 
     def maybe_run(self, *args: ParamTs.args, **kwargs: ParamTs.kwargs) -> Task[None] | None:

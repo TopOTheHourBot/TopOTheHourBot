@@ -204,7 +204,7 @@ class RatingFinder(SupportsOnChannelMessage):
             writer
                 .channel
                 .message_signal
-                .continuation(on_channel_message)
+                .add_callback(on_channel_message, temporary=True)
         ):
             batch = await (
                 aiter(ratings)
@@ -237,6 +237,6 @@ class RatingFinder(SupportsOnChannelMessage):
             writer
                 .channel
                 .message_signal
-                .suspension(self.on_channel_message)
+                .remove_callback(self.on_channel_message, temporary=True)
         ):
             await self._job.run(writer, rating)
