@@ -172,6 +172,7 @@ class Channel(
     )
     name: str
     room: str
+    commands: CommandGroup
     message_signal: Signal[[ChannelWriter, ServerMessage], object]
     join_signal: Signal[[ChannelWriter, ServerJoin], object]
     part_signal: Signal[[ChannelWriter, ServerPart], object]
