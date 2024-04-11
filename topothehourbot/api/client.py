@@ -17,6 +17,7 @@ from ircv3.dialects.twitch import (ClientJoin, ClientMessage, ClientPart,
                                    ServerJoin, ServerMessage, ServerPart)
 from websockets import ConnectionClosed, WebSocketClientProtocol
 
+from .commands import CommandGroup
 from .parser import ServerCommandParser
 from .utilities import Signal
 
@@ -66,6 +67,7 @@ class Client:
     )
     oauth_token: str
     name: str
+    room: str
     welcome_signal: Signal[[ClientWriter, RPLWelcome], object]
     ping_signal: Signal[[ClientWriter, Ping], object]
     message_signal: Signal[[ClientWriter, ServerMessage], object]
@@ -163,6 +165,7 @@ class Channel(
     __slots__ = (
         "name",
         "room",
+        "commands",
         "message_signal",
         "join_signal",
         "part_signal",
@@ -173,9 +176,10 @@ class Channel(
     join_signal: Signal[[ChannelWriter, ServerJoin], object]
     part_signal: Signal[[ChannelWriter, ServerPart], object]
 
-    def __init__(self, *, name: str) -> None:
+    def __init__(self, *, name: str, commands: CommandGroup = CommandGroup()) -> None:
         self.name = name
         self.room = "#" + name
+        self.commands = commands
         self.message_signal = Signal()
         self.join_signal = Signal()
         self.part_signal = Signal()

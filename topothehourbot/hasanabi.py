@@ -58,46 +58,45 @@ async def on_rating_finder_batch(writer: ChannelWriter, ratings: RatingBatch) ->
     )
 
 channel = (
-    Channel(name="hasanabi")
-        .add_callbacks(rating_finder)
-)
-
-command_group = (
-    CommandGroup(prefix="$")
-        .add_spec(
-            name="ping",
-            spec=CommandSpec(role=Role.MODERATOR),
-        )
-        .add_spec(
-            name="copy",
-            spec=CommandSpec(role=Role.MODERATOR)
-                .add_spec(
-                    name="words",
-                    spec=VariadicParamSpec(),
-                )
-        )
-        .add_spec(
-            name="code",
-            spec=CommandSpec(role=Role.MODERATOR)
-                .add_spec(
-                    name="handles",
-                    spec=VariadicParamSpec(factory=commands.handle)
-                )
-        )
+    Channel(
+        name="hasanabi",
+        commands=CommandGroup(prefix="$")
+            .add_spec(
+                name="ping",
+                spec=CommandSpec(role=Role.MODERATOR),
+            )
+            .add_spec(
+                name="copy",
+                spec=CommandSpec(role=Role.MODERATOR)
+                    .add_spec(
+                        name="words",
+                        spec=VariadicParamSpec(),
+                    )
+            )
+            .add_spec(
+                name="code",
+                spec=CommandSpec(role=Role.MODERATOR)
+                    .add_spec(
+                        name="handles",
+                        spec=VariadicParamSpec(factory=commands.handle)
+                    )
+            )
+    )
+    .add_callbacks(rating_finder)
 )
 
 @channel.message_signal.callback
 async def on_channel_message(writer: ChannelWriter, message: ServerMessage) -> None:
-    sender = message.sender
-    if writer.client.name == sender.name:
+    if writer.client.name == message.sender.name:
         return
-    match command_group.match(message):
+    match writer.channel.commands.match(message):
         case Match(name="ping"):
             await writer.message(
                 f"{writer.latency:.0f}ms",
                 target=message,
             )
         case Match(name="copy", parameters={"words": words}):
+            words = " ".join(cast(list[str], words))
             await writer.message(
                 words,
                 target=message,
