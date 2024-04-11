@@ -44,10 +44,7 @@ class Signal[**ParamTs, ResultT](Processor[ParamTs, None]):
                 for callback in self._callbacks
             )
 
-        tasks = set[Task[ResultT]]()
-        for coro in coros:
-            task = loop.create_task(coro)
-            tasks.add(task)
+        tasks = {loop.create_task(coro) for coro in coros}
 
         for waiter in asyncio.as_completed(tasks):
             try:
