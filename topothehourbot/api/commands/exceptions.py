@@ -5,6 +5,7 @@ __all__ = [
     "MissingPrefixError",
     "CommandError",
     "UnknownCommandError",
+    "InsufficientRoleError",
     "ParameterError",
     "UnknownParameterError",
     "MissingArgumentError",
@@ -24,6 +25,7 @@ class MatchError(ValueError):
          ├─ MissingPrefixError
          └─ CommandError
              ├─ UnknownCommandError
+             ├─ InsufficientRoleError
              └─ ParameterError
                  ├─ UnknownParameterError
                  ├─ MissingArgumentError
@@ -66,6 +68,19 @@ class UnknownCommandError(CommandError):
     def __init__(self, *, comment: str, prefix: str, command: str) -> None:
         super().__init__(
             f"Unknown command, {command}",
+            comment=comment,
+            prefix=prefix,
+            command=command,
+        )
+
+
+class InsufficientRoleError(CommandError):
+
+    __slots__ = __match_args__ = ()
+
+    def __init__(self, comment: str, prefix: str, command: str) -> None:
+        super().__init__(
+            f"Sender has insufficient role to access command, '{command}'",
             comment=comment,
             prefix=prefix,
             command=command,

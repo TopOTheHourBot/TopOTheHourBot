@@ -7,6 +7,7 @@ from typing import Self
 
 from .param_specs import (OptionalParamSpec, ParamSpec, RequiredParamSpec,
                           VariadicParamSpec)
+from .role import Role
 
 type ParamSchema[T] = tuple[str, ParamSpec[T]]
 type RequiredParamSchema[T] = tuple[str, RequiredParamSpec[T]]
@@ -23,31 +24,35 @@ class CommandSpec:
     """
 
     __slots__ = (
+        "role",
         "_required_schemas",
         "_variadic_schema",
         "_optional_schemas",
     )
+    role: Role
     _required_schemas: dict[str, RequiredParamSpec[object]]
     _variadic_schema: VariadicParamSchema[object] | None
     _optional_schemas: dict[str, OptionalParamSpec[object]]
 
-    def __init__(self) -> None:
+    def __init__(self, role: Role = Role.BROADCASTER) -> None:
+        self.role = role
         self._required_schemas = {}
         self._variadic_schema = None
         self._optional_schemas = {}
 
+    @property
+    def variadic_schema(self) -> VariadicParamSchema[object] | None:
+        return self._variadic_schema
+
     def schemas(self) -> Iterator[ParamSchema[object]]:
         yield from self.required_schemas()
-        schema = self.variadic_schema()
+        schema = self.variadic_schema
         if schema is not None:
             yield schema
         yield from self.optional_schemas()
 
     def required_schemas(self) -> Iterator[RequiredParamSchema[object]]:
         return iter(self._required_schemas.items())
-
-    def variadic_schema(self) -> VariadicParamSchema[object] | None:
-        return self._variadic_schema
 
     def optional_schemas(self) -> Iterator[OptionalParamSchema[object]]:
         return iter(self._optional_schemas.items())

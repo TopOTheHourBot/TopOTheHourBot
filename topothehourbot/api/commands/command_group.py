@@ -8,11 +8,14 @@ __all__ = [
 from dataclasses import dataclass
 from typing import Self, cast
 
+from ircv3.dialects.twitch import ServerMessage
+
 from .command_specs import CommandSpec
-from .exceptions import (InconvertibleArgumentError, MatchError,
-                         MissingArgumentError, MissingPrefixError,
+from .exceptions import (InconvertibleArgumentError, InsufficientRoleError,
+                         MatchError, MissingArgumentError, MissingPrefixError,
                          UnknownCommandError, UnknownParameterError)
 from .parser import Parser
+from .role import Role
 
 
 @dataclass(slots=True, kw_only=True)
@@ -74,9 +77,10 @@ class CommandGroup:
         else:
             return True
 
-    def match(self, comment: str) -> Match | MatchError:
-        """Attempt to parse ``comment`` into a matching command specification"""
+    def match(self, message: ServerMessage) -> Match | MatchError:
+        """Attempt to parse ``message`` into a matching command specification"""
         prefix = self.prefix
+        comment = message.comment
 
         if not comment.startswith(prefix):
             return MissingPrefixError(
@@ -91,6 +95,12 @@ class CommandGroup:
 
         if comm_spec is None:
             return UnknownCommandError(
+                comment=comment,
+                prefix=prefix,
+                command=comm_name,
+            )
+        if Role.from_client(message.sender) < comm_spec.role:
+            return InsufficientRoleError(
                 comment=comment,
                 prefix=prefix,
                 command=comm_name,
@@ -121,7 +131,7 @@ class CommandGroup:
                 )
 
         # Variadic parameter
-        variadic_schema = comm_spec.variadic_schema()
+        variadic_schema = comm_spec.variadic_schema
         if variadic_schema:
             param_name, param_spec = variadic_schema
             parameters[param_name] = []
@@ -194,8 +204,8 @@ class CommandGroup:
             parameters=parameters,
         )
 
-    def match_raise(self, comment: str) -> Match:
-        result = self.match(comment)
+    def match_raise(self, message: ServerMessage) -> Match:
+        result = self.match(message)
         if isinstance(result, MatchError):
             raise result
         return result
