@@ -29,10 +29,25 @@ class Signal[**ParamTs, ResultT](Processor[ParamTs, None]):
         loop = asyncio.get_running_loop()
         timeout = self.timeout
 
+        coros: Iterator[Coroutine[Any, Any, ResultT]]
+        if timeout is not None and timeout > 0:
+            coros = (
+                asyncio.wait_for(
+                    callback(*args, **kwargs),
+                    timeout=timeout,
+                )
+                for callback in self._callbacks
+            )  # type: ignore
+        else:
+            coros = (
+                callback(*args, **kwargs)
+                for callback in self._callbacks
+            )
+
         tasks = set[Task[ResultT]]()
-        for callback in self._callbacks:
-            task = loop.create_task(asyncio.wait_for(callback(*args, **kwargs), timeout=timeout))
-            tasks.add(task)  # type: ignore
+        for coro in coros:
+            task = loop.create_task(coro)
+            tasks.add(task)
 
         for waiter in asyncio.as_completed(tasks):
             try:
