@@ -29,7 +29,6 @@ class ServerCommandParser(Iterator[ServerCommandProtocol]):
     _head: int
 
     def __init__(self, data: str) -> None:
-        super().__init__()
         self._data = data
         self._head = 0
 
