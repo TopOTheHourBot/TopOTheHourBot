@@ -17,7 +17,7 @@ class Role(Enum):
     ``VIP``, ``MODERATOR``, and ``BROADCASTER``.
 
     This ordering of roles allows for easy categorization of levels above and
-    below a certain privilege, as is often the case for command interfaces. Use
+    below a certain privilege, as is often required for command interfaces. Use
     the comparison operators to make assessments, e.g.,
     ``Role.MODERATOR >= Role.SUBSCRIBER`` (evaluates true, since moderators
     have greater privileges than a subscriber).

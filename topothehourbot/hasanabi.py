@@ -10,7 +10,7 @@ from ircv3.dialects.twitch import ServerMessage
 from .api import commands
 from .api.client import Channel, ChannelWriter
 from .api.commands import (CommandGroup, CommandSpec, Match, ParameterError,
-                           VariadicParamSpec)
+                           VariadicParamSpec, Role)
 from .rating_finder import RatingBatch, RatingFinder
 
 rating_finder = RatingFinder()
@@ -64,10 +64,13 @@ channel = (
 
 command_group = (
     CommandGroup(prefix="$")
-        .add_spec(name="ping")
+        .add_spec(
+            name="ping",
+            spec=CommandSpec(role=Role.MODERATOR),
+        )
         .add_spec(
             name="copy",
-            spec=CommandSpec()
+            spec=CommandSpec(role=Role.MODERATOR)
                 .add_spec(
                     name="words",
                     spec=VariadicParamSpec(),
@@ -75,7 +78,7 @@ command_group = (
         )
         .add_spec(
             name="code",
-            spec=CommandSpec()
+            spec=CommandSpec(role=Role.MODERATOR)
                 .add_spec(
                     name="handles",
                     spec=VariadicParamSpec(factory=commands.handle)
@@ -88,7 +91,7 @@ async def on_channel_message(writer: ChannelWriter, message: ServerMessage) -> N
     sender = message.sender
     if writer.client.name == sender.name:
         return
-    match command_group.match(message.comment):
+    match command_group.match(message):
         case Match(name="ping"):
             await writer.message(
                 f"{writer.latency:.0f}ms",
