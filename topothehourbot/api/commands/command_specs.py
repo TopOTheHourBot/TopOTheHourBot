@@ -92,7 +92,37 @@ class CommandSpec:
         name: str,
         spec: ParamSpec[object] = RequiredParamSpec(),
     ) -> Self:
-        """Add a parameter to the specification"""
+        """Add a parameter to the specification
+
+        Raises ``ValueError`` for a variety of reasons. While the storage
+        mechanism behind a ``CommandSpec`` is non-linear, this method acts as
+        though it is for readability sake (e.g., when chaining multiple
+        ``add_spec()`` calls).
+
+        A command specification is similar to a Python function, albeit a bit
+        more restrictive. You can have 0 or more required parameters, which can
+        only be invoked by position. You can have exactly 1 variadic parameter,
+        which can have 0 or more arguments invoked by position. And, you can
+        have 0 or more optional parameters, which can only be invoked by
+        keyword.
+
+        The most basic command specification, with one of each parameter type,
+        would look like this, as a Python function:
+
+        ```
+        def _(
+            required_parameter,
+            /,
+            *variadic_parameter,
+            optional_parameter=default,
+        ):
+            ...
+        ```
+
+        Consequently, this means you cannot have:
+        1. A parameter that can be invoked both by position and keyword
+        2. A required keyword-only parameter
+        """
         required_schemas = self._required_schemas
         variadic_schema = self._variadic_schema
         optional_schemas = self._optional_schemas

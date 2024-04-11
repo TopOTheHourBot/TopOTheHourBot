@@ -88,9 +88,14 @@ class CommandGroup:
                 prefix=prefix,
             )
 
-        parser = Parser(comment, index=len(prefix))
+        # A lot of this may not be the most efficient way of doing things, but
+        # remember that a *vast* majority of messages will not contain a
+        # command - 99% of cases will be filtered out by the prefix
+        # requirement above (which is why a prefix is used in the first place).
 
-        comm_name = parser.take_until(exclude_current=False)
+        parser = Parser(comment, index=len(prefix) - 1)
+
+        comm_name = parser.take_until()
         comm_spec = self.get_spec(comm_name)
 
         if comm_spec is None:

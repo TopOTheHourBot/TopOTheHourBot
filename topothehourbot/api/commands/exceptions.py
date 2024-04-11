@@ -53,7 +53,7 @@ class MissingPrefixError(MatchError):
 
 class CommandError(MatchError):
 
-    __slots__ = __match_args__ = ("command")
+    __slots__ = __match_args__ = ("command",)
     command: str
 
     def __init__(self, *args: object, comment: str, prefix: str, command: str) -> None:
@@ -89,7 +89,7 @@ class InsufficientRoleError(CommandError):
 
 class ParameterError(CommandError):
 
-    __slots__ = __match_args__ = ("parameter")
+    __slots__ = __match_args__ = ("parameter",)
     parameter: str
 
     def __init__(self, *args: object, comment: str, prefix: str, command: str, parameter: str) -> None:
@@ -127,12 +127,12 @@ class MissingArgumentError(ParameterError):
 
 class InconvertibleArgumentError(ParameterError):
 
-    __slots__ = __match_args__ = ("argument")
+    __slots__ = __match_args__ = ("argument",)
     argument: str
 
     def __init__(self, *, comment: str, prefix: str, command: str, parameter: str, argument: str) -> None:
         super().__init__(
-            f"Incovertible argument, '{argument}', provided to parameter, '{parameter}'",
+            f"Inconvertible argument, '{argument}', provided to parameter, '{parameter}'",
             comment=comment,
             prefix=prefix,
             command=command,

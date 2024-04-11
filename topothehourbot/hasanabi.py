@@ -10,7 +10,7 @@ from ircv3.dialects.twitch import ServerMessage
 from .api import commands
 from .api.client import Channel, ChannelWriter
 from .api.commands import (CommandGroup, CommandSpec, Match, ParameterError,
-                           VariadicParamSpec, Role)
+                           Role, VariadicParamSpec)
 from .rating_finder import RatingBatch, RatingFinder
 
 rating_finder = RatingFinder()
