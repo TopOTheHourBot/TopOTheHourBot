@@ -57,6 +57,16 @@ class Role(Enum):
             return self.value >= other.value
         return NotImplemented
 
+    def __lt__(self, other: object) -> bool:
+        if isinstance(other, Role):
+            return self.value < other.value
+        return NotImplemented
+
+    def __le__(self, other: object) -> bool:
+        if isinstance(other, Role):
+            return self.value <= other.value
+        return NotImplemented
+
     @classmethod
     def from_client(cls, client: ExternalClient) -> Self:
         """Return the highest ``Role`` assignable to the given client"""
