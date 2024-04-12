@@ -12,9 +12,9 @@ from collections import defaultdict
 from typing import ClassVar, Final, Protocol, Self, override, runtime_checkable
 
 import websockets
-from ircv3 import Ping, RPLWelcome
-from ircv3.dialects.twitch import (ClientJoin, ClientMessage, ClientPart,
-                                   ServerJoin, ServerMessage, ServerPart)
+from ircv3.common import Ping, Welcome
+from ircv3.twitch import (ClientJoin, ClientMessage, ClientPart, ServerJoin,
+                          ServerMessage, ServerPart)
 from websockets import ConnectionClosed, WebSocketClientProtocol
 
 from .commands import CommandGroup
@@ -24,7 +24,7 @@ from .utilities import Signal
 
 @runtime_checkable
 class SupportsOnClientWelcome(Protocol):
-    async def on_client_welcome(self, writer: ClientWriter, command: RPLWelcome, /) -> object: ...
+    async def on_client_welcome(self, writer: ClientWriter, command: Welcome, /) -> object: ...
 
 @runtime_checkable
 class SupportsOnClientPing(Protocol):
@@ -68,7 +68,7 @@ class Client:
     oauth_token: str
     name: str
     room: str
-    welcome_signal: Signal[[ClientWriter, RPLWelcome], object]
+    welcome_signal: Signal[[ClientWriter, Welcome], object]
     ping_signal: Signal[[ClientWriter, Ping], object]
     message_signal: Signal[[ClientWriter, ServerMessage], object]
     join_signal: Signal[[ClientWriter, ServerJoin], object]
@@ -130,7 +130,7 @@ class Client:
                             self.join_signal.maybe_run(writer, command)
                         elif isinstance(command, ServerPart):
                             self.part_signal.maybe_run(writer, command)
-                        elif isinstance(command, RPLWelcome):
+                        elif isinstance(command, Welcome):
                             self.welcome_signal.maybe_run(writer, command)
             except ConnectionClosed:
                 continue  # TODO: Manual close() call should stop this loop
@@ -204,7 +204,7 @@ class Channel(
         return self
 
     @override
-    async def on_client_welcome(self, writer: ClientWriter, command: RPLWelcome) -> None:
+    async def on_client_welcome(self, writer: ClientWriter, command: Welcome) -> None:
         await writer.join(self.room)
 
     @override

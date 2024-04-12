@@ -8,7 +8,7 @@ __all__ = [
 from dataclasses import dataclass
 from typing import Self, cast
 
-from ircv3.dialects.twitch import ServerMessage
+from ircv3.twitch import ServerMessage
 
 from .command_specs import CommandSpec
 from .exceptions import (InconvertibleArgumentError, InsufficientRoleError,

@@ -5,7 +5,7 @@ __all__ = ["Role"]
 from enum import Enum
 from typing import Self
 
-from ircv3.dialects.twitch import ExternalClient
+from ircv3.twitch import ExternalClient
 
 
 class Role(Enum):

@@ -14,7 +14,7 @@ from decimal import Decimal
 from typing import Self, TypedDict, override
 
 from ircv3 import CommandProtocolJSON
-from ircv3.dialects.twitch import ServerMessage
+from ircv3.twitch import ServerMessage
 
 from .api.client import ChannelWriter, SupportsOnChannelMessage
 from .api.utilities import Buffer, Job, Signal

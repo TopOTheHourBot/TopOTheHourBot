@@ -5,7 +5,7 @@ __all__ = ["channel"]
 import random
 from typing import cast
 
-from ircv3.dialects.twitch import ServerMessage
+from ircv3.twitch import ServerMessage
 
 from .api import commands
 from .api.client import Channel, ChannelWriter

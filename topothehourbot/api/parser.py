@@ -5,9 +5,9 @@ __all__ = ["ServerCommandParser"]
 from collections.abc import Iterator
 from typing import Final, Self
 
-from ircv3 import Command, Ping, RPLWelcome, ServerCommandProtocol
-from ircv3.dialects.twitch import (RoomState, ServerJoin, ServerMessage,
-                                   ServerPart)
+from ircv3 import Command, ServerCommandProtocol
+from ircv3.common import Ping, Welcome
+from ircv3.twitch import RoomState, ServerJoin, ServerMessage, ServerPart
 
 
 class ServerCommandParser(Iterator[ServerCommandProtocol]):
@@ -18,7 +18,7 @@ class ServerCommandParser(Iterator[ServerCommandProtocol]):
         "PING": Ping,
         "JOIN": ServerJoin,
         "PART": ServerPart,
-        "001": RPLWelcome,
+        "001": Welcome,
     }
 
     UNRECOGNIZED: Final[object] = object()
