@@ -53,11 +53,13 @@ class Rating:
         match = cls.pattern.search(message.comment)
         if match is None:
             return
+        value = Decimal(match.group(1))
+        index_begin, index_end = match.span(1)
         return cls(
             message,
-            value=Decimal(match.group(1)),
-            index_begin=match.span(1)[0],
-            index_end=match.span(1)[1],
+            value=value,
+            index_begin=index_begin,
+            index_end=index_end,
         )
 
     @property
