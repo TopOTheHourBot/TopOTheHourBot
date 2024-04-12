@@ -70,7 +70,7 @@ class Rating:
 class RatingBatchJSON(TypedDict):
 
     ratings: list[RatingJSON]
-    count: int
+    size: int
     sum: float
     mean: float | None
 
@@ -102,7 +102,7 @@ class RatingBatch:
         return self._map.values()
 
     @property
-    def count(self) -> int:
+    def size(self) -> int:
         """The number of ratings"""
         return len(self._map)
 
@@ -117,9 +117,9 @@ class RatingBatch:
 
         ``None`` if the map is empty.
         """
-        count = self.count
-        if count:
-            return self.sum / count
+        size = self.size
+        if size:
+            return self.sum / size
 
     def add(self, rating: Rating) -> Self:
         """Add a rating to the batch"""
@@ -136,7 +136,7 @@ class RatingBatch:
         """Return a JSON representation of the batch"""
         return {
             "ratings": [rating.to_json() for rating in self.ratings],
-            "count": self.count,
+            "size": self.size,
             "sum": float(self.sum),
             "mean": None if self.mean is None else float(self.mean),
         }
@@ -165,28 +165,27 @@ class RatingFinder(SupportsOnChannelMessage):
         "_job",
         "batch_signal",
         "delay",
-        "max_count",
-        "min_count",
+        "min_size",
+        "max_size",
     )
     _job: Job[[ChannelWriter, Rating], None]
     batch_signal: Signal[[ChannelWriter, RatingBatch], object]
     delay: float
-    max_count: int | None
-    min_count: int
+    min_size: int
+    max_size: int | None
 
     def __init__(
         self,
         *,
         delay: float = 8.5,
-        max_count: int | None = None,
-        min_count: int = 40,
+        min_size: int = 40,
+        max_size: int | None = None,
     ) -> None:
-        super().__init__()
         self._job = Job(self._job_process)
         self.batch_signal = Signal()
         self.delay = delay
-        self.max_count = max_count
-        self.min_count = min_count
+        self.min_size = min_size
+        self.max_size = max_size
 
     async def _job_process(self, writer: ChannelWriter, initial_rating: Rating) -> None:
         ratings = Buffer[Rating]()
@@ -209,11 +208,11 @@ class RatingFinder(SupportsOnChannelMessage):
             batch = await (
                 aiter(ratings)
                     .finite_timeout(self.delay)
-                    .limit(self.max_count)
+                    .limit(self.max_size)
                     .reduce(RatingBatch(), RatingBatch.add)
             )
 
-        if batch.count >= self.min_count:
+        if batch.size >= self.min_size:
             self.batch_signal.maybe_run(writer, batch)
 
     def find(self, message: ServerMessage) -> Rating | None:

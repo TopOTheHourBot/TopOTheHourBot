@@ -16,11 +16,11 @@ from .rating_finder import RatingBatch, RatingFinder
 rating_finder = RatingFinder()
 
 @rating_finder.batch_signal.callback
-async def on_rating_finder_batch(writer: ChannelWriter, ratings: RatingBatch) -> None:
-    count = ratings.count
-    mean = ratings.mean
+async def on_rating_finder_batch(writer: ChannelWriter, batch: RatingBatch) -> None:
+    size = batch.size
+    mean = batch.mean
 
-    assert count > 0
+    assert size > 0
     assert mean is not None
 
     if mean <= 5:
@@ -53,7 +53,7 @@ async def on_rating_finder_batch(writer: ChannelWriter, ratings: RatingBatch) ->
     reaction = random.choice(reactions)
 
     await writer.message(
-        f"DANKIES 🔔 {count:,d} chatters rated this ad segue an average of"
+        f"DANKIES 🔔 {size:,d} chatters rated this ad segue an average of"
         f" {mean:.2f}/10 - {reaction}",
     )
 
