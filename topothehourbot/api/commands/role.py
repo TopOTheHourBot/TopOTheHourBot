@@ -21,14 +21,6 @@ class Role(Enum):
     the comparison operators to make assessments, e.g.,
     ``Role.MODERATOR >= Role.SUBSCRIBER`` (evaluates true, since moderators
     have greater privileges than a subscriber).
-
-    This "hierarchy" of Twitch users is not something that is explicitly
-    documented by Twitch itself, but is a common way of seeing Twitch users
-    from the perspective of accessibility to bot functions. Anything you build
-    for subscribers is something you'd probably also want to have available for
-    VIPs, moderators, and the broadcaster. Anything you build for VIPs is
-    something you'd probably also want to have available for moderators and the
-    broadcaster. So on and so forth.
     """
 
     NONE = 0
@@ -43,6 +35,8 @@ class Role(Enum):
     """User is the broadcaster of the channel"""
 
     def __eq__(self, other: object) -> bool:
+        if self is other:
+            return True
         if isinstance(other, Role):
             return self.value == other.value
         return NotImplemented
