@@ -46,26 +46,32 @@ channel = (
 async def on_channel_message_command(writer: ChannelWriter, message: ServerMessage) -> None:
     if writer.client.name == message.sender.name:
         return
+
     match writer.channel.commands.match(message):
+
         case Match(name="ping"):
             await writer.message(
                 f"{writer.latency:.0f}ms",
                 target=message,
             )
+
         case Match(name="copy", parameters={"words": words}):
             words = " ".join(cast(list[str], words))
             await writer.message(
                 words,
                 target=message,
             )
+
         case Match(name="code", parameters={"handles": handles}):
             handles = " ".join(cast(list[str], handles))
             await writer.message(
                 f"{handles} Okayge You can find the bot's source code on GitHub: https://github.com/TopOTheHourBot/",
                 target=message,
             )
+
         case ParameterError() as error:
             await writer.message(error, target=message)
+
         case _:
             return
 
