@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-__all__ = ["Signal"]
+__all__ = ["Callback", "Signal"]
 
 import asyncio
 import logging
@@ -11,11 +11,13 @@ from typing import Any, Literal, Self, overload, override
 
 from .processor import Processor
 
+type Callback[**ParamTs, ResultT] = Callable[ParamTs, Coroutine[Any, Any, ResultT] | None]
+
 
 class Signal[**ParamTs, ResultT](Processor[ParamTs, None]):
 
     __slots__ = ("_callbacks", "timeout")
-    _callbacks: set[Callable[ParamTs, Coroutine[Any, Any, ResultT]]]
+    _callbacks: set[Callback[ParamTs, ResultT]]
     timeout: float | None
 
     def __init__(self, timeout: float | None = None) -> None:
@@ -26,25 +28,22 @@ class Signal[**ParamTs, ResultT](Processor[ParamTs, None]):
     @override
     async def process(self, *args: ParamTs.args, **kwargs: ParamTs.kwargs) -> None:
         """Dispatch all callbacks as a task and await their returns"""
-        loop = asyncio.get_running_loop()
         timeout = self.timeout
+        coros = list[Coroutine[Any, Any, ResultT]]()
 
-        coros: Iterator[Coroutine[Any, Any, ResultT]]
-        if timeout is not None and timeout > 0:
-            coros = (
-                asyncio.wait_for(
-                    callback(*args, **kwargs),
-                    timeout=timeout,
-                )
-                for callback in self._callbacks
-            )  # type: ignore
-        else:
-            coros = (
-                callback(*args, **kwargs)
-                for callback in self._callbacks
-            )
+        for callback in self._callbacks:
+            coro = callback(*args, **kwargs)
+            if coro is None:
+                continue
+            if timeout:  # timeout is not None and is non-zero
+                coro = asyncio.wait_for(coro, timeout=timeout)
+            coros.append(coro)
 
-        tasks = {loop.create_task(coro) for coro in coros}
+        if not coros:  # Early return if none of the callbacks gave us a
+            return     # coroutine
+
+        loop = asyncio.get_running_loop()
+        tasks = [loop.create_task(coro) for coro in coros]
 
         for waiter in asyncio.as_completed(tasks):
             try:
@@ -62,13 +61,13 @@ class Signal[**ParamTs, ResultT](Processor[ParamTs, None]):
                     continue
                 logging.info(f"Callback finished normally with result, {result!r}")
 
-    def callback(self, callback: Callable[ParamTs, Coroutine[Any, Any, ResultT]]) -> Callable[ParamTs, Coroutine[Any, Any, ResultT]]:
+    def callback(self, callback: Callback[ParamTs, ResultT]) -> Callback[ParamTs, ResultT]:
         """Decorate a callback to schedule upon the signal's emission"""
         self.add_callback(callback)
         return callback
 
     @contextmanager
-    def _add_callback_manager(self, callback: Callable[ParamTs, Coroutine[Any, Any, ResultT]]) -> Iterator[Self]:
+    def _add_callback_manager(self, callback: Callback[ParamTs, ResultT]) -> Iterator[Self]:
         try:
             yield self
         finally:
@@ -77,26 +76,26 @@ class Signal[**ParamTs, ResultT](Processor[ParamTs, None]):
     @overload
     def add_callback(
         self,
-        callback: Callable[ParamTs, Coroutine[Any, Any, ResultT]],
+        callback: Callback[ParamTs, ResultT],
         *,
         temporary: Literal[True],
     ) -> AbstractContextManager[Self]: ...
     @overload
     def add_callback(
         self,
-        callback: Callable[ParamTs, Coroutine[Any, Any, ResultT]],
+        callback: Callback[ParamTs, ResultT],
         *,
         temporary: Literal[False],
     ) -> Self: ...
     @overload
     def add_callback(
         self,
-        callback: Callable[ParamTs, Coroutine[Any, Any, ResultT]],
+        callback: Callback[ParamTs, ResultT],
     ) -> Self: ...
 
     def add_callback(
         self,
-        callback: Callable[ParamTs, Coroutine[Any, Any, ResultT]],
+        callback: Callback[ParamTs, ResultT],
         *,
         temporary: bool = False,
     ) -> Self | AbstractContextManager[Self]:
@@ -111,7 +110,7 @@ class Signal[**ParamTs, ResultT](Processor[ParamTs, None]):
         return self
 
     @contextmanager
-    def _remove_callback_manager(self, callback: Callable[ParamTs, Coroutine[Any, Any, ResultT]]) -> Iterator[Self]:
+    def _remove_callback_manager(self, callback: Callback[ParamTs, ResultT]) -> Iterator[Self]:
         try:
             yield self
         finally:
@@ -120,26 +119,26 @@ class Signal[**ParamTs, ResultT](Processor[ParamTs, None]):
     @overload
     def remove_callback(
         self,
-        callback: Callable[ParamTs, Coroutine[Any, Any, ResultT]],
+        callback: Callback[ParamTs, ResultT],
         *,
         temporary: Literal[True],
     ) -> AbstractContextManager[Self]: ...
     @overload
     def remove_callback(
         self,
-        callback: Callable[ParamTs, Coroutine[Any, Any, ResultT]],
+        callback: Callback[ParamTs, ResultT],
         *,
         temporary: Literal[False],
     ) -> Self: ...
     @overload
     def remove_callback(
         self,
-        callback: Callable[ParamTs, Coroutine[Any, Any, ResultT]],
+        callback: Callback[ParamTs, ResultT],
     ) -> Self: ...
 
     def remove_callback(
         self,
-        callback: Callable[ParamTs, Coroutine[Any, Any, ResultT]],
+        callback: Callback[ParamTs, ResultT],
         *,
         temporary: bool = False,
     ) -> Self | AbstractContextManager[Self]:
@@ -157,5 +156,6 @@ class Signal[**ParamTs, ResultT](Processor[ParamTs, None]):
         """Schedule ``process()`` as a task if containing at least one
         callback, otherwise do nothing
         """
-        if self._callbacks:
-            return self.run(*args, **kwargs)
+        if not self._callbacks:
+            return
+        return self.run(*args, **kwargs)
