@@ -8,16 +8,17 @@ from typing import Any
 from ircv3.twitch import ServerJoin, ServerMessage, ServerPart
 
 from .client import ClientWriter
-from .utilities import Callback
 
 type RoomedCommand = ServerMessage | ServerJoin | ServerPart
 
 
-def walled[ResultT]() -> Callable[[Callback[[ClientWriter, ServerMessage], ResultT]], Callback[[ClientWriter, ServerMessage], ResultT]]:
+def walled[
+    ResultT: Coroutine[Any, Any, object] | None,
+]() -> Callable[[Callable[[ClientWriter, ServerMessage], ResultT]], Callable[[ClientWriter, ServerMessage], ResultT | None]]:
 
-    def walled_decorator(callback: Callback[[ClientWriter, ServerMessage], ResultT]) -> Callback[[ClientWriter, ServerMessage], ResultT]:
+    def walled_decorator(callback: Callable[[ClientWriter, ServerMessage], ResultT]) -> Callable[[ClientWriter, ServerMessage], ResultT | None]:
 
-        def walled_wrapper(writer: ClientWriter, command: ServerMessage) -> Coroutine[Any, Any, ResultT] | None:
+        def walled_wrapper(writer: ClientWriter, command: ServerMessage) -> ResultT | None:
             if writer.client.name == command.sender.name:
                 return
             return callback(writer, command)
@@ -30,12 +31,15 @@ def walled[ResultT]() -> Callable[[Callback[[ClientWriter, ServerMessage], Resul
     return walled_decorator
 
 
-def roomed[CommandT: RoomedCommand, ResultT](*rooms: str) -> Callable[[Callback[[ClientWriter, CommandT], ResultT]], Callback[[ClientWriter, CommandT], ResultT]]:
+def roomed[
+    CommandT: RoomedCommand,
+    ResultT: Coroutine[Any, Any, object] | None,
+](*rooms: str) -> Callable[[Callable[[ClientWriter, CommandT], ResultT]], Callable[[ClientWriter, CommandT], ResultT | None]]:
     set = frozenset(rooms)
 
-    def roomed_decorator(callback: Callback[[ClientWriter, CommandT], ResultT]) -> Callback[[ClientWriter, CommandT], ResultT]:
+    def roomed_decorator(callback: Callable[[ClientWriter, CommandT], ResultT]) -> Callable[[ClientWriter, CommandT], ResultT | None]:
 
-        def roomed_wrapper(writer: ClientWriter, command: CommandT) -> Coroutine[Any, Any, ResultT] | None:
+        def roomed_wrapper(writer: ClientWriter, command: CommandT) -> ResultT | None:
             if command.room not in set:
                 return
             return callback(writer, command)
