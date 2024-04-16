@@ -32,14 +32,14 @@ def walled[
 
 
 def roomed[
-    CommandT: RoomedCommand,
+    RoomedCommandT: RoomedCommand,
     ResultT: Coroutine[Any, Any, object] | None,
-](*rooms: str) -> Callable[[Callable[[ClientWriter, CommandT], ResultT]], Callable[[ClientWriter, CommandT], ResultT | None]]:
+](*rooms: str) -> Callable[[Callable[[ClientWriter, RoomedCommandT], ResultT]], Callable[[ClientWriter, RoomedCommandT], ResultT | None]]:
     set = frozenset(rooms)
 
-    def roomed_decorator(callback: Callable[[ClientWriter, CommandT], ResultT]) -> Callable[[ClientWriter, CommandT], ResultT | None]:
+    def roomed_decorator(callback: Callable[[ClientWriter, RoomedCommandT], ResultT]) -> Callable[[ClientWriter, RoomedCommandT], ResultT | None]:
 
-        def roomed_wrapper(writer: ClientWriter, command: CommandT) -> ResultT | None:
+        def roomed_wrapper(writer: ClientWriter, command: RoomedCommandT) -> ResultT | None:
             if command.room not in set:
                 return
             return callback(writer, command)
