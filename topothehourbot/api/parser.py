@@ -7,7 +7,8 @@ from typing import Final, Self
 
 from ircv3 import Command, ServerCommandProtocol
 from ircv3.common import Ping, Welcome
-from ircv3.twitch import RoomState, ServerJoin, ServerMessage, ServerPart
+from ircv3.twitch import (GlobalUserState, RoomState, ServerJoin,
+                          ServerMessage, ServerPart, UserState)
 
 
 class ServerCommandParser(Iterator[ServerCommandProtocol]):
@@ -18,6 +19,8 @@ class ServerCommandParser(Iterator[ServerCommandProtocol]):
         "PING": Ping,
         "JOIN": ServerJoin,
         "PART": ServerPart,
+        "GLOBALUSERSTATE": GlobalUserState,
+        "USERSTATE": UserState,
         "001": Welcome,
     }
 
