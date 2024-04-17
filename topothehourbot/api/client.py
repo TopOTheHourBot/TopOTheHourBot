@@ -223,6 +223,22 @@ class Client:
         return self._websocket.latency
 
     @property
+    def open(self) -> bool:
+        return self._websocket.open
+
+    @property
+    def closed(self) -> bool:
+        return self._websocket.closed
+
+    @property
+    def close_code(self) -> int | None:
+        return self._websocket.close_code
+
+    @property
+    def close_reason(self) -> str | None:
+        return self._websocket.close_reason
+
+    @property
     def oauth_token(self) -> str:
         return self.app.oauth_token
 
