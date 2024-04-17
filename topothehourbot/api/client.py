@@ -10,8 +10,9 @@ from typing import (Final, Literal, Protocol, Self, cast, override,
 
 import websockets
 from ircv3.common import Ping, Welcome
-from ircv3.twitch import (ClientJoin, ClientMessage, ClientPart, ServerJoin,
-                          ServerMessage, ServerPart, UserState)
+from ircv3.twitch import (ClientJoin, ClientMessage, ClientPart,
+                          GlobalUserState, ServerJoin, ServerMessage,
+                          ServerPart, UserState)
 from websockets import ConnectionClosed
 
 from .parser import ServerCommandParser
@@ -66,12 +67,22 @@ class SupportsOnClientJoin(Protocol):
 class SupportsOnClientPart(Protocol):
     async def on_client_part(self, writer: ClientWriter, command: ServerPart, /) -> object: ...
 
+@runtime_checkable
+class SupportsOnClientUserState(Protocol):
+    async def on_client_user_state(self, writer: ClientWriter, command: UserState, /) -> object: ...
+
+@runtime_checkable
+class SupportsOnClientGlobalUserState(Protocol):
+    async def on_client_global_user_state(self, writer: ClientWriter, command: GlobalUserState, /) -> object: ...
+
 type SupportsOnClientCommand = (
     SupportsOnClientWelcome
     | SupportsOnClientPing
     | SupportsOnClientMessage
     | SupportsOnClientJoin
-    | SupportsOnClientPart  # TODO: Add SupportsOnClientUserState
+    | SupportsOnClientPart
+    | SupportsOnClientUserState
+    | SupportsOnClientGlobalUserState
 )
 
 
@@ -89,6 +100,7 @@ class Client:
         "join_signal",
         "part_signal",
         "user_state_signal",
+        "global_user_state_signal",
         "_moderated_rooms",
     )
     oauth_token: str
@@ -100,6 +112,7 @@ class Client:
     join_signal: Signal[[ClientWriter, ServerJoin], object]
     part_signal: Signal[[ClientWriter, ServerPart], object]
     user_state_signal: Signal[[ClientWriter, UserState], object]
+    global_user_state_signal: Signal[[ClientWriter, GlobalUserState], object]
     _moderated_rooms: set[str]
 
     def __init__(self, *, oauth_token: str, name: str) -> None:
@@ -112,6 +125,7 @@ class Client:
         self.join_signal = Signal()
         self.part_signal = Signal()
         self.user_state_signal = Signal().add_callback(self._on_user_state)
+        self.global_user_state_signal = Signal()
         self._moderated_rooms = {self.room,}  # Client is always a moderator of their own room
 
     async def _on_ping(self, writer: ClientWriter, command: Ping) -> None:
@@ -140,6 +154,10 @@ class Client:
             self.join_signal.add_callback(suite.on_client_join)
         if isinstance(suite, SupportsOnClientPart):
             self.part_signal.add_callback(suite.on_client_part)
+        if isinstance(suite, SupportsOnClientUserState):
+            self.user_state_signal.add_callback(suite.on_client_user_state)
+        if isinstance(suite, SupportsOnClientGlobalUserState):
+            self.global_user_state_signal.add_callback(suite.on_client_global_user_state)
         return self
 
     def remove_callbacks(self, suite: SupportsOnClientCommand) -> Self:
@@ -153,6 +171,10 @@ class Client:
             self.join_signal.remove_callback(suite.on_client_join)
         if isinstance(suite, SupportsOnClientPart):
             self.part_signal.remove_callback(suite.on_client_part)
+        if isinstance(suite, SupportsOnClientUserState):
+            self.user_state_signal.remove_callback(suite.on_client_user_state)
+        if isinstance(suite, SupportsOnClientGlobalUserState):
+            self.global_user_state_signal.remove_callback(suite.on_client_global_user_state)
         return self
 
     async def run(self) -> None:
@@ -160,6 +182,7 @@ class Client:
         signal_map = {
             ServerMessage: self.message_signal,
             UserState: self.user_state_signal,
+            GlobalUserState: self.global_user_state_signal,
             Ping: self.ping_signal,
             ServerJoin: self.join_signal,
             ServerPart: self.part_signal,

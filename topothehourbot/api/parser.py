@@ -3,15 +3,26 @@ from __future__ import annotations
 __all__ = ["ServerCommandParser"]
 
 from collections.abc import Iterator
-from typing import Final, Self
+from typing import Final, Self, cast
 
-from ircv3 import Command, ServerCommandProtocol
+from ircv3 import Command
 from ircv3.common import Ping, Welcome
 from ircv3.twitch import (GlobalUserState, RoomState, ServerJoin,
                           ServerMessage, ServerPart, UserState)
 
+type ServerCommand = (
+    ServerMessage
+    | RoomState
+    | Ping
+    | ServerJoin
+    | ServerPart
+    | GlobalUserState
+    | UserState
+    | Welcome
+)
 
-class ServerCommandParser(Iterator[ServerCommandProtocol]):
+
+class ServerCommandParser(Iterator[ServerCommand]):
 
     TYPE_MAP = {
         "PRIVMSG": ServerMessage,
@@ -38,12 +49,11 @@ class ServerCommandParser(Iterator[ServerCommandProtocol]):
     def __iter__(self) -> Self:
         return self
 
-    def __next__(self) -> ServerCommandProtocol:
+    def __next__(self) -> ServerCommand:
         while (result := self._move_head()) is not self.EXHAUSTED:
             if result is self.UNRECOGNIZED:
                 continue
-            assert isinstance(result, ServerCommandProtocol)
-            return result
+            return cast(ServerCommand, result)
         raise StopIteration
 
     def _move_head(self) -> object:
