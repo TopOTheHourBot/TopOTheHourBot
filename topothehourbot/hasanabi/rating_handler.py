@@ -160,7 +160,7 @@ async def on_channel_message(writer: ClientWriter, message: ServerMessage) -> No
     reaction = random.choice(reactions)
 
     await writer.message(
+        room,
         f"DANKIES 🔔 {count:,d} chatters rated this ad segue an average of"
         f" {mean:.2f}/10 - {reaction}",
-        target=room,
     )
