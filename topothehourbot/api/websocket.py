@@ -2,8 +2,8 @@ from __future__ import annotations
 
 __all__ = ["WebSocketApp", "WebSocket"]
 
-from collections.abc import AsyncIterable, Iterable
-from typing import Protocol, Self, runtime_checkable
+from collections.abc import AsyncIterable, Coroutine, Iterable
+from typing import Any, Protocol, Self, runtime_checkable
 
 import websockets
 from websockets import ConnectionClosed, Data, WebSocketClientProtocol
@@ -14,19 +14,19 @@ from .utilities import Signal
 
 @runtime_checkable
 class SupportsOnWebSocketConnect(Protocol):
-    async def on_websocket_connect(self, websocket: WebSocket, /) -> object: ...
+    def on_websocket_connect(self, websocket: WebSocket, /) -> Coroutine[Any, Any, object] | None: ...
 
 @runtime_checkable
 class SupportsOnWebSocketDisconnect(Protocol):
-    async def on_websocket_disconnect(self, websocket: WebSocket, /) -> object: ...
+    def on_websocket_disconnect(self, websocket: WebSocket, /) -> Coroutine[Any, Any, object] | None: ...
 
 @runtime_checkable
 class SupportsOnWebSocketText(Protocol):
-    async def on_websocket_text(self, websocket: WebSocket, text: str, /) -> object: ...
+    def on_websocket_text(self, websocket: WebSocket, text: str, /) -> Coroutine[Any, Any, object] | None: ...
 
 @runtime_checkable
 class SupportsOnWebSocketBinary(Protocol):
-    async def on_websocket_binary(self, websocket: WebSocket, binary: bytes, /) -> object: ...
+    def on_websocket_binary(self, websocket: WebSocket, binary: bytes, /) -> Coroutine[Any, Any, object] | None: ...
 
 type SupportsWebSocketCallback = (
     SupportsOnWebSocketConnect

@@ -3,8 +3,8 @@ from __future__ import annotations
 __all__ = ["ClientApp", "Client"]
 
 from collections import defaultdict
-from collections.abc import Set
-from typing import Protocol, Self, override, runtime_checkable
+from collections.abc import Coroutine, Set
+from typing import Any, Protocol, Self, override, runtime_checkable
 
 from ircv3.common import Ping, Welcome
 from ircv3.twitch import (ClientJoin, ClientMessage, ClientPart,
@@ -19,31 +19,31 @@ from .websocket import (SupportsOnWebSocketConnect, SupportsOnWebSocketText,
 
 @runtime_checkable
 class SupportsOnClientWelcome(Protocol):
-    async def on_client_welcome(self, client: Client, command: Welcome, /) -> object: ...
+    def on_client_welcome(self, client: Client, command: Welcome, /) -> Coroutine[Any, Any, object] | None: ...
 
 @runtime_checkable
 class SupportsOnClientPing(Protocol):
-    async def on_client_ping(self, client: Client, command: Ping, /) -> object: ...
+    def on_client_ping(self, client: Client, command: Ping, /) -> Coroutine[Any, Any, object] | None: ...
 
 @runtime_checkable
 class SupportsOnClientMessage(Protocol):
-    async def on_client_message(self, client: Client, command: ServerMessage, /) -> object: ...
+    def on_client_message(self, client: Client, command: ServerMessage, /) -> Coroutine[Any, Any, object] | None: ...
 
 @runtime_checkable
 class SupportsOnClientJoin(Protocol):
-    async def on_client_join(self, client: Client, command: ServerJoin, /) -> object: ...
+    def on_client_join(self, client: Client, command: ServerJoin, /) -> Coroutine[Any, Any, object] | None: ...
 
 @runtime_checkable
 class SupportsOnClientPart(Protocol):
-    async def on_client_part(self, client: Client, command: ServerPart, /) -> object: ...
+    def on_client_part(self, client: Client, command: ServerPart, /) -> Coroutine[Any, Any, object] | None: ...
 
 @runtime_checkable
 class SupportsOnClientUserState(Protocol):
-    async def on_client_user_state(self, client: Client, command: UserState, /) -> object: ...
+    def on_client_user_state(self, client: Client, command: UserState, /) -> Coroutine[Any, Any, object] | None: ...
 
 @runtime_checkable
 class SupportsOnClientGlobalUserState(Protocol):
-    async def on_client_global_user_state(self, client: Client, command: GlobalUserState, /) -> object: ...
+    def on_client_global_user_state(self, client: Client, command: GlobalUserState, /) -> Coroutine[Any, Any, object] | None: ...
 
 type SupportsClientCallback = (
     SupportsOnClientWelcome
