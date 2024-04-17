@@ -1,81 +1,51 @@
 from __future__ import annotations
 
-__all__ = ["Client", "ClientWriter"]
+__all__ = ["ClientApp", "Client"]
 
-import logging
 from collections import defaultdict
 from collections.abc import Set
-from typing import (Final, Literal, Protocol, Self, cast, override,
-                    runtime_checkable)
+from typing import Protocol, Self, override, runtime_checkable
 
-import websockets
 from ircv3.common import Ping, Welcome
 from ircv3.twitch import (ClientJoin, ClientMessage, ClientPart,
                           GlobalUserState, ServerJoin, ServerMessage,
                           ServerPart, UserState)
-from websockets import ConnectionClosed
 
 from .parser import ServerCommandParser
 from .utilities import RateLimiter, Signal
-
-
-class WebSocketLike(Protocol):
-    @property
-    def latency(self) -> float: ...
-    async def send(self, data: str, /) -> object: ...
-    async def close(self) -> object: ...
-
-
-class WebSocketDummy(WebSocketLike):
-
-    __slots__ = ()
-
-    @property
-    @override
-    def latency(self) -> Literal[0]:
-        return 0
-
-    @override
-    async def send(self, data: str, /) -> None:
-        logging.warning(f"Call to send() was executed during reconnection process. The following message will be dropped: {data!r}")
-
-    @override
-    async def close(self) -> None:
-        logging.warning("Call to close() was executed during reconnection process. Closure request will be ignored.")
-
-
-websocket_dummy: Final[WebSocketDummy] = WebSocketDummy()
+from .websocket import (SupportsOnWebSocketConnect, SupportsOnWebSocketText,
+                        WebSocket, WebSocketApp)
 
 
 @runtime_checkable
 class SupportsOnClientWelcome(Protocol):
-    async def on_client_welcome(self, writer: ClientWriter, command: Welcome, /) -> object: ...
+    async def on_client_welcome(self, client: Client, command: Welcome, /) -> object: ...
 
 @runtime_checkable
 class SupportsOnClientPing(Protocol):
-    async def on_client_ping(self, writer: ClientWriter, command: Ping, /) -> object: ...
+    async def on_client_ping(self, client: Client, command: Ping, /) -> object: ...
 
 @runtime_checkable
 class SupportsOnClientMessage(Protocol):
-    async def on_client_message(self, writer: ClientWriter, command: ServerMessage, /) -> object: ...
+    async def on_client_message(self, client: Client, command: ServerMessage, /) -> object: ...
 
 @runtime_checkable
 class SupportsOnClientJoin(Protocol):
-    async def on_client_join(self, writer: ClientWriter, command: ServerJoin, /) -> object: ...
+    async def on_client_join(self, client: Client, command: ServerJoin, /) -> object: ...
 
 @runtime_checkable
 class SupportsOnClientPart(Protocol):
-    async def on_client_part(self, writer: ClientWriter, command: ServerPart, /) -> object: ...
+    async def on_client_part(self, client: Client, command: ServerPart, /) -> object: ...
 
 @runtime_checkable
 class SupportsOnClientUserState(Protocol):
-    async def on_client_user_state(self, writer: ClientWriter, command: UserState, /) -> object: ...
+    async def on_client_user_state(self, client: Client, command: UserState, /) -> object: ...
 
 @runtime_checkable
 class SupportsOnClientGlobalUserState(Protocol):
-    async def on_client_global_user_state(self, writer: ClientWriter, command: GlobalUserState, /) -> object: ...
+    async def on_client_global_user_state(self, client: Client, command: GlobalUserState, /) -> object: ...
 
-type SupportsOnClientCommand = (
+type SupportsClientCallback = (
     SupportsOnClientWelcome
     | SupportsOnClientPing
     | SupportsOnClientMessage
@@ -86,14 +56,19 @@ type SupportsOnClientCommand = (
 )
 
 
-class Client:
-
-    uri: Final[str] = "ws://irc-ws.chat.twitch.tv:80"
+class ClientApp(
+    SupportsOnWebSocketConnect,
+    SupportsOnWebSocketText,
+    SupportsOnClientPing,
+    SupportsOnClientUserState,
+):
 
     __slots__ = (
+        "_app",
+        "_moderated_rooms",
         "oauth_token",
         "name",
-        "room",
+        "connect_signal",
         "welcome_signal",
         "ping_signal",
         "message_signal",
@@ -101,49 +76,80 @@ class Client:
         "part_signal",
         "user_state_signal",
         "global_user_state_signal",
-        "_moderated_rooms",
     )
+    _app: WebSocketApp
+    _moderated_rooms: set[str]
     oauth_token: str
     name: str
-    room: str
-    welcome_signal: Signal[[ClientWriter, Welcome], object]
-    ping_signal: Signal[[ClientWriter, Ping], object]
-    message_signal: Signal[[ClientWriter, ServerMessage], object]
-    join_signal: Signal[[ClientWriter, ServerJoin], object]
-    part_signal: Signal[[ClientWriter, ServerPart], object]
-    user_state_signal: Signal[[ClientWriter, UserState], object]
-    global_user_state_signal: Signal[[ClientWriter, GlobalUserState], object]
-    _moderated_rooms: set[str]
+    connect_signal: Signal[[Client], object]
+    welcome_signal: Signal[[Client, Welcome], object]
+    ping_signal: Signal[[Client, Ping], object]
+    message_signal: Signal[[Client, ServerMessage], object]
+    join_signal: Signal[[Client, ServerJoin], object]
+    part_signal: Signal[[Client, ServerPart], object]
+    user_state_signal: Signal[[Client, UserState], object]
+    global_user_state_signal: Signal[[Client, GlobalUserState], object]
 
     def __init__(self, *, oauth_token: str, name: str) -> None:
+        self._app = WebSocketApp().add_callbacks(self)
+        self._moderated_rooms = {"#" + name,}  # Client is always a moderator of their own room
         self.oauth_token = oauth_token
         self.name = name
-        self.room = "#" + name
+        self.connect_signal = Signal()
         self.welcome_signal = Signal()
-        self.ping_signal = Signal().add_callback(self._on_ping)
+        self.ping_signal = Signal()
         self.message_signal = Signal()
         self.join_signal = Signal()
         self.part_signal = Signal()
-        self.user_state_signal = Signal().add_callback(self._on_user_state)
+        self.user_state_signal = Signal()
         self.global_user_state_signal = Signal()
-        self._moderated_rooms = {self.room,}  # Client is always a moderator of their own room
-
-    async def _on_ping(self, writer: ClientWriter, command: Ping) -> None:
-        await writer.pong(command)
-
-    async def _on_user_state(self, writer: ClientWriter, command: UserState) -> None:
-        moderated_rooms = self._moderated_rooms
-        room = command.room
-        if not command.moderator:  # XXX: Is the moderator flag on if client == broadcaster?
-            moderated_rooms.discard(room)
-        else:
-            moderated_rooms.add(room)
+        self.add_callbacks(self)
 
     @property
     def moderated_rooms(self) -> Set[str]:
         return self._moderated_rooms
 
-    def add_callbacks(self, suite: SupportsOnClientCommand) -> Self:
+    @override
+    async def on_websocket_connect(self, websocket: WebSocket) -> None:
+        client = Client(websocket, self)
+        await client.authenticate()
+        waiter = self.connect_signal.maybe_run(client)
+        if waiter:
+            await waiter
+
+    @override
+    async def on_websocket_text(self, websocket: WebSocket, text: str) -> None:
+        for command in ServerCommandParser(text):
+            client = Client(websocket, self)
+            if isinstance(command, ServerMessage):
+                self.message_signal.maybe_run(client, command)
+            elif isinstance(command, UserState):
+                self.user_state_signal.run(client, command)
+            elif isinstance(command, GlobalUserState):
+                self.global_user_state_signal.maybe_run(client, command)
+            elif isinstance(command, Ping):
+                self.ping_signal.run(client, command)
+            elif isinstance(command, ServerJoin):
+                self.join_signal.maybe_run(client, command)
+            elif isinstance(command, ServerPart):
+                self.part_signal.maybe_run(client, command)
+            elif isinstance(command, Welcome):
+                self.welcome_signal.maybe_run(client, command)
+
+    @override
+    async def on_client_ping(self, client: Client, command: Ping) -> None:
+        await client.pong(command)
+
+    @override
+    async def on_client_user_state(self, client: Client, command: UserState) -> None:
+        moderated_rooms = self._moderated_rooms
+        room = command.room
+        if not command.moderator:  # XXX: Is the moderator flag on if app == broadcaster?
+            moderated_rooms.discard(room)
+        else:
+            moderated_rooms.add(room)
+
+    def add_callbacks(self, suite: SupportsClientCallback) -> Self:
         if isinstance(suite, SupportsOnClientWelcome):
             self.welcome_signal.add_callback(suite.on_client_welcome)
         if isinstance(suite, SupportsOnClientPing):
@@ -160,7 +166,7 @@ class Client:
             self.global_user_state_signal.add_callback(suite.on_client_global_user_state)
         return self
 
-    def remove_callbacks(self, suite: SupportsOnClientCommand) -> Self:
+    def remove_callbacks(self, suite: SupportsClientCallback) -> Self:
         if isinstance(suite, SupportsOnClientWelcome):
             self.welcome_signal.remove_callback(suite.on_client_welcome)
         if isinstance(suite, SupportsOnClientPing):
@@ -178,87 +184,59 @@ class Client:
         return self
 
     async def run(self) -> None:
-        writer = ClientWriter(self)
-        signal_map = {
-            ServerMessage: self.message_signal,
-            UserState: self.user_state_signal,
-            GlobalUserState: self.global_user_state_signal,
-            Ping: self.ping_signal,
-            ServerJoin: self.join_signal,
-            ServerPart: self.part_signal,
-            Welcome: self.welcome_signal,
-        }
-        async for websocket in websockets.connect(self.uri):
-            try:  # TODO: Manual close() call should stop this loop
-                await writer.authenticate()
-                writer.websocket = websocket
-                async for data in websocket:
-                    data = cast(str, data)
-                    for command in ServerCommandParser(data):
-                        signal = signal_map.get(type(command))  # type: ignore
-                        if signal is None:
-                            continue
-                        signal.maybe_run(writer, command)  # type: ignore
-            except ConnectionClosed:
-                pass
-            finally:
-                writer.websocket = websocket_dummy
+        await self._app.run("ws://irc-ws.chat.twitch.tv:80")
 
 
-class ClientWriter:
+class Client:
 
     _authenticate_limiters = defaultdict[str, RateLimiter](lambda: RateLimiter(20, time_off=10))
     _join_limiters = defaultdict[str, RateLimiter](lambda: RateLimiter(20, time_off=10))
     _global_message_limiters = defaultdict[str, RateLimiter](lambda: RateLimiter(20, time_off=30))
     _local_message_limiters = defaultdict[str, RateLimiter](lambda: RateLimiter(100, time_off=30))
 
-    __slots__ = ("client", "websocket")
-    client: Client
-    websocket: WebSocketLike
+    __slots__ = ("_websocket", "app")
+    _websocket: WebSocket
+    app: ClientApp
 
-    def __init__(self, client: Client) -> None:
-        self.client = client
-        self.websocket = websocket_dummy
+    def __init__(self, websocket: WebSocket, app: ClientApp) -> None:
+        self._websocket = websocket
+        self.app = app
 
     @property
     def _authenticate_limiter(self) -> RateLimiter:
-        return ClientWriter._authenticate_limiters[self.name]
+        return Client._authenticate_limiters[self.name]
 
     @property
     def _join_limiter(self) -> RateLimiter:
-        return ClientWriter._join_limiters[self.name]
+        return Client._join_limiters[self.name]
 
     @property
     def _global_message_limiter(self) -> RateLimiter:
-        return ClientWriter._global_message_limiters[self.name]
+        return Client._global_message_limiters[self.name]
 
     @property
     def _local_message_limiter(self) -> RateLimiter:
-        return ClientWriter._local_message_limiters[self.name]
-
-    @property
-    def oauth_token(self) -> str:
-        return self.client.oauth_token
-
-    @property
-    def name(self) -> str:
-        return self.client.name
-
-    @property
-    def room(self) -> str:
-        return self.client.room
-
-    @property
-    def moderated_rooms(self) -> Set[str]:
-        return self.client.moderated_rooms
+        return Client._local_message_limiters[self.name]
 
     @property
     def latency(self) -> float:
-        return self.websocket.latency * 1000
+        return self._websocket.latency
+
+    @property
+    def oauth_token(self) -> str:
+        return self.app.oauth_token
+
+    @property
+    def name(self) -> str:
+        return self.app.name
+
+    @property
+    def moderated_rooms(self) -> Set[str]:
+        return self.app.moderated_rooms
 
     async def send(self, command: object) -> None:
         data = str(command)
-        await self.websocket.send(data)
+        await self._websocket.send(data)
 
     async def authenticate(self) -> None:
         await self.send("CAP REQ :twitch.tv/commands twitch.tv/membership twitch.tv/tags")
@@ -295,4 +273,4 @@ class ClientWriter:
         await self.send(ClientPart(*rooms))
 
     async def close(self) -> None:
-        await self.websocket.close()
+        await self._websocket.close()
