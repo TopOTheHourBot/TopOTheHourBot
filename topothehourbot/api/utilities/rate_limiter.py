@@ -4,8 +4,9 @@ __all__ = ["RateLimiter"]
 
 import asyncio
 from asyncio import Event, TimerHandle
-from collections.abc import Awaitable, Generator
-from typing import Any
+from collections.abc import Awaitable
+from types import TracebackType
+from typing import Self
 
 
 class RateLimiter(Awaitable[None]):
@@ -25,8 +26,19 @@ class RateLimiter(Awaitable[None]):
         self.max_count = max_count
         self.time_off = time_off
 
-    def __await__(self) -> Generator[Any, None, None]:
-        return self.wait().__await__()
+    async def __aenter__(self) -> Self:
+        while not self.increment():
+            await self._event.wait()
+        return self
+
+    async def __aexit__(
+        self,
+        exc_typ: type[BaseException] | None,
+        exc_val: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
+        if exc_typ is not None:
+            self.decrement()
 
     def _on_timer_done(self) -> None:
         self._count = 0
@@ -61,11 +73,7 @@ class RateLimiter(Awaitable[None]):
             0,
         )
 
-    async def wait(self) -> None:
-        while not self.admit():
-            await self._event.wait()
-
-    def admit(self) -> bool:
+    def increment(self) -> bool:
         count = self._count
         if count == self.max_count:
             return False
@@ -78,3 +86,10 @@ class RateLimiter(Awaitable[None]):
             )
         self._count = count + 1
         return True
+
+    def decrement(self) -> bool:
+        count = self._count
+        if count > 0:
+            self._count = count - 1
+            return True
+        return False

@@ -261,10 +261,10 @@ class ClientWriter:
         await self.websocket.send(data)
 
     async def authenticate(self) -> None:
-        await self.authenticate_limiter
         await self.send("CAP REQ :twitch.tv/commands twitch.tv/membership twitch.tv/tags")
-        await self.send(f"PASS oauth:{self.oauth_token}")
-        await self.send(f"NICK {self.name}")
+        async with self.authenticate_limiter:
+            await self.send(f"PASS oauth:{self.oauth_token}")
+            await self.send(f"NICK {self.name}")
 
     async def pong(self, target: Ping) -> None:
         await self.send(target.reply())
@@ -277,18 +277,19 @@ class ClientWriter:
         else:
             command = ClientMessage(target, comment)
             room = target
-        t1_limiter = self.global_message_limiter
+        limiter: RateLimiter
+        global_limiter = self.global_message_limiter
         if room in self.moderated_rooms:
-            t1_limiter.admit()
-            t2_limiter = self.local_message_limiter
-            await t2_limiter
+            global_limiter.increment()
+            limiter = self.local_message_limiter
         else:
-            await t1_limiter
-        await self.send(command)
+            limiter = global_limiter
+        async with limiter:
+            await self.send(command)
 
     async def join(self, *rooms: str) -> None:
-        await self.join_limiter
-        await self.send(ClientJoin(*rooms))
+        async with self.join_limiter:
+            await self.send(ClientJoin(*rooms))
 
     async def part(self, *rooms: str) -> None:
         await self.send(ClientPart(*rooms))
