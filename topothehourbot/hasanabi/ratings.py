@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-__all__ = ["on_channel_message"]
+__all__ = ["on_client_message"]
 
 import random
 import re
@@ -11,9 +11,9 @@ from typing import ClassVar, Self
 from ircv3.twitch import ServerMessage
 
 from ..api import checks
-from ..api.client import ClientWriter
+from ..api.client import Client
 from ..api.utilities import Buffer
-from .globals import room
+from .common import room
 
 
 class Rating:
@@ -91,16 +91,16 @@ class Rating:
 
 @checks.walled()
 @checks.roomed(room)
-async def on_channel_message(writer: ClientWriter, message: ServerMessage) -> None:
+async def on_client_message(client: Client, message: ServerMessage) -> None:
     rating = Rating.from_message(message)
     if rating is None:
         return
 
     with (
-        writer
-            .client
+        client
+            .app
             .message_signal
-            .remove_callback(on_channel_message, temporary=True)
+            .remove_callback(on_client_message, temporary=True)
     ) as signal:
 
         ratings = Buffer[Rating]()
@@ -108,7 +108,7 @@ async def on_channel_message(writer: ClientWriter, message: ServerMessage) -> No
 
         @checks.walled()
         @checks.roomed(room)
-        def send(_: ClientWriter, message: ServerMessage) -> None:
+        def send(_: Client, message: ServerMessage) -> None:
             rating = Rating.from_message(message)
             if rating is not None:
                 ratings.send(rating)
@@ -159,7 +159,7 @@ async def on_channel_message(writer: ClientWriter, message: ServerMessage) -> No
 
     reaction = random.choice(reactions)
 
-    await writer.message(
+    await client.message(
         room,
         f"DANKIES 🔔 {count:,d} chatters rated this ad segue an average of"
         f" {mean:.2f}/10 - {reaction}",

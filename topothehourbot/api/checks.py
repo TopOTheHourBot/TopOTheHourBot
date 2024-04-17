@@ -5,23 +5,23 @@ __all__ = ["walled", "roomed"]
 from collections.abc import Callable, Coroutine
 from typing import Any
 
-from ircv3.twitch import ServerJoin, ServerMessage, ServerPart
+from ircv3.twitch import ServerJoin, ServerMessage, ServerPart, UserState
 
-from .client import ClientWriter
+from .client import Client
 
-type RoomedCommand = ServerMessage | ServerJoin | ServerPart
+type RoomedCommand = ServerMessage | ServerJoin | ServerPart | UserState
 
 
 def walled[
     ResultT: Coroutine[Any, Any, object] | None,
-]() -> Callable[[Callable[[ClientWriter, ServerMessage], ResultT]], Callable[[ClientWriter, ServerMessage], ResultT | None]]:
+]() -> Callable[[Callable[[Client, ServerMessage], ResultT]], Callable[[Client, ServerMessage], ResultT | None]]:
 
-    def walled_decorator(callback: Callable[[ClientWriter, ServerMessage], ResultT]) -> Callable[[ClientWriter, ServerMessage], ResultT | None]:
+    def walled_decorator(callback: Callable[[Client, ServerMessage], ResultT]) -> Callable[[Client, ServerMessage], ResultT | None]:
 
-        def walled_wrapper(writer: ClientWriter, command: ServerMessage) -> ResultT | None:
-            if writer.client.name == command.sender.name:
+        def walled_wrapper(client: Client, command: ServerMessage) -> ResultT | None:
+            if client.name == command.sender.name:
                 return
-            return callback(writer, command)
+            return callback(client, command)
 
         walled_wrapper.__name__ = callback.__name__
         walled_wrapper.__doc__ = callback.__doc__
@@ -34,15 +34,15 @@ def walled[
 def roomed[
     RoomedCommandT: RoomedCommand,
     ResultT: Coroutine[Any, Any, object] | None,
-](*rooms: str) -> Callable[[Callable[[ClientWriter, RoomedCommandT], ResultT]], Callable[[ClientWriter, RoomedCommandT], ResultT | None]]:
+](*rooms: str) -> Callable[[Callable[[Client, RoomedCommandT], ResultT]], Callable[[Client, RoomedCommandT], ResultT | None]]:
     set = frozenset(rooms)
 
-    def roomed_decorator(callback: Callable[[ClientWriter, RoomedCommandT], ResultT]) -> Callable[[ClientWriter, RoomedCommandT], ResultT | None]:
+    def roomed_decorator(callback: Callable[[Client, RoomedCommandT], ResultT]) -> Callable[[Client, RoomedCommandT], ResultT | None]:
 
-        def roomed_wrapper(writer: ClientWriter, command: RoomedCommandT) -> ResultT | None:
+        def roomed_wrapper(client: Client, command: RoomedCommandT) -> ResultT | None:
             if command.room not in set:
                 return
-            return callback(writer, command)
+            return callback(client, command)
 
         roomed_wrapper.__name__ = callback.__name__
         roomed_wrapper.__doc__ = callback.__doc__
