@@ -2,9 +2,10 @@ from __future__ import annotations
 
 __all__ = ["Client", "ClientWriter"]
 
+import logging
 from collections import defaultdict
 from collections.abc import Set
-from typing import (Final, Never, Protocol, Self, cast, override,
+from typing import (Final, Literal, Protocol, Self, cast, override,
                     runtime_checkable)
 
 import websockets
@@ -28,24 +29,21 @@ class WebSocketDummy(WebSocketLike):
 
     __slots__ = ()
 
-    # XXX: Log these method calls?
-    # It's VERY tempting to name this class "WebMocket"
-
     @property
     @override
-    def latency(self) -> Never:
-        raise NotImplementedError("WebSocket is disconnected")
+    def latency(self) -> Literal[0]:
+        return 0
 
     @override
-    async def send(self, data: str, /) -> Never:
-        raise NotImplementedError("WebSocket is disconnected")
+    async def send(self, data: str, /) -> None:
+        logging.warning(f"Call to send() was executed during reconnection process. The following message will be dropped: {data!r}")
 
     @override
-    async def close(self) -> Never:
-        raise NotImplementedError("WebSocket is disconnected")
+    async def close(self) -> None:
+        logging.warning("Call to close() was executed during reconnection process. Closure request will be ignored.")
 
 
-# TODO: Use singleton instance?
+websocket_dummy: Final[WebSocketDummy] = WebSocketDummy()
 
 
 @runtime_checkable
@@ -181,7 +179,7 @@ class Client:
             except ConnectionClosed:
                 pass
             finally:
-                writer.websocket = WebSocketDummy()
+                writer.websocket = websocket_dummy
 
 
 class ClientWriter:
@@ -197,7 +195,7 @@ class ClientWriter:
 
     def __init__(self, client: Client) -> None:
         self.client = client
-        self.websocket = WebSocketDummy()
+        self.websocket = websocket_dummy
 
     @property
     def oauth_token(self) -> str:
@@ -248,7 +246,7 @@ class ClientWriter:
     async def pong(self, target: Ping) -> None:
         await self.send(target.reply())
 
-    async def message(self, comment: object, target: ServerMessage | str) -> None:
+    async def message(self, target: ServerMessage | str, comment: object) -> None:
         comment = str(comment)
         if isinstance(target, ServerMessage):
             command = target.reply(comment)
