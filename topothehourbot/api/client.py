@@ -29,6 +29,7 @@ class WebSocketDummy(WebSocketLike):
     __slots__ = ()
 
     # XXX: Log these method calls?
+    # It's VERY tempting to name this class "WebMocket"
 
     @property
     @override
@@ -42,6 +43,9 @@ class WebSocketDummy(WebSocketLike):
     @override
     async def close(self) -> Never:
         raise NotImplementedError("WebSocket is disconnected")
+
+
+# TODO: Use singleton instance?
 
 
 @runtime_checkable
@@ -69,7 +73,7 @@ type SupportsOnClientCommand = (
     | SupportsOnClientPing
     | SupportsOnClientMessage
     | SupportsOnClientJoin
-    | SupportsOnClientPart
+    | SupportsOnClientPart  # TODO: Add SupportsOnClientUserState
 )
 
 
@@ -118,7 +122,7 @@ class Client:
     async def _on_user_state(self, writer: ClientWriter, command: UserState) -> None:
         moderated_rooms = self._moderated_rooms
         room = command.room
-        if not command.moderator:
+        if not command.moderator:  # XXX: Is the moderator flag on if client == broadcaster?
             moderated_rooms.discard(room)
         else:
             moderated_rooms.add(room)
