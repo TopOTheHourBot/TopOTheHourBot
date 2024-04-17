@@ -221,6 +221,22 @@ class ClientWriter:
         self.websocket = websocket_dummy
 
     @property
+    def _authenticate_limiter(self) -> RateLimiter:
+        return ClientWriter._authenticate_limiters[self.name]
+
+    @property
+    def _join_limiter(self) -> RateLimiter:
+        return ClientWriter._join_limiters[self.name]
+
+    @property
+    def _global_message_limiter(self) -> RateLimiter:
+        return ClientWriter._global_message_limiters[self.name]
+
+    @property
+    def _local_message_limiter(self) -> RateLimiter:
+        return ClientWriter._local_message_limiters[self.name]
+
+    @property
     def oauth_token(self) -> str:
         return self.client.oauth_token
 
@@ -240,29 +256,13 @@ class ClientWriter:
     def latency(self) -> float:
         return self.websocket.latency * 1000
 
-    @property
-    def authenticate_limiter(self) -> RateLimiter:
-        return ClientWriter._authenticate_limiters[self.name]
-
-    @property
-    def join_limiter(self) -> RateLimiter:
-        return ClientWriter._join_limiters[self.name]
-
-    @property
-    def global_message_limiter(self) -> RateLimiter:
-        return ClientWriter._global_message_limiters[self.name]
-
-    @property
-    def local_message_limiter(self) -> RateLimiter:
-        return ClientWriter._local_message_limiters[self.name]
-
     async def send(self, command: object) -> None:
         data = str(command)
         await self.websocket.send(data)
 
     async def authenticate(self) -> None:
         await self.send("CAP REQ :twitch.tv/commands twitch.tv/membership twitch.tv/tags")
-        async with self.authenticate_limiter:
+        async with self._authenticate_limiter:
             await self.send(f"PASS oauth:{self.oauth_token}")
             await self.send(f"NICK {self.name}")
 
@@ -278,17 +278,17 @@ class ClientWriter:
             command = ClientMessage(target, comment)
             room = target
         limiter: RateLimiter
-        global_limiter = self.global_message_limiter
+        global_limiter = self._global_message_limiter
         if room in self.moderated_rooms:
             global_limiter.increment()
-            limiter = self.local_message_limiter
+            limiter = self._local_message_limiter
         else:
             limiter = global_limiter
         async with limiter:
             await self.send(command)
 
     async def join(self, *rooms: str) -> None:
-        async with self.join_limiter:
+        async with self._join_limiter:
             await self.send(ClientJoin(*rooms))
 
     async def part(self, *rooms: str) -> None:
