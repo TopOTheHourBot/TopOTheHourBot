@@ -14,19 +14,19 @@ from .utilities import Signal
 
 @runtime_checkable
 class SupportsOnWebSocketConnect(Protocol):
-    def on_websocket_connect(self, websocket: WebSocket, /) -> Coroutine[Any, Any, object] | None: ...
+    def on_websocket_connect(self, websocket: WebSocket, /) -> Coroutine[Any, Any, None] | None: ...
 
 @runtime_checkable
 class SupportsOnWebSocketDisconnect(Protocol):
-    def on_websocket_disconnect(self, websocket: WebSocket, /) -> Coroutine[Any, Any, object] | None: ...
+    def on_websocket_disconnect(self, websocket: WebSocket, /) -> Coroutine[Any, Any, None] | None: ...
 
 @runtime_checkable
 class SupportsOnWebSocketText(Protocol):
-    def on_websocket_text(self, websocket: WebSocket, text: str, /) -> Coroutine[Any, Any, object] | None: ...
+    def on_websocket_text(self, websocket: WebSocket, text: str, /) -> Coroutine[Any, Any, None] | None: ...
 
 @runtime_checkable
 class SupportsOnWebSocketBinary(Protocol):
-    def on_websocket_binary(self, websocket: WebSocket, binary: bytes, /) -> Coroutine[Any, Any, object] | None: ...
+    def on_websocket_binary(self, websocket: WebSocket, binary: bytes, /) -> Coroutine[Any, Any, None] | None: ...
 
 type SupportsWebSocketCallback = (
     SupportsOnWebSocketConnect
@@ -39,10 +39,10 @@ type SupportsWebSocketCallback = (
 class WebSocketApp:
 
     __slots__ = ("connect_signal", "disconnect_signal", "text_signal", "binary_signal")
-    connect_signal: Signal[[WebSocket], object]
-    disconnect_signal: Signal[[WebSocket], object]
-    text_signal: Signal[[WebSocket, str], object]
-    binary_signal: Signal[[WebSocket, bytes], object]
+    connect_signal: Signal[[WebSocket]]
+    disconnect_signal: Signal[[WebSocket]]
+    text_signal: Signal[[WebSocket, str]]
+    binary_signal: Signal[[WebSocket, bytes]]
 
     def __init__(self) -> None:
         self.connect_signal = Signal()

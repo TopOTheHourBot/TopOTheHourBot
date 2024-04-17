@@ -19,31 +19,31 @@ from .websocket import (SupportsOnWebSocketConnect, SupportsOnWebSocketText,
 
 @runtime_checkable
 class SupportsOnClientWelcome(Protocol):
-    def on_client_welcome(self, client: Client, command: Welcome, /) -> Coroutine[Any, Any, object] | None: ...
+    def on_client_welcome(self, client: Client, command: Welcome, /) -> Coroutine[Any, Any, None] | None: ...
 
 @runtime_checkable
 class SupportsOnClientPing(Protocol):
-    def on_client_ping(self, client: Client, command: Ping, /) -> Coroutine[Any, Any, object] | None: ...
+    def on_client_ping(self, client: Client, command: Ping, /) -> Coroutine[Any, Any, None] | None: ...
 
 @runtime_checkable
 class SupportsOnClientMessage(Protocol):
-    def on_client_message(self, client: Client, command: ServerMessage, /) -> Coroutine[Any, Any, object] | None: ...
+    def on_client_message(self, client: Client, command: ServerMessage, /) -> Coroutine[Any, Any, None] | None: ...
 
 @runtime_checkable
 class SupportsOnClientJoin(Protocol):
-    def on_client_join(self, client: Client, command: ServerJoin, /) -> Coroutine[Any, Any, object] | None: ...
+    def on_client_join(self, client: Client, command: ServerJoin, /) -> Coroutine[Any, Any, None] | None: ...
 
 @runtime_checkable
 class SupportsOnClientPart(Protocol):
-    def on_client_part(self, client: Client, command: ServerPart, /) -> Coroutine[Any, Any, object] | None: ...
+    def on_client_part(self, client: Client, command: ServerPart, /) -> Coroutine[Any, Any, None] | None: ...
 
 @runtime_checkable
 class SupportsOnClientUserState(Protocol):
-    def on_client_user_state(self, client: Client, command: UserState, /) -> Coroutine[Any, Any, object] | None: ...
+    def on_client_user_state(self, client: Client, command: UserState, /) -> Coroutine[Any, Any, None] | None: ...
 
 @runtime_checkable
 class SupportsOnClientGlobalUserState(Protocol):
-    def on_client_global_user_state(self, client: Client, command: GlobalUserState, /) -> Coroutine[Any, Any, object] | None: ...
+    def on_client_global_user_state(self, client: Client, command: GlobalUserState, /) -> Coroutine[Any, Any, None] | None: ...
 
 type SupportsClientCallback = (
     SupportsOnClientWelcome
@@ -81,14 +81,14 @@ class ClientApp(
     _moderated_rooms: set[str]
     oauth_token: str
     name: str
-    connect_signal: Signal[[Client], object]
-    welcome_signal: Signal[[Client, Welcome], object]
-    ping_signal: Signal[[Client, Ping], object]
-    message_signal: Signal[[Client, ServerMessage], object]
-    join_signal: Signal[[Client, ServerJoin], object]
-    part_signal: Signal[[Client, ServerPart], object]
-    user_state_signal: Signal[[Client, UserState], object]
-    global_user_state_signal: Signal[[Client, GlobalUserState], object]
+    connect_signal: Signal[[Client]]
+    welcome_signal: Signal[[Client, Welcome]]
+    ping_signal: Signal[[Client, Ping]]
+    message_signal: Signal[[Client, ServerMessage]]
+    join_signal: Signal[[Client, ServerJoin]]
+    part_signal: Signal[[Client, ServerPart]]
+    user_state_signal: Signal[[Client, UserState]]
+    global_user_state_signal: Signal[[Client, GlobalUserState]]
 
     def __init__(self, *, oauth_token: str, name: str) -> None:
         self._app = WebSocketApp().add_callbacks(self)

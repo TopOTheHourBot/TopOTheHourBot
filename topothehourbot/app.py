@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+__all__ = ["app"]
+
 from . import hasanabi
 from .api.client import ClientApp
 
