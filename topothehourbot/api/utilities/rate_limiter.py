@@ -4,12 +4,11 @@ __all__ = ["RateLimiter"]
 
 import asyncio
 from asyncio import Event, TimerHandle
-from collections.abc import Awaitable
 from types import TracebackType
 from typing import Self
 
 
-class RateLimiter(Awaitable[None]):
+class RateLimiter:
 
     __slots__ = ("_count", "_event", "_timer", "_max_count", "_time_off")
     _count: int
