@@ -1,7 +1,3 @@
-__all__ = [
-    "commands",
-    "common",
-    "ratings",
-]
+__all__ = ["common", "ratings"]
 
-from . import commands, common, ratings
+from . import common, ratings
