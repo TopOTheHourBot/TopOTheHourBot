@@ -16,7 +16,8 @@ from ircv3.twitch import ServerMessage
 from ..api import checks
 from ..api.client import Client
 from ..api.commands import (CommandError, CommandGroup, CommandSpec, Match,
-                            RequiredParamSpec, Role, room_factory)
+                            RequiredParamSpec, Role, VariadicParamSpec,
+                            room_factory)
 
 name: Final[str] = "lyystra"
 room: Final[str] = "#" + name
@@ -44,6 +45,18 @@ commands = (
                     spec=RequiredParamSpec(factory=room_factory),
                 )
         )
+        .add_spec(
+            name="message",
+            spec=CommandSpec()
+                .add_spec(
+                    name="room",
+                    spec=RequiredParamSpec(factory=room_factory),
+                )
+                .add_spec(
+                    name="words",
+                    spec=VariadicParamSpec(),
+                )
+        )
 )
 
 async def on_client_welcome(client: Client, command: Welcome) -> None:
@@ -59,11 +72,18 @@ async def on_client_message(client: Client, command: ServerMessage) -> None:
             await client.message(command, "Closing client process...")
             await client.close()
         case Match(name="join", parameters={"room": room}):
+            room = cast(str, room)
             await client.message(command, f"Joining {room}...")
-            await client.join(cast(str, room))
+            await client.join(room)
         case Match(name="part", parameters={"room": room}):
+            room = cast(str, room)
             await client.message(command, f"Parting {room}...")
-            await client.part(cast(str, room))
+            await client.part(room)
+        case Match(name="message", parameters={"room": room, "words": words}):
+            room = cast(str, room)
+            comment = " ".join(cast(list[str], words))
+            await client.message(command, f"Sending message to {room}...")
+            await client.message(room, comment)
         case CommandError() as error:
             await client.message(command, error)
         case _:
