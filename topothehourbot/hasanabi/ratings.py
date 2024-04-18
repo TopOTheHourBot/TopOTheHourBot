@@ -34,6 +34,8 @@ class Rating:
         """,
         flags=re.VERBOSE,
     )
+    value_max: ClassVar[Decimal] = Decimal("10")
+    value_min: ClassVar[Decimal] = Decimal("0")
 
     __slots__ = ("_message", "_value", "_index_begin", "_index_end")
     _message: ServerMessage
@@ -59,7 +61,7 @@ class Rating:
         match = cls.pattern.search(message.comment)
         if match is None:
             return
-        value = Decimal(match.group(1))
+        value = max(min(Decimal(match.group(1)), cls.value_max), cls.value_min)
         index_begin, index_end = match.span(1)
         return cls(
             message,
