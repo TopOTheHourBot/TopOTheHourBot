@@ -15,14 +15,18 @@ from ircv3.twitch import ServerMessage
 
 from ..api import checks
 from ..api.client import Client
-from ..api.commands import CommandError, CommandGroup, Match
+from ..api.commands import CommandError, CommandGroup, CommandSpec, Match, Role
 
 name: Final[str] = "lyystra"
 room: Final[str] = "#" + name
 
 commands = (
     CommandGroup()
-        .add_spec("kill")
+        .add_spec(
+            name="ping",
+            spec=CommandSpec(role=Role.NONE)
+        )
+        .add_spec(name="kill")
 )
 
 async def on_client_welcome(client: Client, command: Welcome) -> None:
@@ -32,6 +36,8 @@ async def on_client_welcome(client: Client, command: Welcome) -> None:
 @checks.roomed(room)
 async def on_client_message(client: Client, command: ServerMessage) -> None:
     match commands.match(command):
+        case Match(name="ping"):
+            await client.message(command, f"{client.latency:.0f}ms")
         case Match(name="kill"):
             await client.message(command, "Closing client process...")
             await client.close()
