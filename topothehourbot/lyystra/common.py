@@ -33,7 +33,7 @@ async def on_client_welcome(client: Client, command: Welcome) -> None:
 async def on_client_message(client: Client, command: ServerMessage) -> None:
     match commands.match(command):
         case Match(name="kill"):
-            await client.message(room, "Closing client process...")
+            await client.message(command, "Closing client process...")
             await client.close()
         case CommandError() as error:
             await client.message(command, error)
