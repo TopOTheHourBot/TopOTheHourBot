@@ -143,9 +143,11 @@ class ClientApp(
         await client.pong(command)
 
     @override
-    async def on_client_user_state(self, client: Client, command: UserState) -> None:
-        moderated_rooms = self._moderated_rooms
+    def on_client_user_state(self, client: Client, command: UserState) -> None:
         room = command.room
+        if room.endswith(self.name):
+            return
+        moderated_rooms = self._moderated_rooms
         if not command.moderator:
             moderated_rooms.discard(room)
         else:
