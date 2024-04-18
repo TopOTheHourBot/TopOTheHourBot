@@ -52,7 +52,7 @@ class MissingPrefixError(MatchError):
 
     def __init__(self, *, comment: str, prefix: str) -> None:
         super().__init__(
-            f"Message does not begin with the command prefix, '{prefix}'",
+            f"Missing command prefix, '{prefix}'",
             comment=comment,
             prefix=prefix,
         )
@@ -76,7 +76,7 @@ class UnknownCommandError(CommandError):
 
     def __init__(self, *, comment: str, prefix: str, command: str) -> None:
         super().__init__(
-            f"Unknown command, {command}",
+            f"Unknown command, '{command}'",
             comment=comment,
             prefix=prefix,
             command=command,

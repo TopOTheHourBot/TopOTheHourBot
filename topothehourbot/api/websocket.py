@@ -6,8 +6,7 @@ from collections.abc import AsyncIterable, Iterable
 from typing import Protocol, Self, runtime_checkable
 
 import websockets
-from websockets import (ConnectionClosedError, ConnectionClosedOK, Data,
-                        WebSocketClientProtocol)
+from websockets import ConnectionClosedError, Data, WebSocketClientProtocol
 
 from .utilities import CallbackReturn, Signal
 
@@ -78,16 +77,19 @@ class WebSocketApp:
                 waiter = self.connect_signal.maybe_run(WebSocket(protocol, self))
                 if waiter:
                     await waiter
+                # Normal closures (codes 1000 and 1001) exit
+                # `protocol.__aiter__()` gracefully. We use code 1000 for
+                # closure requests in WebSocket, and so we must do a raw
+                # `break` here.
                 async for data in protocol:
                     websocket = WebSocket(protocol, self)
                     if isinstance(data, bytes):
                         self.binary_signal.maybe_run(websocket, data)
                     else:
                         self.text_signal.maybe_run(websocket, data)
+                break
             except ConnectionClosedError:
                 continue
-            except ConnectionClosedOK:
-                break  # TODO: When to emit disconnect_signal?
 
 
 class WebSocket:

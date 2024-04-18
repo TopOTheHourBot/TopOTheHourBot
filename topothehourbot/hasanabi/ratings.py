@@ -101,7 +101,7 @@ async def on_client_message(client: Client, command: ServerMessage) -> None:
             .app
             .message_signal
             .remove_callback(on_client_message, temporary=True)
-    ) as signal:
+    ) as message_signal:
 
         ratings = Buffer[Rating]()
         ratings.send(rating)
@@ -113,7 +113,7 @@ async def on_client_message(client: Client, command: ServerMessage) -> None:
             if rating is not None:
                 ratings.send(rating)
 
-        with signal.add_callback(send, temporary=True):
+        with message_signal.add_callback(send, temporary=True):
             count, sum = await (
                 aiter(ratings)
                     .finite_timeout(8.5)
