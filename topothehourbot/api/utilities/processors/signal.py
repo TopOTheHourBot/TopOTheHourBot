@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-__all__ = ["Callback", "Signal"]
+__all__ = ["CallbackReturn", "Callback", "Signal"]
 
 import asyncio
 import logging
@@ -11,7 +11,8 @@ from typing import Any, Literal, Self, overload, override
 
 from .processor import Processor
 
-type Callback[**ParamTs] = Callable[ParamTs, Coroutine[Any, Any, None] | None]
+type CallbackReturn = Coroutine[Any, Any, None] | None
+type Callback[**ParamTs] = Callable[ParamTs, CallbackReturn]
 
 
 class Signal[**ParamTs](Processor[ParamTs, None]):
