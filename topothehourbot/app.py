@@ -2,7 +2,7 @@ from __future__ import annotations
 
 __all__ = ["app"]
 
-from . import hasanabi
+from . import hasanabi, lyystra
 from .api.client import ClientApp
 
 app = (
@@ -10,7 +10,7 @@ app = (
         oauth_token="...",
         name="topothehourbot",
     )
-    .add_callbacks(hasanabi.commands)
     .add_callbacks(hasanabi.common)
     .add_callbacks(hasanabi.ratings)
+    .add_callbacks(lyystra.common)
 )

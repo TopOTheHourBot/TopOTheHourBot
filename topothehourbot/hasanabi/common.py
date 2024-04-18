@@ -45,7 +45,6 @@ commands = (
         )
 )
 
-
 async def on_client_welcome(client: Client, command: Welcome) -> None:
     await client.join(room)
 

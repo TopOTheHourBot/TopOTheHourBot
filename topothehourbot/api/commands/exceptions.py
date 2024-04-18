@@ -90,7 +90,7 @@ class InsufficientRoleError(CommandError):
 
     def __init__(self, comment: str, prefix: str, command: str) -> None:
         super().__init__(
-            f"Sender has insufficient role to access command, '{command}'",
+            f"Insufficient role to access command, '{command}'",
             comment=comment,
             prefix=prefix,
             command=command,

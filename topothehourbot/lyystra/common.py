@@ -1,0 +1,41 @@
+from __future__ import annotations
+
+__all__ = [
+    "name",
+    "room",
+    "commands",
+    "on_client_welcome",
+    "on_client_message",
+]
+
+from typing import Final
+
+from ircv3.common import Welcome
+from ircv3.twitch import ServerMessage
+
+from ..api import checks
+from ..api.client import Client
+from ..api.commands import CommandError, CommandGroup, Match
+
+name: Final[str] = "lyystra"
+room: Final[str] = "#" + name
+
+commands = (
+    CommandGroup()
+        .add_spec("kill")
+)
+
+async def on_client_welcome(client: Client, command: Welcome) -> None:
+    await client.join(room)
+
+@checks.walled()
+@checks.roomed(room)
+async def on_client_message(client: Client, command: ServerMessage) -> None:
+    match commands.match(command):
+        case Match(name="kill"):
+            await client.message(room, "Closing client process...")
+            await client.close()
+        case CommandError() as error:
+            await client.message(command, error)
+        case _:
+            return
