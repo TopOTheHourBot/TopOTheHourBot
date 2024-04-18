@@ -16,7 +16,7 @@ from ircv3.twitch import ServerMessage
 from ..api import checks
 from ..api.client import Client
 from ..api.commands import (CommandGroup, CommandSpec, Match, ParameterError,
-                            Role, VariadicParamSpec, handle)
+                            Role, VariadicParamSpec, handle_factory)
 
 name: Final[str] = "hasanabi"
 room: Final[str] = "#" + name
@@ -40,7 +40,7 @@ commands = (
             spec=CommandSpec(role=Role.MODERATOR)
                 .add_spec(
                     name="handles",
-                    spec=VariadicParamSpec(factory=handle)
+                    spec=VariadicParamSpec(factory=handle_factory)
                 )
         )
 )

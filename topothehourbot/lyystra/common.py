@@ -16,8 +16,7 @@ from ircv3.twitch import ServerMessage
 from ..api import checks
 from ..api.client import Client
 from ..api.commands import (CommandError, CommandGroup, CommandSpec, Match,
-                            RequiredParamSpec, Role)
-from ..api.commands import room as room_factory
+                            RequiredParamSpec, Role, room_factory)
 
 name: Final[str] = "lyystra"
 room: Final[str] = "#" + name
