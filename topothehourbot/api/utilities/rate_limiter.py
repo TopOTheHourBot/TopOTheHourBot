@@ -25,6 +25,19 @@ class RateLimiter:
         self.max_count = max_count
         self.time_off = time_off
 
+    def __enter__(self) -> Self:
+        self.increment()
+        return self
+
+    def __exit__(
+        self,
+        exc_typ: type[BaseException] | None,
+        exc_val: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
+        if exc_typ is not None:
+            self.decrement()
+
     async def __aenter__(self) -> Self:
         while not self.increment():
             await self._event.wait()
@@ -36,8 +49,7 @@ class RateLimiter:
         exc_val: BaseException | None,
         tb: TracebackType | None,
     ) -> None:
-        if exc_typ is not None:
-            self.decrement()
+        return self.__exit__(exc_typ, exc_val, tb)
 
     def _on_timer_done(self) -> None:
         self._count = 0

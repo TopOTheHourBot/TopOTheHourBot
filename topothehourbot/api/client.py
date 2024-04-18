@@ -273,14 +273,12 @@ class Client:
         else:
             command = ClientMessage(target, comment)
             room = target
-        limiter: RateLimiter
-        global_limiter = self._global_message_limiter
         if room in self.moderated_rooms:
-            global_limiter.increment()
-            limiter = self._local_message_limiter
-        else:
-            limiter = global_limiter
-        async with limiter:
+            with self._global_message_limiter:  # Do not wait on global limiter
+                async with self._local_message_limiter:
+                    await self.send(command)
+            return
+        async with self._global_message_limiter:
             await self.send(command)
 
     async def join(self, *rooms: str) -> None:
