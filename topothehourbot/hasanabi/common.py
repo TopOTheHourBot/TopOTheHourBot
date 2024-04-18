@@ -25,11 +25,11 @@ commands = (
     CommandGroup(prefix="$")
         .add_spec(
             name="ping",
-            spec=CommandSpec(role=Role.MODERATOR),
+            spec=CommandSpec(role=Role.VIP),
         )
         .add_spec(
             name="copy",
-            spec=CommandSpec(role=Role.MODERATOR)
+            spec=CommandSpec(role=Role.VIP)
                 .add_spec(
                     name="words",
                     spec=VariadicParamSpec(),
@@ -37,7 +37,7 @@ commands = (
         )
         .add_spec(
             name="code",
-            spec=CommandSpec(role=Role.MODERATOR)
+            spec=CommandSpec(role=Role.VIP)
                 .add_spec(
                     name="handles",
                     spec=VariadicParamSpec(factory=handle_factory)
