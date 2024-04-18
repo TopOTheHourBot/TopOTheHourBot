@@ -52,12 +52,12 @@ async def on_client_welcome(client: Client, command: Welcome) -> None:
 @checks.roomed(room)
 async def on_client_message(client: Client, command: ServerMessage) -> None:
     match commands.match(command):
-        case Match(name="ping"):
+        case Match(command="ping"):
             await client.message(command, f"{client.latency:.0f}ms")
-        case Match(name="copy", parameters={"words": words}):
+        case Match(command="copy", parameters={"words": words}):
             words = " ".join(cast(list[str], words))
             await client.message(command, words)
-        case Match(name="code", parameters={"handles": handles}):
+        case Match(command="code", parameters={"handles": handles}):
             handles = " ".join(cast(list[str], handles))
             await client.message(
                 command,

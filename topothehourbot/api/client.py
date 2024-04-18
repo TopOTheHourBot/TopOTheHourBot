@@ -16,6 +16,8 @@ from .utilities import CallbackReturn, RateLimiter, Signal
 from .websocket import (SupportsOnWebSocketConnect, SupportsOnWebSocketText,
                         WebSocket, WebSocketApp)
 
+# TODO: Add NOTICE handler to detect failed authentication
+
 
 @runtime_checkable
 class SupportsOnClientWelcome(Protocol):
@@ -144,7 +146,7 @@ class ClientApp(
     async def on_client_user_state(self, client: Client, command: UserState) -> None:
         moderated_rooms = self._moderated_rooms
         room = command.room
-        if not command.moderator:  # XXX: Is the moderator flag on if app == broadcaster?
+        if not command.moderator:
             moderated_rooms.discard(room)
         else:
             moderated_rooms.add(room)

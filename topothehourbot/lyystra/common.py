@@ -66,20 +66,20 @@ async def on_client_welcome(client: Client, command: Welcome) -> None:
 @checks.roomed(room)
 async def on_client_message(client: Client, command: ServerMessage) -> None:
     match commands.match(command):
-        case Match(name="ping"):
+        case Match(command="ping"):
             await client.message(command, f"{client.latency:.0f}ms")
-        case Match(name="kill"):
+        case Match(command="kill"):
             await client.message(command, "Closing client process...")
             await client.close()
-        case Match(name="join", parameters={"room": room}):
+        case Match(command="join", parameters={"room": room}):
             room = cast(str, room)
             await client.message(command, f"Joining {room}...")
             await client.join(room)
-        case Match(name="part", parameters={"room": room}):
+        case Match(command="part", parameters={"room": room}):
             room = cast(str, room)
             await client.message(command, f"Parting {room}...")
             await client.part(room)
-        case Match(name="message", parameters={"room": room, "words": words}):
+        case Match(command="message", parameters={"room": room, "words": words}):
             room = cast(str, room)
             comment = " ".join(cast(list[str], words))
             await client.message(command, f"Sending message to {room}...")

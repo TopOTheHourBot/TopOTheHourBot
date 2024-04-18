@@ -6,8 +6,8 @@ from collections.abc import AsyncIterable, Iterable
 from typing import Protocol, Self, runtime_checkable
 
 import websockets
-from websockets import ConnectionClosed, Data, WebSocketClientProtocol
-from websockets.frames import CloseCode
+from websockets import (ConnectionClosedError, ConnectionClosedOK, Data,
+                        WebSocketClientProtocol)
 
 from .utilities import CallbackReturn, Signal
 
@@ -84,10 +84,10 @@ class WebSocketApp:
                         self.binary_signal.maybe_run(websocket, data)
                     else:
                         self.text_signal.maybe_run(websocket, data)
-            except ConnectionClosed:
-                waiter = self.disconnect_signal.maybe_run(WebSocket(protocol, self))
-                if waiter:
-                    await waiter
+            except ConnectionClosedError:
+                continue
+            except ConnectionClosedOK:
+                break  # TODO: When to emit disconnect_signal?
 
 
 class WebSocket:
@@ -126,9 +126,5 @@ class WebSocket:
     ) -> None:
         await self._protocol.send(data)
 
-    async def close(
-        self,
-        code: int = CloseCode.NORMAL_CLOSURE,
-        reason: str = "",
-    ) -> None:
-        await self._protocol.close(code, reason)
+    async def close(self) -> None:
+        await self._protocol.close()
