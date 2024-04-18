@@ -2,23 +2,28 @@ from __future__ import annotations
 
 __all__ = ["walled", "roomed"]
 
-from collections.abc import Callable, Coroutine
-from typing import Any
+from collections.abc import Callable
 
 from ircv3.twitch import ServerJoin, ServerMessage, ServerPart, UserState
 
 from .client import Client
+from .utilities import CallbackReturn
 
 type RoomedCommand = ServerMessage | ServerJoin | ServerPart | UserState
 
 
 def walled[
-    ResultT: Coroutine[Any, Any, object] | None,
-]() -> Callable[[Callable[[Client, ServerMessage], ResultT]], Callable[[Client, ServerMessage], ResultT | None]]:
+    CallbackReturnT: CallbackReturn,
+]() -> Callable[[Callable[[Client, ServerMessage], CallbackReturnT]], Callable[[Client, ServerMessage], CallbackReturnT | None]]:
+    """Return a decorator that discards echoed messages
 
-    def walled_decorator(callback: Callable[[Client, ServerMessage], ResultT]) -> Callable[[Client, ServerMessage], ResultT | None]:
+    Note that this function is specific to ``PRIVMSG`` (``ServerMessage``)
+    handlers, as other commands are not echoed by the Twitch server.
+    """
 
-        def walled_wrapper(client: Client, command: ServerMessage) -> ResultT | None:
+    def walled_decorator(callback: Callable[[Client, ServerMessage], CallbackReturnT]) -> Callable[[Client, ServerMessage], CallbackReturnT | None]:
+
+        def walled_wrapper(client: Client, command: ServerMessage) -> CallbackReturnT | None:
             if client.name == command.sender.name:
                 return
             return callback(client, command)
@@ -33,13 +38,25 @@ def walled[
 
 def roomed[
     RoomedCommandT: RoomedCommand,
-    ResultT: Coroutine[Any, Any, object] | None,
-](*rooms: str) -> Callable[[Callable[[Client, RoomedCommandT], ResultT]], Callable[[Client, RoomedCommandT], ResultT | None]]:
+    CallbackReturnT: CallbackReturn,
+](*rooms: str) -> Callable[[Callable[[Client, RoomedCommandT], CallbackReturnT]], Callable[[Client, RoomedCommandT], CallbackReturnT | None]]:
+    """Return a decorator that discards messages from rooms not found within
+    the given list
+
+    Handler must be for a "roomed command", i.e., a server command whose first
+    argument is the room for which it applies in. The parser currently supports
+    the following roomed commands from the Twitch IRC dialect:
+    - ``PRIVMSG`` (``ServerMessage``)
+    - ``JOIN`` (``ServerJoin``)
+    - ``PART`` (``ServerPart``)
+    - ``ROOMSTATE`` (``RoomState``)
+    - ``USERSTATE`` (``UserState``)
+    """
     set = frozenset(rooms)
 
-    def roomed_decorator(callback: Callable[[Client, RoomedCommandT], ResultT]) -> Callable[[Client, RoomedCommandT], ResultT | None]:
+    def roomed_decorator(callback: Callable[[Client, RoomedCommandT], CallbackReturnT]) -> Callable[[Client, RoomedCommandT], CallbackReturnT | None]:
 
-        def roomed_wrapper(client: Client, command: RoomedCommandT) -> ResultT | None:
+        def roomed_wrapper(client: Client, command: RoomedCommandT) -> CallbackReturnT | None:
             if command.room not in set:
                 return
             return callback(client, command)
