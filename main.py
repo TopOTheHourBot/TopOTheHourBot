@@ -28,7 +28,7 @@ from topothehourbot.api import ClientApp
 logging.basicConfig(
     format="[%(asctime)s] [%(levelname)s] [%(name)s] [%(filename)s]"
            " [%(funcName)s] %(message)s",
-    level=logging.DEBUG,
+    level=logging.INFO,
     stream=sys.stdout,
 )
 
