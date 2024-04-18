@@ -73,18 +73,16 @@ async def on_client_message(client: Client, command: ServerMessage) -> None:
             await client.message(command, "Closing client process...")
             await client.close()
         case Match(command="join", parameters={"room": room}):
-            room = cast(str, room)
-            await client.message(command, f"Joining {room}...")
-            await client.join(room)
+            await client.join(cast(str, room))
         case Match(command="part", parameters={"room": room}):
-            room = cast(str, room)
-            await client.message(command, f"Parting {room}...")
-            await client.part(room)
+            await client.part(cast(str, room))
         case Match(command="message", parameters={"room": room, "words": words}):
             room = cast(str, room)
             comment = " ".join(cast(list[str], words))
-            await client.message(command, f"Sending message to {room}...")
-            await client.message(room, comment)
+            await client.message(
+                room,
+                f"{command.sender.handle} (sent from {command.room}): {comment}",
+            )
         case Match(command="moderated_rooms"):
             comment = ", ".join(client.moderated_rooms)
             await client.message(command, comment)

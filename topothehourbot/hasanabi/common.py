@@ -43,6 +43,14 @@ commands = (
                     spec=VariadicParamSpec(factory=handle_factory)
                 )
         )
+        .add_spec(
+            name="report",
+            spec=CommandSpec(role=Role.VIP)
+                .add_spec(
+                    name="words",
+                    spec=VariadicParamSpec(),
+                )
+        )
 )
 
 async def on_client_welcome(client: Client, command: Welcome) -> None:
@@ -55,13 +63,25 @@ async def on_client_message(client: Client, command: ServerMessage) -> None:
         case Match(command="ping"):
             await client.message(command, f"{client.latency:.0f}ms")
         case Match(command="copy", parameters={"words": words}):
-            words = " ".join(cast(list[str], words))
-            await client.message(command, words)
+            comment = " ".join(cast(list[str], words))
+            await client.message(command, comment)
         case Match(command="code", parameters={"handles": handles}):
-            handles = " ".join(cast(list[str], handles))
+            handles = cast(list[str], handles)
+            if handles:
+                comment_header = " ".join(handles) + " "
+            else:
+                comment_header = ""
             await client.message(
                 command,
-                f"{handles} Okayge You can find the bot's source code on GitHub: https://github.com/TopOTheHourBot/",
+                comment_header
+                + "Okayge You can find the bot's source code on GitHub: "
+                  "https://github.com/TopOTheHourBot/",
+            )
+        case Match(command="report", parameters={"words": words}):
+            comment = " ".join(cast(list[str], words))
+            await client.message(
+                "#lyystra",
+                f"{command.sender.handle} (sent from {command.room}): {comment}",
             )
         case ParameterError() as error:
             await client.message(command, error)

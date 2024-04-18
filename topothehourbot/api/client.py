@@ -70,6 +70,7 @@ class ClientApp(
         "_moderated_rooms",
         "oauth_token",
         "name",
+        "room",
         "connect_signal",
         "welcome_signal",
         "ping_signal",
@@ -83,6 +84,7 @@ class ClientApp(
     _moderated_rooms: set[str]
     oauth_token: str
     name: str
+    room: str
     connect_signal: Signal[[Client]]
     welcome_signal: Signal[[Client, Welcome]]
     ping_signal: Signal[[Client, Ping]]
@@ -94,9 +96,10 @@ class ClientApp(
 
     def __init__(self, *, oauth_token: str, name: str) -> None:
         self._app = WebSocketApp().add_callbacks(self)
-        self._moderated_rooms = {"#" + name,}  # Client is always a moderator of their own room
+        self._moderated_rooms = {"#" + name}
         self.oauth_token = oauth_token
         self.name = name
+        self.room = "#" + name
         self.connect_signal = Signal()
         self.welcome_signal = Signal()
         self.ping_signal = Signal()
@@ -145,7 +148,7 @@ class ClientApp(
     @override
     def on_client_user_state(self, client: Client, command: UserState) -> None:
         room = command.room
-        if room.endswith(self.name):
+        if room == self.room:
             return
         moderated_rooms = self._moderated_rooms
         if not command.moderator:
@@ -249,6 +252,10 @@ class Client:
     @property
     def name(self) -> str:
         return self.app.name
+
+    @property
+    def room(self) -> str:
+        return self.app.room
 
     @property
     def moderated_rooms(self) -> Set[str]:
