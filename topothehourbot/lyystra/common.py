@@ -57,6 +57,7 @@ commands = (
                     spec=VariadicParamSpec(),
                 )
         )
+        .add_spec(name="moderated_rooms")
 )
 
 async def on_client_welcome(client: Client, command: Welcome) -> None:
@@ -84,6 +85,9 @@ async def on_client_message(client: Client, command: ServerMessage) -> None:
             comment = " ".join(cast(list[str], words))
             await client.message(command, f"Sending message to {room}...")
             await client.message(room, comment)
+        case Match(command="moderated_rooms"):
+            comment = ", ".join(client.moderated_rooms)
+            await client.message(command, comment)
         case CommandError() as error:
             await client.message(command, error)
         case _:
