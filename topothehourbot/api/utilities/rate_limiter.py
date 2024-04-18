@@ -67,21 +67,19 @@ class RateLimiter:
         timer = self._timer
         if timer is None:
             return
-        return max(
-            timer.when() - asyncio.get_running_loop().time(),
-            0,
-        )
+        loop = asyncio.get_running_loop()
+        return max(timer.when() - loop.time(), 0)
 
     def increment(self) -> bool:
         count = self._count
         if count == self.max_count:
             return False
         if count == 0:
-            loop = asyncio.get_running_loop()
             self._event.clear()
-            self._timer = loop.call_at(
-                loop.time() + self.time_off,
-                self._on_timer_done,
+            self._timer = (
+                asyncio
+                    .get_running_loop()
+                    .call_later(self.time_off, self._on_timer_done)
             )
         self._count = count + 1
         return True
