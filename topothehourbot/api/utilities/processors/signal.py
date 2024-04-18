@@ -28,24 +28,20 @@ class Signal[**ParamTs](Processor[ParamTs, None]):
     @override
     async def process(self, *args: ParamTs.args, **kwargs: ParamTs.kwargs) -> None:
         """Dispatch all callbacks as a task and await their returns"""
-        timeout = self.timeout
-        coros = list[Coroutine[Any, Any, None]]()
+        loop = asyncio.get_running_loop()
 
+        tasks = list[Task[None]]()
         for callback in self._callbacks:
             coro = callback(*args, **kwargs)
             if coro is None:
                 continue
-            if timeout:  # timeout is not None and is non-zero
-                coro = asyncio.wait_for(coro, timeout=timeout)
-            coros.append(coro)
+            task = loop.create_task(coro)
+            tasks.append(task)
 
-        if not coros:  # Early return if none of the callbacks gave us a
-            return     # coroutine
+        if not tasks:
+            return
 
-        loop = asyncio.get_running_loop()
-        tasks = [loop.create_task(coro) for coro in coros]
-
-        for waiter in asyncio.as_completed(tasks):
+        for waiter in asyncio.as_completed(tasks, timeout=self.timeout):
             try:
                 await waiter
             except CancelledError:
@@ -53,7 +49,7 @@ class Signal[**ParamTs](Processor[ParamTs, None]):
                     task.cancel()
                 raise
             except TimeoutError:
-                logging.exception("Callback timed out during Signal processing")
+                logging.exception("Signal process timed out")
             except Exception:
                 logging.exception("Callback excepted during Signal processing")
 
