@@ -91,8 +91,8 @@ class Rating:
 
 @checks.walled()
 @checks.roomed(room)
-async def on_client_message(client: Client, message: ServerMessage) -> None:
-    rating = Rating.from_message(message)
+async def on_client_message(client: Client, command: ServerMessage) -> None:
+    rating = Rating.from_message(command)
     if rating is None:
         return
 
@@ -108,8 +108,8 @@ async def on_client_message(client: Client, message: ServerMessage) -> None:
 
         @checks.walled()
         @checks.roomed(room)
-        def send(_: Client, message: ServerMessage) -> None:
-            rating = Rating.from_message(message)
+        def send(client: Client, command: ServerMessage) -> None:
+            rating = Rating.from_message(command)
             if rating is not None:
                 ratings.send(rating)
 

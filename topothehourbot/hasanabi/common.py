@@ -50,20 +50,20 @@ async def on_client_welcome(client: Client, command: Welcome) -> None:
 
 @checks.walled()
 @checks.roomed(room)
-async def on_client_message(client: Client, message: ServerMessage) -> None:
-    match commands.match(message):
+async def on_client_message(client: Client, command: ServerMessage) -> None:
+    match commands.match(command):
         case Match(name="ping"):
-            await client.message(message, f"{client.latency:.0f}ms")
+            await client.message(command, f"{client.latency:.0f}ms")
         case Match(name="copy", parameters={"words": words}):
             words = " ".join(cast(list[str], words))
-            await client.message(message, words)
+            await client.message(command, words)
         case Match(name="code", parameters={"handles": handles}):
             handles = " ".join(cast(list[str], handles))
             await client.message(
-                message,
+                command,
                 f"{handles} Okayge You can find the bot's source code on GitHub: https://github.com/TopOTheHourBot/",
             )
         case ParameterError() as error:
-            await client.message(message, error)
+            await client.message(command, error)
         case _:
             return
