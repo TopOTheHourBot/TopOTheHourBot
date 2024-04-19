@@ -13,7 +13,7 @@ from ircv3.twitch import (ClientJoin, ClientMessage, ClientPart,
 
 from .parser import ServerCommandParser
 from .utilities import CallbackReturn, RateLimiter, Signal
-from .websocket import (SupportsOnWebSocketConnect, SupportsOnWebSocketText,
+from .websocket import (SupportsOnWebSocketConnect, SupportsOnWebSocketData,
                         WebSocket, WebSocketApp)
 
 # TODO: Add NOTICE handler to detect failed authentication
@@ -60,7 +60,7 @@ type SupportsClientCallback = (
 
 class ClientApp(
     SupportsOnWebSocketConnect,
-    SupportsOnWebSocketText,
+    SupportsOnWebSocketData,
     SupportsOnClientPing,
     SupportsOnClientUserState,
 ):
@@ -123,8 +123,9 @@ class ClientApp(
             await waiter
 
     @override
-    async def on_websocket_text(self, websocket: WebSocket, text: str) -> None:
-        for command in ServerCommandParser(text):
+    async def on_websocket_data(self, websocket: WebSocket, data: str | bytes) -> None:
+        assert isinstance(data, str)  # Twitch server only sends text frames
+        for command in ServerCommandParser(data):
             client = Client(websocket, self)
             if isinstance(command, ServerMessage):
                 self.message_signal.maybe_run(client, command)
@@ -297,5 +298,5 @@ class Client:
     async def part(self, *rooms: str) -> None:
         await self.send(ClientPart(*rooms))
 
-    async def close(self) -> None:
-        await self._websocket.close()
+    async def close(self, code: int = 1000, reason: str = "") -> None:
+        await self._websocket.close(code, reason)
