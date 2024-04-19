@@ -127,42 +127,42 @@ async def on_client_message(client: Client, command: ServerMessage) -> None:
                     )
             )
 
-    if count < 40:
-        return
+        if count < 40:
+            return
 
-    mean = sum / count
+        mean = sum / count
 
-    if mean <= 5:
-        if mean <= 2.5:
-            reactions = (
-                "yikes, hassy .. unPOGGERS",
-                "awful one, hassy :(",
-                "that wasn't very, uhm .. good, hassy Concerned",
-            )
+        if mean <= 5:
+            if mean <= 2.5:
+                reactions = (
+                    "yikes, hassy .. unPOGGERS",
+                    "awful one, hassy :(",
+                    "that wasn't very, uhm .. good, hassy Concerned",
+                )
+            else:
+                reactions = (
+                    "sorry, hassy .. :/",
+                    "uhm .. good try, hassy PoroSad",
+                    "not .. great, hassy .. Okayyy Clap",
+                )
         else:
-            reactions = (
-                "sorry, hassy .. :/",
-                "uhm .. good try, hassy PoroSad",
-                "not .. great, hassy .. Okayyy Clap",
-            )
-    else:
-        if mean <= 7.5:
-            reactions = (
-                "not bad, hassy ! :D",
-                "nice, hassy ! peepoPog Clap",
-                "good one, hassy ! hasScoot",
-            )
-        else:
-            reactions = (
-                "incredible, hassy !! pepoDance",
-                "holy smokes, hassy !! :O",
-                "wowieee, hassy !! peepoExcite",
-            )
+            if mean <= 7.5:
+                reactions = (
+                    "not bad, hassy ! :D",
+                    "nice, hassy ! peepoPog Clap",
+                    "good one, hassy ! hasScoot",
+                )
+            else:
+                reactions = (
+                    "incredible, hassy !! pepoDance",
+                    "holy smokes, hassy !! :O",
+                    "wowieee, hassy !! peepoExcite",
+                )
 
-    reaction = random.choice(reactions)
+        reaction = random.choice(reactions)
 
-    await client.message(
-        room,
-        f"DANKIES 🔔 {count:,d} chatters rated this ad segue an average of"
-        f" {mean:.2f}/10 - {reaction}",
-    )
+        await client.message(
+            room,
+            f"DANKIES 🔔 {count:,d} chatters rated this ad segue an average of"
+            f" {mean:.2f}/10 - {reaction}",
+        )
