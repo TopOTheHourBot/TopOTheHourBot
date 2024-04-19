@@ -75,6 +75,10 @@ class WebSocketApp:
             else:
                 close_code = protocol.close_code
                 if close_code == 1000:
+                    websocket = WebSocket(protocol, self)
+                    waiter = self.disconnect_signal.maybe_run(websocket)
+                    if waiter:
+                        await waiter
                     return
                 if close_code == 1001:
                     continue

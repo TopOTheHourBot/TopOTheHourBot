@@ -26,7 +26,7 @@ commands = (
     CommandGroup()
         .add_spec(
             name="ping",
-            spec=CommandSpec(role=Role.NONE)
+            spec=CommandSpec(role=Role.MODERATOR)
         )
         .add_spec(name="kill")
         .add_spec(name="restart")
