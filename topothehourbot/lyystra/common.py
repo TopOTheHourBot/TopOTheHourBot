@@ -29,6 +29,7 @@ commands = (
             spec=CommandSpec(role=Role.NONE)
         )
         .add_spec(name="kill")
+        .add_spec(name="restart")
         .add_spec(
             name="join",
             spec=CommandSpec()
@@ -72,6 +73,9 @@ async def on_client_message(client: Client, command: ServerMessage) -> None:
         case Match(command="kill"):
             await client.message(command, "Closing client process...")
             await client.close()
+        case Match(command="restart"):
+            await client.message(command, "Restarting client process...")
+            await client.close(1001)
         case Match(command="join", parameters={"room": room}):
             await client.join(cast(str, room))
         case Match(command="part", parameters={"room": room}):
