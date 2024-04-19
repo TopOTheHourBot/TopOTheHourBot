@@ -7,6 +7,7 @@ import logging
 from asyncio import CancelledError, Task
 from collections.abc import Callable, Coroutine, Iterator
 from contextlib import AbstractContextManager, contextmanager
+from logging import Logger
 from typing import Any, Literal, Self, overload, override
 
 from .processor import Processor
@@ -17,14 +18,16 @@ type Callback[**ParamTs] = Callable[ParamTs, CallbackReturn]
 
 class Signal[**ParamTs](Processor[ParamTs, None]):
 
-    __slots__ = ("_callbacks", "timeout")
+    __slots__ = ("_callbacks", "timeout", "logger")
     _callbacks: set[Callback[ParamTs]]
     timeout: float | None
+    logger: Logger
 
-    def __init__(self, timeout: float | None = None) -> None:
+    def __init__(self, timeout: float | None = None, logger: Logger | None = None) -> None:
         super().__init__()
         self._callbacks = set()
         self.timeout = timeout
+        self.logger = logging.getLogger(__name__) if logger is None else logger
 
     @override
     async def process(self, *args: ParamTs.args, **kwargs: ParamTs.kwargs) -> None:
@@ -50,9 +53,9 @@ class Signal[**ParamTs](Processor[ParamTs, None]):
                     task.cancel()
                 raise
             except TimeoutError:
-                logging.exception("Signal process timed out")
+                self.logger.exception("Signal process timed out")
             except Exception:
-                logging.exception("Callback excepted during Signal processing")
+                self.logger.exception("Callback excepted during Signal process")
 
     def callback(self, callback: Callback[ParamTs]) -> Callback[ParamTs]:
         """Decorate a callback to schedule upon the signal's emission"""
