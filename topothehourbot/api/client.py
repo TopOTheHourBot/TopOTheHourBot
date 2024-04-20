@@ -2,21 +2,21 @@ from __future__ import annotations
 
 __all__ = ["ClientApp", "Client"]
 
+import logging
 from collections import defaultdict
 from collections.abc import Set
+from logging import Logger
 from typing import Protocol, Self, override, runtime_checkable
 
 from ircv3.common import Ping, Welcome
 from ircv3.twitch import (ClientJoin, ClientMessage, ClientPart,
-                          GlobalUserState, ServerJoin, ServerMessage,
+                          GlobalUserState, Notice, ServerJoin, ServerMessage,
                           ServerPart, UserState)
 
 from .parser import ServerCommandParser
 from .utilities import CallbackReturn, RateLimiter, Signal
 from .websocket import (SupportsOnWebSocketConnect, SupportsOnWebSocketData,
                         WebSocket, WebSocketApp)
-
-# TODO: Add NOTICE handler to detect failed authentication
 
 
 @runtime_checkable
@@ -47,6 +47,10 @@ class SupportsOnClientUserState(Protocol):
 class SupportsOnClientGlobalUserState(Protocol):
     def on_client_global_user_state(self, client: Client, command: GlobalUserState, /) -> CallbackReturn: ...
 
+@runtime_checkable
+class SupportsOnClientNotice(Protocol):
+    def on_client_notice(self, client: Client, command: Notice, /) -> CallbackReturn: ...
+
 type SupportsClientCallback = (
     SupportsOnClientWelcome
     | SupportsOnClientPing
@@ -55,6 +59,7 @@ type SupportsClientCallback = (
     | SupportsOnClientPart
     | SupportsOnClientUserState
     | SupportsOnClientGlobalUserState
+    | SupportsOnClientNotice
 )
 
 
@@ -63,6 +68,7 @@ class ClientApp(
     SupportsOnWebSocketData,
     SupportsOnClientPing,
     SupportsOnClientUserState,
+    SupportsOnClientNotice,
 ):
 
     __slots__ = (
@@ -71,6 +77,7 @@ class ClientApp(
         "oauth_token",
         "name",
         "room",
+        "logger",
         "connect_signal",
         "welcome_signal",
         "ping_signal",
@@ -85,6 +92,7 @@ class ClientApp(
     oauth_token: str
     name: str
     room: str
+    logger: Logger
     connect_signal: Signal[[Client]]
     welcome_signal: Signal[[Client, Welcome]]
     ping_signal: Signal[[Client, Ping]]
@@ -93,13 +101,15 @@ class ClientApp(
     part_signal: Signal[[Client, ServerPart]]
     user_state_signal: Signal[[Client, UserState]]
     global_user_state_signal: Signal[[Client, GlobalUserState]]
+    notice_signal: Signal[[Client, Notice]]
 
-    def __init__(self, *, oauth_token: str, name: str) -> None:
+    def __init__(self, *, oauth_token: str, name: str, logger: Logger | None = None) -> None:
         self._app = WebSocketApp().add_callbacks(self)
         self._moderated_rooms = {"#" + name}
         self.oauth_token = oauth_token
         self.name = name
         self.room = "#" + name
+        self.logger = logging.getLogger(__name__) if logger is None else logger
         self.connect_signal = Signal()
         self.welcome_signal = Signal()
         self.ping_signal = Signal()
@@ -108,6 +118,7 @@ class ClientApp(
         self.part_signal = Signal()
         self.user_state_signal = Signal()
         self.global_user_state_signal = Signal()
+        self.notice_signal = Signal()
         self.add_callbacks(self)
 
     @property
@@ -156,6 +167,21 @@ class ClientApp(
             moderated_rooms.discard(room)
         else:
             moderated_rooms.add(room)
+
+    @override
+    def on_client_notice(self, client: Client, command: Notice) -> None:
+        match command.comment:
+            case "Login authentication failed":
+                self.logger.critical(
+                    "Authentication failed; check that your login name and "
+                    "access token is correct",
+                )
+            case "You don’t have permission to perform that action":
+                self.logger.critical(
+                    "No permission; check that your access token is correct",
+                )
+            case _:
+                return
 
     def add_callbacks(self, suite: SupportsClientCallback) -> Self:
         if isinstance(suite, SupportsOnClientWelcome):

@@ -4,12 +4,13 @@ __all__ = ["walled", "roomed"]
 
 from collections.abc import Callable
 
-from ircv3.twitch import ServerJoin, ServerMessage, ServerPart, UserState
+from ircv3.twitch import (Notice, ServerJoin, ServerMessage, ServerPart,
+                          UserState)
 
 from .client import Client
 from .utilities import CallbackReturn
 
-type RoomedCommand = ServerMessage | ServerJoin | ServerPart | UserState
+type RoomedCommand = ServerMessage | ServerJoin | ServerPart | UserState | Notice
 
 
 def walled[
@@ -51,6 +52,7 @@ def roomed[
     - ``PART`` (``ServerPart``)
     - ``ROOMSTATE`` (``RoomState``)
     - ``USERSTATE`` (``UserState``)
+    - ``NOTICE`` (``Notice``)
     """
     set = frozenset(rooms)
 

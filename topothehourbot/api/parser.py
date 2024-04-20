@@ -7,7 +7,7 @@ from typing import Final, Self, cast
 
 from ircv3 import Command
 from ircv3.common import Ping, Welcome
-from ircv3.twitch import (GlobalUserState, RoomState, ServerJoin,
+from ircv3.twitch import (GlobalUserState, Notice, RoomState, ServerJoin,
                           ServerMessage, ServerPart, UserState)
 
 type ServerCommand = (
@@ -18,6 +18,7 @@ type ServerCommand = (
     | ServerPart
     | GlobalUserState
     | UserState
+    | Notice
     | Welcome
 )
 
@@ -32,6 +33,7 @@ class ServerCommandParser(Iterator[ServerCommand]):
         "PART": ServerPart,
         "GLOBALUSERSTATE": GlobalUserState,
         "USERSTATE": UserState,
+        "NOTICE": Notice,
         "001": Welcome,
     }
 
