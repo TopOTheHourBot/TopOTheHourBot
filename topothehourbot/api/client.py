@@ -6,7 +6,7 @@ import logging
 from collections import defaultdict
 from collections.abc import Set
 from logging import Logger
-from typing import Protocol, Self, override, runtime_checkable
+from typing import Protocol, Self, runtime_checkable
 
 from ircv3.common import Ping, Welcome
 from ircv3.twitch import (ClientJoin, ClientMessage, ClientPart,
@@ -15,8 +15,7 @@ from ircv3.twitch import (ClientJoin, ClientMessage, ClientPart,
 
 from .parser import ServerCommandParser
 from .utilities import CallbackReturn, RateLimiter, Signal
-from .websocket import (SupportsOnWebSocketConnect, SupportsOnWebSocketData,
-                        WebSocket, WebSocketApp)
+from .websocket import WebSocket, WebSocketApp
 
 
 @runtime_checkable
@@ -63,13 +62,7 @@ type SupportsClientCallback = (
 )
 
 
-class ClientApp(
-    SupportsOnWebSocketConnect,
-    SupportsOnWebSocketData,
-    SupportsOnClientPing,
-    SupportsOnClientUserState,
-    SupportsOnClientNotice,
-):
+class ClientApp:
 
     __slots__ = (
         "_app",
@@ -86,6 +79,7 @@ class ClientApp(
         "part_signal",
         "user_state_signal",
         "global_user_state_signal",
+        "notice_signal",
     )
     _app: WebSocketApp
     _moderated_rooms: set[str]
@@ -125,7 +119,6 @@ class ClientApp(
     def moderated_rooms(self) -> Set[str]:
         return self._moderated_rooms
 
-    @override
     async def on_websocket_connect(self, websocket: WebSocket) -> None:
         client = Client(websocket, self)
         await client.authenticate()
@@ -133,7 +126,6 @@ class ClientApp(
         if waiter:
             await waiter
 
-    @override
     async def on_websocket_data(self, websocket: WebSocket, data: str | bytes) -> None:
         assert isinstance(data, str)  # Twitch server only sends text frames
         for command in ServerCommandParser(data):
@@ -155,11 +147,9 @@ class ClientApp(
             elif isinstance(command, Welcome):
                 self.welcome_signal.maybe_run(client, command)
 
-    @override
     async def on_client_ping(self, client: Client, command: Ping) -> None:
         await client.pong(command)
 
-    @override
     def on_client_user_state(self, client: Client, command: UserState) -> None:
         room = command.room
         if room == self.room:
@@ -170,7 +160,6 @@ class ClientApp(
         else:
             moderated_rooms.add(room)
 
-    @override
     async def on_client_notice(self, client: Client, command: Notice) -> None:
         match command.comment:
             case "Login authentication failed":
