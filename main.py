@@ -26,8 +26,7 @@ from topothehourbot import hasanabi, lyystra
 from topothehourbot.api import ClientApp
 
 logging.basicConfig(
-    format="[%(asctime)s] [%(levelname)s] [%(name)s] [%(filename)s]"
-           " [%(funcName)s] %(message)s",
+    format="[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s",
     level=logging.INFO,
     stream=sys.stdout,
 )

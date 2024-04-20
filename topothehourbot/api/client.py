@@ -146,6 +146,8 @@ class ClientApp(
                 self.global_user_state_signal.maybe_run(client, command)
             elif isinstance(command, Ping):
                 self.ping_signal.run(client, command)
+            elif isinstance(command, Notice):
+                self.notice_signal.run(client, command)
             elif isinstance(command, ServerJoin):
                 self.join_signal.maybe_run(client, command)
             elif isinstance(command, ServerPart):
@@ -169,17 +171,19 @@ class ClientApp(
             moderated_rooms.add(room)
 
     @override
-    def on_client_notice(self, client: Client, command: Notice) -> None:
+    async def on_client_notice(self, client: Client, command: Notice) -> None:
         match command.comment:
             case "Login authentication failed":
                 self.logger.critical(
                     "Authentication failed; check that your login name and "
                     "access token is correct",
                 )
+                await client.close()
             case "You don’t have permission to perform that action":
                 self.logger.critical(
                     "No permission; check that your access token is correct",
                 )
+                await client.close()
             case _:
                 return
 
@@ -198,6 +202,8 @@ class ClientApp(
             self.user_state_signal.add_callback(suite.on_client_user_state)
         if isinstance(suite, SupportsOnClientGlobalUserState):
             self.global_user_state_signal.add_callback(suite.on_client_global_user_state)
+        if isinstance(suite, SupportsOnClientNotice):
+            self.notice_signal.add_callback(suite.on_client_notice)
         return self
 
     def remove_callbacks(self, suite: SupportsClientCallback) -> Self:
@@ -215,6 +221,8 @@ class ClientApp(
             self.user_state_signal.remove_callback(suite.on_client_user_state)
         if isinstance(suite, SupportsOnClientGlobalUserState):
             self.global_user_state_signal.remove_callback(suite.on_client_global_user_state)
+        if isinstance(suite, SupportsOnClientNotice):
+            self.notice_signal.remove_callback(suite.on_client_notice)
         return self
 
     async def run(self) -> None:
