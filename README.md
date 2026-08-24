@@ -1,5 +1,8 @@
 # TopOTheHourBot
 
+> [!NOTE]
+> As many have probably noticed by now, **this project has been abandoned**. I've not had time to keep up with Hasan or changes to the Twitch chat API. Apologies to anyone that wanted to see this project's continued development.
+
 TopOTheHourBot is a simple Twitch IRC bot that only runs in [HasanAbi](https://www.twitch.tv/hasanabi)'s chat. Its primary function is to average ratings given by chatters when Hasan performs an ad segue.
 
 ![](./assets/header.png)
